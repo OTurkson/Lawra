@@ -37,7 +37,7 @@ public class User {
     private LocalDateTime updatedAt;
 
 
-//        UNDERSTAND THESE, AND FIND OUT IF "THIS" KEYWORD IS NECESSARY FOR THE VARIABLES UNDER THIS
+//  UNDERSTAND THESE, AND FIND OUT IF "THIS" KEYWORD IS NECESSARY FOR THE VARIABLES UNDER THIS
     @PrePersist
     public void prePersist() {
         createdAt = LocalDateTime.now();
