@@ -2,11 +2,13 @@ package com.lawra.backend.model;
 
 import com.lawra.backend.enums.UserRole;
 import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name="users") //users
+@Table(name="users") //users because MySQL has a default user table
 public class User {
 
     @Id
@@ -33,20 +35,12 @@ public class User {
     @Column(length = 100)
     private String organizationCode;
 
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(nullable = false)
     private LocalDateTime updatedAt;
-
-
-//  UNDERSTAND THESE, AND FIND OUT IF "THIS" KEYWORD IS NECESSARY FOR THE VARIABLES UNDER THIS
-    @PrePersist
-    public void prePersist() {
-        createdAt = LocalDateTime.now();
-        updatedAt = createdAt;
-    }
-
-    @PreUpdate
-    public void preUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 
 }
