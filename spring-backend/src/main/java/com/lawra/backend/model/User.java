@@ -24,6 +24,10 @@ public class User {
     @Column(nullable = false, length = 150)
     private String fullName;
 
+//    Tenant associated with a particular user
+    @OneToOne (cascade = CascadeType.ALL)
+    private Tenant tenant;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role; // Role from UserRole enum

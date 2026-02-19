@@ -2,8 +2,7 @@ package com.lawra.backend.controller;
 
 import org.springframework.web.bind.annotation.RestController;
 
-// VIRTUAL BANKS
 @RestController
-public class LenderController {
-//    Create, get (list), update, delete VB
+public class TenantController {
+//    CREATE, LIST/GET, UPDATE, DELETE
 }
