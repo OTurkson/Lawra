@@ -26,7 +26,7 @@ public class User {
 
 //    Tenant associated with a particular user
     @OneToOne (cascade = CascadeType.ALL)
-    private Tenant tenant;
+    private Tenant organization;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
