@@ -17,12 +17,13 @@ public class VirtualBank {
     @Column(nullable = false, unique = true, length = 150)
     private String name;
 
-    //    Tenant associated with a particular user
+    //    User who created Virtual Bank
+    @OneToOne(cascade = CascadeType.ALL)
+    private User createdBy;
+
+    //    Tenant associated with a particular bank which is in turn associated with a user
     @OneToOne(cascade = CascadeType.ALL)
     private Tenant organization;
-
-    @OneToOne(cascade = CascadeType.ALL)
-    private User user;
 
     @Column(length = 100)
     private double balance;

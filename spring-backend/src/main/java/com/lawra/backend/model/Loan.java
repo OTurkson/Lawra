@@ -9,23 +9,24 @@ import java.time.LocalDateTime;
 
 @Entity
 public class Loan {
-//    include tenant id. all loans belong to a tenant
+    //    include tenant id. all loans belong to a tenant
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(nullable = false, unique = true, length = 150)
-    private String email;
-
-    @Column(nullable = false, length = 150)
-    private String fullName;
 
     //    Tenant associated with a particular user
     @OneToOne (cascade = CascadeType.ALL)
     private Tenant tenant;
 
-    @Column(nullable = false)
-    private String phoneNumber;
+    @Column(nullable = false, unique = true, length = 150)
+    private double amount;
+
+    @Column(nullable = false, length = 150)
+    private double interestRate;
+
+    @ManyToOne(optional = false)
+    @JoinColumn(nullable = false)
+    private User borrower;
 
     //    Code for the organization the borrower belongs to (tenant)
     @Column(length = 100)
@@ -38,6 +39,4 @@ public class Loan {
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
-
-
 }
