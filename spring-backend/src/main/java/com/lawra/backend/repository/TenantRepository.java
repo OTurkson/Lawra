@@ -1,4 +1,7 @@
 package com.lawra.backend.repository;
 
-public interface TenantRepository {
+import com.lawra.backend.model.Tenant;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface TenantRepository extends JpaRepository<Tenant, Long> {
 }

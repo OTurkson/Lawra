@@ -2,7 +2,9 @@ package com.lawra.backend.model;
 
 
 import com.lawra.backend.enums.LoanPeriod;
+import com.lawra.backend.enums.LoanStatus;
 import jakarta.persistence.*;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -10,7 +12,12 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+@Getter
+@Setter
 @Entity
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Builder
 public class Loan {
     //    include tenant id. all loans belong to a tenant
     @Id
@@ -18,7 +25,8 @@ public class Loan {
     private Long id;
 
     //    Loan Package the loan comes from
-    @OneToOne (cascade = CascadeType.ALL)
+    @ManyToOne
+    @JoinColumn(nullable = false)
     private LoanPackage loanPackage;
 
     // Principal amount at approval time
@@ -46,6 +54,12 @@ public class Loan {
     @ManyToOne(optional = false)
     @JoinColumn(nullable = false)
     private User borrower;
+
+//    loan status
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private LoanStatus status =  LoanStatus.PENDING;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

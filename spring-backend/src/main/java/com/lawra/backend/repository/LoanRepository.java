@@ -1,4 +1,7 @@
 package com.lawra.backend.repository;
 
-public interface LoanRepository {
+import com.lawra.backend.model.Loan;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface LoanRepository extends JpaRepository<Loan, Long> {
 }
