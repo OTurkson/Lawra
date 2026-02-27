@@ -1,10 +1,13 @@
 package com.lawra.backend.model;
 
 
+import com.lawra.backend.enums.LoanPeriod;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -14,23 +17,35 @@ public class Loan {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    //    Tenant associated with a particular user
+    //    Loan Package the loan comes from
     @OneToOne (cascade = CascadeType.ALL)
-    private Tenant tenant;
+    private LoanPackage loanPackage;
 
-    @Column(nullable = false, unique = true, length = 150)
-    private double amount;
+    // Principal amount at approval time
+    @Column(nullable = false, precision = 19, scale = 4)
+    private BigDecimal principalAmount;
 
-    @Column(nullable = false, length = 150)
-    private double interestRate;
+    // Interest rate at the time of loan approval (per annum)
+    @Column(nullable = false, precision = 5, scale = 4)
+    private BigDecimal interestRate;
 
+    // Loan duration
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private LoanPeriod period;
+
+    // Final repayment amount (principal + interest)
+    @Column(nullable = false, precision = 19, scale = 4)
+    private BigDecimal totalRepaymentAmount;
+
+    // Loan due date (derived from period but stored for stability)
+    @Column(nullable = false)
+    private LocalDate dueDate;
+
+//    user and time created/updated
     @ManyToOne(optional = false)
     @JoinColumn(nullable = false)
     private User borrower;
-
-    //    Code for the organization the borrower belongs to (tenant)
-    @Column(length = 100)
-    private String organizationCode;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

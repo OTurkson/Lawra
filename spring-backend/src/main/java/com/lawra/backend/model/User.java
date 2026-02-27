@@ -2,11 +2,15 @@ package com.lawra.backend.model;
 
 import com.lawra.backend.enums.UserRole;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
+@Getter
+@Setter
 @Entity
 @Table(name="users") //users because MySQL has a default user table
 public class User {
@@ -24,6 +28,9 @@ public class User {
     @Column(nullable = false, length = 150)
     private String fullName;
 
+    @Column(nullable = false)
+    private String phoneNumber;
+
 //    Tenant associated with a particular user
     @OneToOne (cascade = CascadeType.ALL)
     private Tenant organization;
@@ -31,13 +38,6 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role; // Role from UserRole enum
-
-    @Column(nullable = false)
-    private String phoneNumber;
-
-//    Code for the organization the borrower belongs to (tenant)
-    @Column(length = 100)
-    private String organizationCode;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

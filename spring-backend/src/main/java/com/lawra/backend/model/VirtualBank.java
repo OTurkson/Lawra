@@ -5,8 +5,10 @@ import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+@Entity
 public class VirtualBank {
 //    include tenant id. each virtual bank belongs to a tenant
 //    same thing for user_id
@@ -25,8 +27,8 @@ public class VirtualBank {
     @OneToOne(cascade = CascadeType.ALL)
     private Tenant organization;
 
-    @Column(length = 100)
-    private double balance;
+    @Column(length = 100, precision = 14, scale = 2)
+    private BigDecimal balance;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
