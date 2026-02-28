@@ -2,13 +2,22 @@ package com.lawra.backend.model;
 
 import com.lawra.backend.enums.UserRole;
 import jakarta.persistence.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import jakarta.persistence.Table;
+import org.hibernate.annotations.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "virtual_banks")
+@FilterDef(
+    name = "tenantFilter",
+    parameters = @ParamDef(name = "tenantId", type = Long.class)
+)
+@Filter(
+    name = "tenantFilter",
+    condition = "tenant_id = :tenantId"
+)
 public class VirtualBank {
 //    include tenant id. each virtual bank belongs to a tenant
 //    same thing for user_id
@@ -20,12 +29,14 @@ public class VirtualBank {
     private String name;
 
     //    User who created Virtual Bank
-    @OneToOne(cascade = CascadeType.ALL)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_id", nullable = false)
     private User createdBy;
 
     //    Tenant associated with a particular bank which is in turn associated with a user
-    @OneToOne(cascade = CascadeType.ALL)
-    private Tenant organization;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tenant_id", nullable = false)
+    private Tenant tenant;
 
     @Column(length = 100, precision = 14, scale = 2)
     private BigDecimal balance;

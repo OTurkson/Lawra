@@ -2,7 +2,6 @@ package com.lawra.backend.controller;
 
 import com.lawra.backend.model.Loan;
 import com.lawra.backend.service.BorrowerService;
-import com.lawra.backend.service.LoanService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
