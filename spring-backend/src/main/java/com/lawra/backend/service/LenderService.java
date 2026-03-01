@@ -17,4 +17,9 @@ public class LenderService {
         return lenderRepository.findAll();
     }
 
+    //    Create new Virtual Bank
+    public VirtualBank createVirtualBank(VirtualBank virtualBank) {
+        return lenderRepository.save(virtualBank);
+    }
+
 }

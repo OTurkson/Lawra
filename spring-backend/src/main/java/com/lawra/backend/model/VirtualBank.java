@@ -1,13 +1,17 @@
 package com.lawra.backend.model;
 
-import com.lawra.backend.enums.UserRole;
 import jakarta.persistence.*;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
+
 import org.hibernate.annotations.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+@Getter
+@Setter
 @Entity
 @Table(name = "virtual_banks")
 @FilterDef(

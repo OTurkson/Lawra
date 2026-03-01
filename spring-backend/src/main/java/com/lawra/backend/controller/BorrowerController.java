@@ -4,6 +4,7 @@ import com.lawra.backend.model.Loan;
 import com.lawra.backend.service.BorrowerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,8 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class BorrowerController {
     private final BorrowerService borrowerService;
 
-//    request loan
+//    request loan - Only BORROWER role can create loan requests
     @PostMapping
+    @PreAuthorize("hasRole('BORROWER')")
     public ResponseEntity<Loan> createLoan(@RequestBody Loan loanRequest) {
         Loan loan = borrowerService.createLoan(loanRequest);
         return ResponseEntity.ok(loan);
