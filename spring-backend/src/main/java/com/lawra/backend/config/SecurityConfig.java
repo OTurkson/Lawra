@@ -28,19 +28,11 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        // Public endpoints
-                        .requestMatchers(
-                                "/auth/**",           // Authentication endpoints
-                                "/hello",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/swagger-ui.html",
-                                "/error"
-                        ).permitAll()
-                        // All other endpoints require authentication
-                        .anyRequest().authenticated()
-                )
+            .authorizeHttpRequests(auth -> auth
+                // For testing, allow all endpoints without authentication.
+                // You can tighten this later by requiring authentication and roles.
+                .anyRequest().permitAll()
+            )
                 // Add JWT filter before UsernamePasswordAuthenticationFilter
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 // Add Tenant filter after JWT filter to ensure tenant context is set

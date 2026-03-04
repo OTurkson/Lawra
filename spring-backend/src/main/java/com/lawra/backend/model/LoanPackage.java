@@ -21,5 +21,5 @@ public class LoanPackage {
     private BigDecimal balance;
 
     @Column(nullable = false, precision = 5, scale = 2)
-    private double interestRate;
+    private BigDecimal interestRate;
 }

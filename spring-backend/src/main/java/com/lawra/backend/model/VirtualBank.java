@@ -14,10 +14,7 @@ import java.time.LocalDateTime;
 @Setter
 @Entity
 @Table(name = "virtual_banks")
-@FilterDef(
-    name = "tenantFilter",
-    parameters = @ParamDef(name = "tenantId", type = Long.class)
-)
+
 @Filter(
     name = "tenantFilter",
     condition = "tenant_id = :tenantId"
@@ -52,5 +49,4 @@ public class VirtualBank {
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
-
 }

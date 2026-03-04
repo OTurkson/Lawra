@@ -1,3 +1,6 @@
+import { useQuery } from "@tanstack/react-query";
+import { fetchVirtualBanks, VirtualBank } from "@/lib/api";
+
 const virtualBanksData = [
   { name: "Nana Yaw", amount: 14400, interest: "17.2%" },
   { name: "Nana Yaw", amount: "", interest: "" },
@@ -11,6 +14,13 @@ const bankAccounts = [
 ];
 
 const VirtualBanksPage = () => {
+  const { data, isLoading, isError } = useQuery<VirtualBank[]>({
+    queryKey: ["virtual-banks"],
+    queryFn: fetchVirtualBanks,
+  });
+
+  const hasRemoteData = Array.isArray(data) && data.length > 0 && !isError;
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -28,13 +38,31 @@ const VirtualBanksPage = () => {
               </tr>
             </thead>
             <tbody>
-              {virtualBanksData.map((row, i) => (
-                <tr key={i} className="border-b border-border">
-                  <td className="px-4 py-2 text-muted-foreground">{row.name}</td>
-                  <td className="px-4 py-2 text-center text-muted-foreground">{row.amount}</td>
-                  <td className="px-4 py-2 text-center text-muted-foreground">{row.interest}</td>
+              {isLoading && (
+                <tr className="border-b border-border">
+                  <td className="px-4 py-2 text-muted-foreground" colSpan={3}>
+                    Loading virtual banks...
+                  </td>
                 </tr>
-              ))}
+              )}
+
+              {!isLoading && hasRemoteData &&
+                data!.map((bank) => (
+                  <tr key={bank.id} className="border-b border-border">
+                    <td className="px-4 py-2 text-muted-foreground">{bank.name}</td>
+                    <td className="px-4 py-2 text-center text-muted-foreground">{bank.balance ?? ""}</td>
+                    <td className="px-4 py-2 text-center text-muted-foreground">""</td>
+                  </tr>
+                ))}
+
+              {!isLoading && !hasRemoteData &&
+                virtualBanksData.map((row, i) => (
+                  <tr key={i} className="border-b border-border">
+                    <td className="px-4 py-2 text-muted-foreground">{row.name}</td>
+                    <td className="px-4 py-2 text-center text-muted-foreground">{row.amount}</td>
+                    <td className="px-4 py-2 text-center text-muted-foreground">{row.interest}</td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>

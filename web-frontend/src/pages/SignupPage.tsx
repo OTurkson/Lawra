@@ -1,11 +1,70 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { FormEvent, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import signupHero from "@/assets/signup-hero.jpg";
+import { useToast } from "@/hooks/use-toast";
+import { login } from "@/lib/api";
+import { saveAuth } from "@/lib/auth";
 
 const SignupPage = () => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [tenantId, setTenantId] = useState("");
   const [remember, setRemember] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!email || !password || !tenantId) {
+      toast({
+        title: "Missing details",
+        description: "Please fill in email, tenant ID, and password.",
+      });
+      return;
+    }
+
+    const tenantNumeric = Number(tenantId);
+    if (!Number.isFinite(tenantNumeric)) {
+      toast({
+        title: "Invalid tenant ID",
+        description: "Tenant ID must be a number.",
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const authResponse = await login({
+        email,
+        password,
+        tenantId: tenantNumeric,
+      });
+
+      saveAuth({
+        token: authResponse.token,
+        userId: authResponse.userId,
+        tenantId: authResponse.tenantId,
+        role: authResponse.role,
+      });
+
+      toast({
+        title: "Welcome",
+        description: "You have successfully signed in.",
+      });
+
+      navigate("/dashboard");
+    } catch (error: any) {
+      toast({
+        title: "Login failed",
+        description: error?.message || "Please check your details and try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen">
@@ -34,14 +93,25 @@ const SignupPage = () => {
           <h1 className="text-3xl font-light text-foreground mb-1">Signup</h1>
           <p className="text-muted-foreground text-sm mb-10">Sign up to continue our application</p>
 
-          <div className="space-y-6">
+          <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label className="block text-primary font-semibold text-sm mb-2">Username</label>
               <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="block text-primary font-semibold text-sm mb-2">Tenant ID</label>
+              <input
                 type="text"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Tenant ID"
+                value={tenantId}
+                onChange={(e) => setTenantId(e.target.value)}
                 className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
               />
             </div>
@@ -70,18 +140,19 @@ const SignupPage = () => {
               <a href="#" className="text-primary text-sm font-semibold hover:underline">Forgot Password?</a>
             </div>
 
-            <Link
-              to="/dashboard"
-              className="block w-full text-center py-4 rounded-full signup-btn-gradient text-primary-foreground text-lg font-semibold shadow-lg hover:opacity-90 transition-opacity mt-8"
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="block w-full text-center py-4 rounded-full signup-btn-gradient text-primary-foreground text-lg font-semibold shadow-lg hover:opacity-90 transition-opacity mt-8 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              Sign Up
-            </Link>
+              {isSubmitting ? "Signing In..." : "Sign Up"}
+            </button>
 
             <p className="text-center text-muted-foreground text-sm">
               Already having an account?{" "}
               <Link to="/dashboard" className="text-primary font-semibold hover:underline">Sign in</Link>
             </p>
-          </div>
+          </form>
         </div>
       </div>
     </div>

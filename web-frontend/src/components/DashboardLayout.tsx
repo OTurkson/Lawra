@@ -1,6 +1,8 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { HelpCircle, Bell, User, LogOut, Settings, Landmark, HandCoins, Banknote, CircleDollarSign } from "lucide-react";
 import avatarDog from "@/assets/avatar-dog.jpg";
+import { getAuth } from "@/lib/auth";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 const navItems = [
   { label: "Borrower", icon: HandCoins, path: "/dashboard" },
@@ -13,6 +15,9 @@ const navItems = [
 
 const DashboardLayout = () => {
   const location = useLocation();
+  const { user } = useCurrentUser();
+
+  const auth = getAuth();
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -27,8 +32,8 @@ const DashboardLayout = () => {
         <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-primary-foreground/30 mb-3">
           <img src={avatarDog} alt="Profile" className="w-full h-full object-cover" />
         </div>
-        <p className="font-semibold text-sm">Mama One</p>
-        <p className="text-xs opacity-80">Unilever Ghana</p>
+        <p className="font-semibold text-sm">{user?.fullName ?? auth?.userId ?? "Mama One"}</p>
+        <p className="text-xs opacity-80">{user?.email ?? auth?.role ?? "Unilever Ghana"}</p>
         <p className="text-xs opacity-80 mb-6">Staff ID</p>
 
         {/* Nav */}

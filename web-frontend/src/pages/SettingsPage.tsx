@@ -1,12 +1,24 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import avatarDog from "@/assets/avatar-dog.jpg";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 const SettingsPage = () => {
+  const { user } = useCurrentUser();
+
   const [name, setName] = useState("Mama One");
-  const [company] = useState("Unilever Ghana Limited");
+  const [company, setCompany] = useState("Unilever Ghana Limited");
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  useEffect(() => {
+    if (user?.fullName) {
+      setName(user.fullName);
+    }
+    if (user?.phoneNumber) {
+      setCompany(user.phoneNumber);
+    }
+  }, [user]);
 
   return (
     <div className="space-y-6">
