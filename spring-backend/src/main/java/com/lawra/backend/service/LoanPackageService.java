@@ -1,4 +1,4 @@
 package com.lawra.backend.service;
 
-public class LoanService {
+public class LoanPackageService {
 }

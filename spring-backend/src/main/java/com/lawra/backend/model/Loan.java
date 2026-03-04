@@ -67,5 +67,5 @@ public class Loan {
 
     @UpdateTimestamp
     @Column(nullable = false)
-    private LocalDateTime updatedAt;
+    private LocalDateTime lastModified;
 }
