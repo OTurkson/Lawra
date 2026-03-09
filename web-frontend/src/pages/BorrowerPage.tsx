@@ -235,9 +235,7 @@ const BorrowerPage = () => {
               <th className="px-4 py-3 text-center">Amount (Gh¢)</th>
               <th className="px-4 py-3 text-center">Interest</th>
               <th className="px-4 py-3 text-center">Tenure</th>
-              <th className="px-4 py-3 text-center">Installment</th>
               <th className="px-4 py-3 text-center">Bank</th>
-              <th className="px-4 py-3 text-center">Bank<br/>Account</th>
             </tr>
           </thead>
           <tbody>
@@ -261,9 +259,7 @@ const BorrowerPage = () => {
                 <td className="px-4 py-3 text-center text-muted-foreground">{row.amount ?? "-"}</td>
                 <td className="px-4 py-3 text-center text-muted-foreground">{row.interest ?? "-"}</td>
                 <td className="px-4 py-3 text-center text-muted-foreground">{row.tenure ?? "-"}</td>
-                <td className="px-4 py-3 text-center text-muted-foreground">{row.installment ?? "-"}</td>
                 <td className="px-4 py-3 text-center text-muted-foreground">{row.bank ?? "-"}</td>
-                <td className="px-4 py-3 text-center text-muted-foreground">{row.accountName ?? "-"}</td>
               </tr>
             ))}
             {!isAllLoading && !isAllError && (!allLoans || allLoans.length === 0) && (
