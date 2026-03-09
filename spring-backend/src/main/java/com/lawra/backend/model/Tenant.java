@@ -1,5 +1,6 @@
 package com.lawra.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -25,8 +26,10 @@ public class Tenant {
     private String name;
 
     @OneToMany(mappedBy = "tenant", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<User> users = new ArrayList<>();
 
+    @JsonIgnore
     @OneToMany(mappedBy = "tenant", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<VirtualBank> banks = new ArrayList<>();
 

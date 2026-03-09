@@ -42,11 +42,13 @@ public class UserService {
         // ✅ SET DEFAULT ROLE (otherwise will also be null)
         user.setRole(UserRole.BORROWER);
 
-        // Set a tenant (required, nullable = false).
-        // For now, assign the first available tenant so that tests can pass.
-        Tenant tenant = tenantRepository.findAll().stream()
-            .findFirst()
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "No tenant configured"));
+        Long tenantId = userRequestDTO.getTenantId();
+        if (tenantId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tenant selection is required");
+        }
+
+        Tenant tenant = tenantRepository.findById(tenantId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tenant with id " + tenantId + " not found"));
         user.setTenant(tenant);
 
         User savedUser = userRepository.save(user);
@@ -72,6 +74,12 @@ public class UserService {
         // Optional: update password if provided
         if (userRequestDTO.getPassword() != null && !userRequestDTO.getPassword().isBlank()) {
             user.setPassword(passwordEncoder.encode(userRequestDTO.getPassword()));
+        }
+
+        if (userRequestDTO.getTenantId() != null) {
+            Tenant tenant = tenantRepository.findById(userRequestDTO.getTenantId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tenant with id " + userRequestDTO.getTenantId() + " not found"));
+            user.setTenant(tenant);
         }
 
         User saved = userRepository.save(user);

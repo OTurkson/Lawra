@@ -2,15 +2,12 @@ import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import signupHero from "@/assets/signup-hero.jpg";
 import { useToast } from "@/hooks/use-toast";
-import { createUser, fetchTenants, login, type Tenant } from "@/lib/api";
+import { fetchTenants, login, type Tenant } from "@/lib/api";
 import { saveAuth } from "@/lib/auth";
 
-const SignupPage = () => {
+const LoginPage = () => {
   const [email, setEmail] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [tenantId, setTenantId] = useState("");
   const [remember, setRemember] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,18 +47,10 @@ const SignupPage = () => {
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
-    if (!email || !fullName || !phoneNumber || !password || !confirmPassword || !tenantId) {
+    if (!email || !password || !tenantId) {
       toast({
         title: "Missing details",
-        description: "Fill out all fields before continuing.",
-      });
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      toast({
-        title: "Passwords do not match",
-        description: "Both password fields must match.",
+        description: "Email, password, and tenant are required.",
       });
       return;
     }
@@ -70,21 +59,13 @@ const SignupPage = () => {
     if (!Number.isFinite(tenantNumeric)) {
       toast({
         title: "Invalid tenant",
-        description: "Please choose a tenant from the list.",
+        description: "Please choose a tenant from the dropdown.",
       });
       return;
     }
 
     try {
       setIsSubmitting(true);
-      await createUser({
-        email,
-        fullName,
-        phoneNumber,
-        password,
-        tenantId: tenantNumeric,
-      });
-
       const authResponse = await login({ email, password, tenantId: tenantNumeric });
       saveAuth({
         token: authResponse.token,
@@ -94,15 +75,15 @@ const SignupPage = () => {
       });
 
       toast({
-        title: "Account created",
+        title: "Welcome back",
         description: "You are now signed in.",
       });
 
       navigate("/dashboard");
     } catch (error: any) {
       toast({
-        title: "Sign up failed",
-        description: error?.message || "Please review your details and try again.",
+        title: "Login failed",
+        description: error?.message || "Please check your details and try again.",
       });
     } finally {
       setIsSubmitting(false);
@@ -112,7 +93,7 @@ const SignupPage = () => {
   return (
     <div className="flex min-h-screen">
       <div className="hidden lg:flex lg:w-1/2 relative">
-        <img src={signupHero} alt="Woman using phone" className="w-full h-full object-cover" />
+        <img src={signupHero} alt="Lawra handshake" className="w-full h-full object-cover" />
         <div className="absolute top-8 left-8">
           <div className="flex items-center gap-2">
             <div className="w-8 h-10 bg-primary-foreground rounded-full flex items-center justify-center">
@@ -126,21 +107,10 @@ const SignupPage = () => {
 
       <div className="flex-1 flex items-center justify-center bg-card px-8 lg:px-16">
         <div className="w-full max-w-md">
-          <h1 className="text-3xl font-light text-foreground mb-1">Signup</h1>
-          <p className="text-muted-foreground text-sm mb-10">Create your profile to join the Lawra network</p>
+          <h1 className="text-3xl font-light text-foreground mb-1">Sign in</h1>
+          <p className="text-muted-foreground text-sm mb-10">Enter your workspace credentials to continue</p>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <label className="block text-primary font-semibold text-sm mb-2">Full name</label>
-              <input
-                type="text"
-                placeholder="John Doe"
-                value={fullName}
-                onChange={(event) => setFullName(event.target.value)}
-                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-              />
-            </div>
-
             <div>
               <label className="block text-primary font-semibold text-sm mb-2">Email</label>
               <input
@@ -148,17 +118,6 @@ const SignupPage = () => {
                 placeholder="Email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-              />
-            </div>
-
-            <div>
-              <label className="block text-primary font-semibold text-sm mb-2">Phone number</label>
-              <input
-                type="tel"
-                placeholder="+233 50 000 0000"
-                value={phoneNumber}
-                onChange={(event) => setPhoneNumber(event.target.value)}
                 className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
               />
             </div>
@@ -198,17 +157,6 @@ const SignupPage = () => {
               />
             </div>
 
-            <div>
-              <label className="block text-primary font-semibold text-sm mb-2">Confirm password</label>
-              <input
-                type="password"
-                placeholder="Repeat password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-              />
-            </div>
-
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -229,13 +177,13 @@ const SignupPage = () => {
               disabled={isSubmitting}
               className="block w-full text-center py-4 rounded-full signup-btn-gradient text-primary-foreground text-lg font-semibold shadow-lg hover:opacity-90 transition-opacity mt-8 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Signing Up..." : "Sign Up"}
+              {isSubmitting ? "Signing In..." : "Sign In"}
             </button>
 
             <p className="text-center text-muted-foreground text-sm">
-              Already have an account? {" "}
-              <Link to="/" className="text-primary font-semibold hover:underline">
-                Sign in
+              New to Lawra? {" "}
+              <Link to="/signup" className="text-primary font-semibold hover:underline">
+                Create an account
               </Link>
             </p>
           </form>
@@ -245,4 +193,4 @@ const SignupPage = () => {
   );
 };
 
-export default SignupPage;
+export default LoginPage;

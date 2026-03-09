@@ -92,6 +92,7 @@ export type UserRequest = {
   fullName: string;
   phoneNumber: string;
   password: string;
+  tenantId: number;
 };
 
 export type UserResponse = {
