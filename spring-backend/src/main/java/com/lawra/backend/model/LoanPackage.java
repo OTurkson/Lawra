@@ -17,7 +17,7 @@ public class LoanPackage {
     @OneToOne
     private VirtualBank virtualBank;
 
-    @Column(nullable = false, precision = 14, scale = 2)
+    @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal balance;
 
     @Column(nullable = false, precision = 5, scale = 2)

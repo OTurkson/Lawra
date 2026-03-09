@@ -30,11 +30,11 @@ public class Loan {
     private LoanPackage loanPackage;
 
     // Principal amount at approval time
-    @Column(nullable = false, precision = 19, scale = 4)
+    @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal principalAmount;
 
     // Interest rate at the time of loan approval (per annum)
-    @Column(nullable = false, precision = 5, scale = 4)
+    @Column(nullable = false, precision = 5, scale = 2)
     private BigDecimal interestRate;
 
     // Loan duration
@@ -43,7 +43,7 @@ public class Loan {
     private LoanPeriod period;
 
     // Final repayment amount (principal + interest)
-    @Column(nullable = false, precision = 19, scale = 4)
+    @Column(nullable = false, precision = 14, scale = 2) // make up for more digits due to percentage increase
     private BigDecimal totalRepaymentAmount;
 
     // Loan due date (derived from period but stored for stability)

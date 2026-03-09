@@ -90,7 +90,7 @@ const DashboardLayout = () => {
             <span>Language</span>
             <span>Website</span>
           </div>
-          <span>2019 LAWRA</span>
+          <span>2026 LAWRA</span>
         </footer>
       </div>
     </div>

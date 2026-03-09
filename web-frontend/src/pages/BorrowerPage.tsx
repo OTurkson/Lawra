@@ -1,39 +1,49 @@
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { approveLoan, fetchLoans, LoanStatus, LoanSummary, rejectLoan } from "@/lib/api";
-
-const newLoansStatic = [
-  { name: "Nana Yaw", amount: 700, interest: "12.5%" },
-  { name: "Nana Yaw", amount: 500, interest: "12.5%" },
-  { name: "Nana Yaw", amount: 500, interest: "12.5%" },
-];
-
-const approvedLoansStatic = [
-  { name: "Nana Yaw", amount: 500, interest: "12.5%" },
-  { name: "Nana Yaw", amount: 500, interest: "12.5%" },
-  { name: "Nana Yaw", amount: 500, interest: "12.5%" },
-];
-
-const dashboardStatic = [
-  { name: "Nana Yaw", amount: 700, interest: "12.5%", tenure: "6 months", installment: 100, bank: "", account: "" },
-];
+import {
+  approveLoan,
+  createLoan,
+  fetchLoanPackages,
+  fetchLoans,
+  LoanPeriod,
+  LoanStatus,
+  LoanSummary,
+  rejectLoan,
+} from "@/lib/api";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { useToast } from "@/hooks/use-toast";
 
 const BorrowerPage = () => {
   const queryClient = useQueryClient();
+  const { user } = useCurrentUser();
+  const { toast } = useToast();
 
-  const { data: pendingLoans } = useQuery<LoanSummary[]>({
+  const [selectedPackageId, setSelectedPackageId] = useState("");
+  const [principalAmount, setPrincipalAmount] = useState("");
+  const [interestRate, setInterestRate] = useState("");
+  const [period, setPeriod] = useState<LoanPeriod>("THREE_MONTHS");
+
+  const { data: pendingLoans, isLoading: isPendingLoading, isError: isPendingError } = useQuery<LoanSummary[]>({
     queryKey: ["loans", "PENDING"],
     queryFn: () => fetchLoans("PENDING" as LoanStatus),
   });
 
-  const { data: approvedLoans } = useQuery<LoanSummary[]>({
+  const { data: approvedLoans, isLoading: isApprovedLoading, isError: isApprovedError } = useQuery<LoanSummary[]>({
     queryKey: ["loans", "APPROVED"],
     queryFn: () => fetchLoans("APPROVED" as LoanStatus),
   });
 
-  const { data: allLoans } = useQuery<LoanSummary[]>({
+  const { data: allLoans, isLoading: isAllLoading, isError: isAllError } = useQuery<LoanSummary[]>({
     queryKey: ["loans", "ALL"],
     queryFn: () => fetchLoans(),
   });
+
+  const { data: loanPackages } = useQuery({
+    queryKey: ["loan-packages"],
+    queryFn: fetchLoanPackages,
+  });
+
+  const availablePackages = useMemo(() => loanPackages ?? [], [loanPackages]);
 
   const approveMutation = useMutation({
     mutationFn: (id: number) => approveLoan(id),
@@ -46,6 +56,34 @@ const BorrowerPage = () => {
     mutationFn: (id: number) => rejectLoan(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["loans"] });
+    },
+  });
+
+  const createLoanMutation = useMutation({
+    mutationFn: () => {
+      if (!user?.id) throw new Error("User not loaded yet.");
+      if (!selectedPackageId || !principalAmount || !interestRate) {
+        throw new Error("Loan package, amount, and interest are required.");
+      }
+
+      return createLoan({
+        borrowerId: user.id,
+        loanPackageId: Number(selectedPackageId),
+        principalAmount: Number(principalAmount),
+        interestRate: Number(interestRate),
+        period,
+      });
+    },
+    onSuccess: () => {
+      setSelectedPackageId("");
+      setPrincipalAmount("");
+      setInterestRate("");
+      setPeriod("THREE_MONTHS");
+      queryClient.invalidateQueries({ queryKey: ["loans"] });
+      toast({ title: "Loan submitted", description: "Loan request has been created." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Loan creation failed", description: error?.message ?? "Unable to create loan." });
     },
   });
   return (
@@ -67,23 +105,37 @@ const BorrowerPage = () => {
               </tr>
             </thead>
             <tbody>
-              {(pendingLoans && pendingLoans.length > 0
-                ? pendingLoans.map((loan) => ({
-                    key: loan.id,
-                    name: loan.borrowerName,
-                    amount: loan.amount,
-                    interest: loan.interest,
-                  }))
-                : newLoansStatic.map((loan, index) => ({ ...loan, key: index }))).map((loan, i) => (
-                <tr key={loan.key} className="border-b border-border">
+              {isPendingLoading && (
+                <tr className="border-b border-border">
+                  <td colSpan={4} className="px-4 py-2 text-muted-foreground text-center">
+                    Loading pending applications...
+                  </td>
+                </tr>
+              )}
+              {!isPendingLoading && isPendingError && (
+                <tr className="border-b border-border">
+                  <td colSpan={4} className="px-4 py-2 text-destructive text-center">
+                    Unable to load pending applications.
+                  </td>
+                </tr>
+              )}
+              {(pendingLoans ?? []).map((loan, i) => (
+                <tr key={loan.id} className="border-b border-border">
                   <td className="px-4 py-2">
                     <div className={`w-4 h-4 rounded-sm ${i === 0 ? "bg-primary" : "bg-destructive"}`} />
                   </td>
-                  <td className="px-4 py-2 text-muted-foreground">{loan.name}</td>
-                  <td className="px-4 py-2 text-center text-muted-foreground">{loan.amount}</td>
-                  <td className="px-4 py-2 text-center text-muted-foreground">{loan.interest}</td>
+                  <td className="px-4 py-2 text-muted-foreground">{loan.borrowerName ?? "-"}</td>
+                  <td className="px-4 py-2 text-center text-muted-foreground">{loan.amount ?? "-"}</td>
+                  <td className="px-4 py-2 text-center text-muted-foreground">{loan.interest ?? "-"}</td>
                 </tr>
               ))}
+              {!isPendingLoading && !isPendingError && (!pendingLoans || pendingLoans.length === 0) && (
+                <tr className="border-b border-border">
+                  <td colSpan={4} className="px-4 py-2 text-muted-foreground text-center">
+                    No pending loan applications.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -103,23 +155,37 @@ const BorrowerPage = () => {
               </tr>
             </thead>
             <tbody>
-              {(approvedLoans && approvedLoans.length > 0
-                ? approvedLoans.map((loan) => ({
-                    key: loan.id,
-                    name: loan.borrowerName,
-                    amount: loan.amount,
-                    interest: loan.interest,
-                  }))
-                : approvedLoansStatic.map((loan, index) => ({ ...loan, key: index }))).map((loan, i) => (
-                <tr key={loan.key} className="border-b border-border">
+              {isApprovedLoading && (
+                <tr className="border-b border-border">
+                  <td colSpan={4} className="px-4 py-2 text-muted-foreground text-center">
+                    Loading approved applications...
+                  </td>
+                </tr>
+              )}
+              {!isApprovedLoading && isApprovedError && (
+                <tr className="border-b border-border">
+                  <td colSpan={4} className="px-4 py-2 text-destructive text-center">
+                    Unable to load approved applications.
+                  </td>
+                </tr>
+              )}
+              {(approvedLoans ?? []).map((loan, i) => (
+                <tr key={loan.id} className="border-b border-border">
                   <td className="px-4 py-2">
                     <div className={`w-4 h-4 rounded-sm ${i === 0 ? "bg-primary" : "bg-destructive"}`} />
                   </td>
-                  <td className="px-4 py-2 text-muted-foreground">{loan.name}</td>
-                  <td className="px-4 py-2 text-center text-muted-foreground">{loan.amount}</td>
-                  <td className="px-4 py-2 text-center text-muted-foreground">{loan.interest}</td>
+                  <td className="px-4 py-2 text-muted-foreground">{loan.borrowerName ?? "-"}</td>
+                  <td className="px-4 py-2 text-center text-muted-foreground">{loan.amount ?? "-"}</td>
+                  <td className="px-4 py-2 text-center text-muted-foreground">{loan.interest ?? "-"}</td>
                 </tr>
               ))}
+              {!isApprovedLoading && !isApprovedError && (!approvedLoans || approvedLoans.length === 0) && (
+                <tr className="border-b border-border">
+                  <td colSpan={4} className="px-4 py-2 text-muted-foreground text-center">
+                    No approved applications.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -143,28 +209,38 @@ const BorrowerPage = () => {
             </tr>
           </thead>
           <tbody>
-            {(allLoans && allLoans.length > 0
-              ? allLoans.map((row) => ({
-                  key: row.id,
-                  name: row.borrowerName,
-                  amount: row.amount,
-                  interest: row.interest,
-                  tenure: row.tenure,
-                  installment: row.installment,
-                  bank: row.bank,
-                  account: row.accountNumber,
-                }))
-              : dashboardStatic.map((row, index) => ({ ...row, key: index }))).map((row) => (
-              <tr key={row.key} className="border-b border-border">
-                <td className="px-4 py-3 text-muted-foreground">{row.name}</td>
-                <td className="px-4 py-3 text-center text-muted-foreground">{row.amount}</td>
-                <td className="px-4 py-3 text-center text-muted-foreground">{row.interest}</td>
-                <td className="px-4 py-3 text-center text-muted-foreground">{row.tenure}</td>
-                <td className="px-4 py-3 text-center text-muted-foreground">{row.installment}</td>
-                <td className="px-4 py-3 text-center text-muted-foreground">{row.bank}</td>
-                <td className="px-4 py-3 text-center text-muted-foreground">{row.account}</td>
+            {isAllLoading && (
+              <tr className="border-b border-border">
+                <td colSpan={7} className="px-4 py-3 text-muted-foreground text-center">
+                  Loading dashboard loans...
+                </td>
+              </tr>
+            )}
+            {!isAllLoading && isAllError && (
+              <tr className="border-b border-border">
+                <td colSpan={7} className="px-4 py-3 text-destructive text-center">
+                  Unable to load dashboard loans.
+                </td>
+              </tr>
+            )}
+            {(allLoans ?? []).map((row) => (
+              <tr key={row.id} className="border-b border-border">
+                <td className="px-4 py-3 text-muted-foreground">{row.borrowerName ?? "-"}</td>
+                <td className="px-4 py-3 text-center text-muted-foreground">{row.amount ?? "-"}</td>
+                <td className="px-4 py-3 text-center text-muted-foreground">{row.interest ?? "-"}</td>
+                <td className="px-4 py-3 text-center text-muted-foreground">{row.tenure ?? "-"}</td>
+                <td className="px-4 py-3 text-center text-muted-foreground">{row.installment ?? "-"}</td>
+                <td className="px-4 py-3 text-center text-muted-foreground">{row.bank ?? "-"}</td>
+                <td className="px-4 py-3 text-center text-muted-foreground">{row.accountNumber ?? "-"}</td>
               </tr>
             ))}
+            {!isAllLoading && !isAllError && (!allLoans || allLoans.length === 0) && (
+              <tr className="border-b border-border">
+                <td colSpan={7} className="px-4 py-3 text-muted-foreground text-center">
+                  No loans available.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -172,7 +248,49 @@ const BorrowerPage = () => {
       {/* LOAN / Approve / Decline */}
       <div className="bg-card rounded-lg shadow-sm p-6 text-center space-y-4">
         <p className="text-muted-foreground text-lg tracking-widest">LOAN</p>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-left">
+          <select
+            value={selectedPackageId}
+            onChange={(e) => setSelectedPackageId(e.target.value)}
+            className="px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+          >
+            <option value="">Select Package</option>
+            {availablePackages.map((pkg) => (
+              <option key={pkg.id} value={pkg.id}>
+                #{pkg.id} - {pkg.virtualBank?.name ?? "Loan Package"}
+              </option>
+            ))}
+          </select>
+          <input
+            value={principalAmount}
+            onChange={(e) => setPrincipalAmount(e.target.value)}
+            placeholder="Principal Amount"
+            className="px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+          />
+          <input
+            value={interestRate}
+            onChange={(e) => setInterestRate(e.target.value)}
+            placeholder="Interest Rate"
+            className="px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+          />
+          <select
+            value={period}
+            onChange={(e) => setPeriod(e.target.value as LoanPeriod)}
+            className="px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+          >
+            <option value="THREE_MONTHS">3 Months</option>
+            <option value="SIX_MONTHS">6 Months</option>
+            <option value="ONE_YEAR">1 Year</option>
+          </select>
+        </div>
         <div className="flex items-center justify-center gap-12">
+          <button
+            className="px-10 py-2 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
+            onClick={() => createLoanMutation.mutate()}
+            disabled={createLoanMutation.isPending}
+          >
+            {createLoanMutation.isPending ? "Submitting..." : "Request Loan"}
+          </button>
           <button
             className="px-10 py-2 rounded-full bg-approve text-approve-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
             onClick={() => {
