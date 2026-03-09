@@ -2,15 +2,19 @@ package com.lawra.backend.dto;
 
 import com.lawra.backend.model.Tenant;
 import com.lawra.backend.model.User;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
+
+import java.math.BigDecimal;
 
 @Getter
 @Setter
+@AllArgsConstructor
 public class VirtualBankDTO {
 //    Don't display balance, createdAt, updatedAt
+    private Long id;
     private String name;
-    private User createdBy;
-    private Tenant organization;
+    private BigDecimal balance;
+    private String createdBy;
+    private String tenant;
 }
 

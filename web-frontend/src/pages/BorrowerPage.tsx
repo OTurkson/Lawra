@@ -12,6 +12,7 @@ import {
 } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useToast } from "@/hooks/use-toast";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const BorrowerPage = () => {
   const queryClient = useQueryClient();
@@ -102,6 +103,7 @@ const BorrowerPage = () => {
                 <th className="px-4 py-2 text-left">Name</th>
                 <th className="px-4 py-2 text-center">Amount</th>
                 <th className="px-4 py-2 text-center">Interest</th>
+                <th className="px-4 py-2 text-center w-32">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -122,11 +124,41 @@ const BorrowerPage = () => {
               {(pendingLoans ?? []).map((loan, i) => (
                 <tr key={loan.id} className="border-b border-border">
                   <td className="px-4 py-2">
-                    <div className={`w-4 h-4 rounded-sm ${i === 0 ? "bg-primary" : "bg-destructive"}`} />
+                    <div className="w-4 h-4 rounded-sm bg-muted-foreground" />
                   </td>
                   <td className="px-4 py-2 text-muted-foreground">{loan.borrowerName ?? "-"}</td>
                   <td className="px-4 py-2 text-center text-muted-foreground">{loan.amount ?? "-"}</td>
                   <td className="px-4 py-2 text-center text-muted-foreground">{loan.interest ?? "-"}</td>
+                  <td className="px-4 py-2 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-approve text-approve-foreground text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={() => loan.id && approveMutation.mutate(loan.id)}
+                            disabled={approveMutation.isPending || rejectMutation.isPending}
+                          >
+                            ✓
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Approve this loan</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={() => loan.id && rejectMutation.mutate(loan.id)}
+                            disabled={approveMutation.isPending || rejectMutation.isPending}
+                          >
+                            ✕
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Decline this loan</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {!isPendingLoading && !isPendingError && (!pendingLoans || pendingLoans.length === 0) && (
@@ -172,7 +204,7 @@ const BorrowerPage = () => {
               {(approvedLoans ?? []).map((loan, i) => (
                 <tr key={loan.id} className="border-b border-border">
                   <td className="px-4 py-2">
-                    <div className={`w-4 h-4 rounded-sm ${i === 0 ? "bg-primary" : "bg-destructive"}`} />
+                    <div className="w-4 h-4 rounded-sm bg-approve" />
                   </td>
                   <td className="px-4 py-2 text-muted-foreground">{loan.borrowerName ?? "-"}</td>
                   <td className="px-4 py-2 text-center text-muted-foreground">{loan.amount ?? "-"}</td>
@@ -194,7 +226,7 @@ const BorrowerPage = () => {
       {/* Main Dashboard */}
       <div className="bg-card rounded-lg shadow-sm overflow-hidden">
         <div className="p-4 pb-2 border-b border-border">
-          <h2 className="text-lg font-light text-muted-foreground">Main Dashboard</h2>
+          <h2 className="text-lg font-light text-muted-foreground">Loan Requests</h2>
         </div>
         <table className="w-full text-sm">
           <thead>
@@ -202,7 +234,7 @@ const BorrowerPage = () => {
               <th className="px-4 py-3 text-left">Name<br/>of Borrower</th>
               <th className="px-4 py-3 text-center">Amount (Gh¢)</th>
               <th className="px-4 py-3 text-center">Interest</th>
-              <th className="px-4 py-3 text-center">Tenur</th>
+              <th className="px-4 py-3 text-center">Tenure</th>
               <th className="px-4 py-3 text-center">Installment</th>
               <th className="px-4 py-3 text-center">Bank</th>
               <th className="px-4 py-3 text-center">Bank<br/>Account</th>
@@ -231,7 +263,7 @@ const BorrowerPage = () => {
                 <td className="px-4 py-3 text-center text-muted-foreground">{row.tenure ?? "-"}</td>
                 <td className="px-4 py-3 text-center text-muted-foreground">{row.installment ?? "-"}</td>
                 <td className="px-4 py-3 text-center text-muted-foreground">{row.bank ?? "-"}</td>
-                <td className="px-4 py-3 text-center text-muted-foreground">{row.accountNumber ?? "-"}</td>
+                <td className="px-4 py-3 text-center text-muted-foreground">{row.accountName ?? "-"}</td>
               </tr>
             ))}
             {!isAllLoading && !isAllError && (!allLoans || allLoans.length === 0) && (
@@ -251,7 +283,16 @@ const BorrowerPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-left">
           <select
             value={selectedPackageId}
-            onChange={(e) => setSelectedPackageId(e.target.value)}
+            onChange={(e) => {
+              const id = e.target.value;
+              setSelectedPackageId(id);
+              const selected = availablePackages.find((pkg) => String(pkg.id) === id);
+              if (selected && selected.interestRate != null) {
+                setInterestRate(String(selected.interestRate));
+              } else {
+                setInterestRate("");
+              }
+            }}
             className="px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
           >
             <option value="">Select Package</option>
@@ -269,9 +310,10 @@ const BorrowerPage = () => {
           />
           <input
             value={interestRate}
-            onChange={(e) => setInterestRate(e.target.value)}
-            placeholder="Interest Rate"
-            className="px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+            readOnly
+            disabled
+            placeholder="Interest Rate (from package)"
+            className="px-4 py-2 rounded-full border border-primary/40 bg-muted text-foreground"
           />
           <select
             value={period}

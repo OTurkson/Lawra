@@ -82,9 +82,6 @@ const LenderPage = () => {
     fund: pkg.virtualBank?.name ?? "-",
     lending: pkg.balance,
     interest: `${pkg.interestRate}%`,
-    tenure: "-",
-    installment: "-",
-    lenders: "-",
   }));
 
   return (
@@ -100,22 +97,19 @@ const LenderPage = () => {
               <th className="px-4 py-3 text-left">Name of Fund</th>
               <th className="px-4 py-3 text-center">Lending (Gh¢)</th>
               <th className="px-4 py-3 text-center">Interest</th>
-              <th className="px-4 py-3 text-center">Tenur</th>
-              <th className="px-4 py-3 text-center">Installment</th>
-              <th className="px-4 py-3 text-center">Number of Lenders</th>
             </tr>
           </thead>
           <tbody>
             {isLoanPackagesLoading && (
               <tr className="border-b border-border">
-                <td colSpan={6} className="px-4 py-3 text-center text-muted-foreground">
+                <td colSpan={3} className="px-4 py-3 text-center text-muted-foreground">
                   Loading loan packages...
                 </td>
               </tr>
             )}
             {!isLoanPackagesLoading && isLoanPackagesError && (
               <tr className="border-b border-border">
-                <td colSpan={6} className="px-4 py-3 text-center text-destructive">
+                <td colSpan={3} className="px-4 py-3 text-center text-destructive">
                   Unable to load loan packages.
                 </td>
               </tr>
@@ -125,14 +119,11 @@ const LenderPage = () => {
                 <td className="px-4 py-3 text-muted-foreground">{row.fund}</td>
                 <td className="px-4 py-3 text-center text-muted-foreground">{row.lending}</td>
                 <td className="px-4 py-3 text-center text-muted-foreground">{row.interest}</td>
-                <td className="px-4 py-3 text-center text-muted-foreground">{row.tenure}</td>
-                <td className="px-4 py-3 text-center text-muted-foreground">{row.installment}</td>
-                <td className="px-4 py-3 text-center text-muted-foreground">{row.lenders}</td>
               </tr>
             ))}
             {!isLoanPackagesLoading && !isLoanPackagesError && lenderData.length === 0 && (
               <tr className="border-b border-border">
-                <td colSpan={6} className="px-4 py-3 text-center text-muted-foreground">
+                <td colSpan={3} className="px-4 py-3 text-center text-muted-foreground">
                   No loan packages found.
                 </td>
               </tr>

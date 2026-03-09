@@ -1,5 +1,6 @@
 package com.lawra.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -32,11 +33,13 @@ public class VirtualBank {
     //    User who created Virtual Bank
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_id", nullable = false)
+    @JsonIgnore
     private User createdBy;
 
     //    Tenant associated with a particular bank which is in turn associated with a user
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tenant_id", nullable = false)
+    @JsonIgnore
     private Tenant tenant;
 
     @Column(length = 100, precision = 14, scale = 2)

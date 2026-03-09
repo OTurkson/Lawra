@@ -1,5 +1,6 @@
 package com.lawra.backend.controller;
 
+import com.lawra.backend.dto.VirtualBankDTO;
 import com.lawra.backend.model.VirtualBank;
 import com.lawra.backend.service.LenderService;
 import lombok.RequiredArgsConstructor;
@@ -17,8 +18,8 @@ public class LenderController {
 
 //    Create, get (list), update, delete VB - Only PAYMASTER can manage virtual banks
     @GetMapping
-    public ResponseEntity<List<VirtualBank>> getAllVirtualBanks () {
-        List<VirtualBank> lenders = lenderService.getAllVirtualBanks();
+    public ResponseEntity<List<VirtualBankDTO>> getAllVirtualBanks () {
+        List<VirtualBankDTO> lenders = lenderService.getAllVirtualBanks();
         return ResponseEntity.ok(lenders);
     }
 

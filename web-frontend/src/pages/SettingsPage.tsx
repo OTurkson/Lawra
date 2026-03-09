@@ -255,7 +255,16 @@ const SettingsPage = () => {
           />
           <div className="flex gap-3">
             <button
-              onClick={() => createTenantMutation.mutate()}
+              onClick={() => {
+                if (!tenantName.trim()) {
+                  toast({
+                    title: "Missing details",
+                    description: "Fill out all fields before continuing.",
+                  });
+                  return;
+                }
+                createTenantMutation.mutate();
+              }}
               className="px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold"
             >
               Create

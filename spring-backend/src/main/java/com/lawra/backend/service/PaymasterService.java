@@ -48,11 +48,11 @@ public class PaymasterService {
 		// Amount and interest
 		dto.setAmount(loan.getPrincipalAmount());
 		dto.setInterest(loan.getInterestRate() != null ? loan.getInterestRate().toPlainString() + "%" : "");
+		dto.setRepaymentAmount(loan.getTotalRepaymentAmount());
 
 		// Borrower information
 		if (loan.getBorrower() != null) {
 			dto.setBorrowerName(loan.getBorrower().getFullName());
-			dto.setAccountName(loan.getBorrower().getFullName());
 		}
 
 		// Virtual bank / loan package info
@@ -73,11 +73,7 @@ public class PaymasterService {
 		// Very rough placeholder installment: total / 12 (if available)
 		if (loan.getTotalRepaymentAmount() != null) {
 			BigDecimal monthly = loan.getTotalRepaymentAmount().divide(BigDecimal.valueOf(12), BigDecimal.ROUND_HALF_UP);
-			dto.setInstallment(monthly);
 		}
-
-		// Placeholder account number based on loan id for display purposes
-		dto.setAccountNumber(loan.getId() != null ? "LN-" + loan.getId() : "");
 
 		return dto;
 	}

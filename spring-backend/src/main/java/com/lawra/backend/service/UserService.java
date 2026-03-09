@@ -1,8 +1,10 @@
    package com.lawra.backend.service;
 
+import com.lawra.backend.dto.InviteUserRequestDTO;
 import com.lawra.backend.dto.UserRequestDTO;
 import com.lawra.backend.dto.UserResponseDTO;
 import com.lawra.backend.enums.UserRole;
+import com.lawra.backend.mapper.UserMapper;
 import com.lawra.backend.model.Tenant;
 import com.lawra.backend.model.User;
 import com.lawra.backend.repository.TenantRepository;
@@ -21,12 +23,14 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final TenantRepository tenantRepository;
+    private final PasswordResetService passwordResetService;
 
     //    list all users
     public List<UserResponseDTO> getAllUsers() {
-        return userRepository.findAll().stream().map(this::mapToResponseDTO).collect(Collectors.toList());
+        return userRepository.findAll().stream().map(userMapper::map).collect(Collectors.toList());
     }
 
 //    create a user
@@ -35,6 +39,9 @@ public class UserService {
         user.setEmail(userRequestDTO.getEmail());
         user.setFullName(userRequestDTO.getFullName());
         user.setPhoneNumber(userRequestDTO.getPhoneNumber());
+        if (userRequestDTO.getPassword() == null || userRequestDTO.getPassword().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password is required for self-signup");
+        }
 
         // ✅ SET PASSWORD (ENCODED)
         user.setPassword(passwordEncoder.encode(userRequestDTO.getPassword()));
@@ -54,12 +61,42 @@ public class UserService {
         User savedUser = userRepository.save(user);
 
 
-        return mapToResponseDTO(savedUser);
+        return userMapper.map(savedUser);
+    }
+
+    // Invite a user created from the admin portal and email them a reset link
+    public UserResponseDTO inviteUser(InviteUserRequestDTO request) {
+        User user = new User();
+        user.setEmail(request.getEmail());
+        user.setFullName(request.getFullName());
+        user.setPhoneNumber(request.getPhoneNumber());
+
+        // Generate a strong random password that the user will immediately replace via reset link
+        String temporaryPassword = passwordEncoder.encode("tmp-" + java.util.UUID.randomUUID());
+        user.setPassword(temporaryPassword);
+
+        user.setRole(UserRole.BORROWER);
+
+        Long tenantId = request.getTenantId();
+        if (tenantId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tenant selection is required");
+        }
+
+        Tenant tenant = tenantRepository.findById(tenantId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tenant with id " + tenantId + " not found"));
+        user.setTenant(tenant);
+
+        User savedUser = userRepository.save(user);
+
+        // Create a one-time reset token and send email so the user sets their own password
+        passwordResetService.createAndSendResetToken(savedUser);
+
+        return userMapper.map(savedUser);
     }
 
 //    get a single user
     public UserResponseDTO getUserById(Long id) {
-        return userRepository.findById(id).map(this::mapToResponseDTO).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"User with id " + id + " not found"));
+        return userRepository.findById(id).map(userMapper::map).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"User with id " + id + " not found"));
     }
 
 //    update a user
@@ -83,29 +120,12 @@ public class UserService {
         }
 
         User saved = userRepository.save(user);
-        return mapToResponseDTO(saved);
+        return userMapper.map(saved);
     }
 
     public void deleteUser(Long id) {
-        userRepository.findById(id).map(this::mapToResponseDTO).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"User with id " + id + " not found"));
+        userRepository.findById(id).map(userMapper::map).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"User with id " + id + " not found"));
         userRepository.deleteById(id);
-    }
-
-
-
-
-    private UserResponseDTO mapToResponseDTO(User user) {
-        UserResponseDTO dto = new UserResponseDTO();
-
-        dto.setId(user.getId());
-        dto.setEmail(user.getEmail());
-        dto.setFullName(user.getFullName());
-        dto.setPhoneNumber(user.getPhoneNumber());
-        dto.setRole(user.getRole().toString());
-        dto.setCreatedAt(user.getCreatedAt());
-        dto.setUpdatedAt(user.getUpdatedAt());
-
-        return dto;
     }
 
 }

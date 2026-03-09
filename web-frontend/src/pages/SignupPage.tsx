@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import signupHero from "@/assets/signup-hero.jpg";
 import { useToast } from "@/hooks/use-toast";
@@ -17,8 +17,38 @@ const SignupPage = () => {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [isLoadingTenants, setIsLoadingTenants] = useState(false);
 
+  const fullNameInputRef = useRef<HTMLInputElement | null>(null);
+  const emailInputRef = useRef<HTMLInputElement | null>(null);
+  const phoneInputRef = useRef<HTMLInputElement | null>(null);
+  const passwordInputRef = useRef<HTMLInputElement | null>(null);
+  const confirmPasswordInputRef = useRef<HTMLInputElement | null>(null);
+  const rememberInputRef = useRef<HTMLInputElement | null>(null);
+
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    setEmail("");
+    setFullName("");
+    setPhoneNumber("");
+    setPassword("");
+    setConfirmPassword("");
+    setTenantId("");
+    setRemember(false);
+
+    const timeoutId = window.setTimeout(() => {
+      if (fullNameInputRef.current) fullNameInputRef.current.value = "";
+      if (emailInputRef.current) emailInputRef.current.value = "";
+      if (phoneInputRef.current) phoneInputRef.current.value = "";
+      if (passwordInputRef.current) passwordInputRef.current.value = "";
+      if (confirmPasswordInputRef.current) confirmPasswordInputRef.current.value = "";
+      if (rememberInputRef.current) rememberInputRef.current.checked = false;
+    }, 50);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
 
   useEffect(() => {
     let isActive = true;
@@ -129,7 +159,7 @@ const SignupPage = () => {
           <h1 className="text-3xl font-light text-foreground mb-1">Signup</h1>
           <p className="text-muted-foreground text-sm mb-10">Create your profile to join the Lawra network</p>
 
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-6" onSubmit={handleSubmit} autoComplete="off">
             <div>
               <label className="block text-primary font-semibold text-sm mb-2">Full name</label>
               <input
@@ -137,6 +167,8 @@ const SignupPage = () => {
                 placeholder="John Doe"
                 value={fullName}
                 onChange={(event) => setFullName(event.target.value)}
+                ref={fullNameInputRef}
+                autoComplete="off"
                 className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
               />
             </div>
@@ -148,6 +180,8 @@ const SignupPage = () => {
                 placeholder="Email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
+                ref={emailInputRef}
+                autoComplete="off"
                 className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
               />
             </div>
@@ -159,6 +193,8 @@ const SignupPage = () => {
                 placeholder="+233 50 000 0000"
                 value={phoneNumber}
                 onChange={(event) => setPhoneNumber(event.target.value)}
+                ref={phoneInputRef}
+                autoComplete="off"
                 className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
               />
             </div>
@@ -194,6 +230,8 @@ const SignupPage = () => {
                 placeholder="Password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
+                ref={passwordInputRef}
+                autoComplete="off"
                 className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
               />
             </div>
@@ -205,6 +243,8 @@ const SignupPage = () => {
                 placeholder="Repeat password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
+                ref={confirmPasswordInputRef}
+                autoComplete="off"
                 className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
               />
             </div>
@@ -215,6 +255,7 @@ const SignupPage = () => {
                   type="checkbox"
                   checked={remember}
                   onChange={(event) => setRemember(event.target.checked)}
+                  ref={rememberInputRef}
                   className="w-5 h-5 rounded accent-primary"
                 />
                 <span className="text-muted-foreground text-sm">Remember Me</span>

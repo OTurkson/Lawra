@@ -19,21 +19,19 @@ const LoansPage = () => {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-table-header text-table-header-foreground">
-                <th className="px-3 py-3 text-left">Name</th>
-                <th className="px-3 py-3 text-center">Amount</th>
-                <th className="px-3 py-3 text-center">Interest</th>
-                <th className="px-3 py-3 text-center">Virtual Bank</th>
-                <th className="px-3 py-3 text-center">Tenur</th>
-                <th className="px-3 py-3 text-center">Installment</th>
+                <th className="px-3 py-3 text-left">Borrower</th>
+                <th className="px-3 py-3 text-center">Loan Amount</th>
+                <th className="px-3 py-3 text-center">Interest Rate</th>
+                <th className="px-3 py-3 text-center">Tenure</th>
+                <th className="px-3 py-3 text-center">Repayment Amount</th>
                 <th className="px-3 py-3 text-center">Bank</th>
-                <th className="px-3 py-3 text-center">Acc. Name</th>
-                <th className="px-3 py-3 text-center">Acc. Number</th>
+                <th className="px-3 py-3 text-center">Status</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && (
                 <tr className="border-b border-border">
-                  <td colSpan={9} className="px-3 py-3 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-3 py-3 text-center text-muted-foreground">
                     Loading loans...
                   </td>
                 </tr>
@@ -41,7 +39,7 @@ const LoansPage = () => {
 
               {!isLoading && isError && (
                 <tr className="border-b border-border">
-                  <td colSpan={9} className="px-3 py-3 text-center text-destructive">
+                  <td colSpan={7} className="px-3 py-3 text-center text-destructive">
                     {(error as Error)?.message ?? "Unable to load loans."}
                   </td>
                 </tr>
@@ -53,18 +51,16 @@ const LoansPage = () => {
                     <td className="px-3 py-3 text-muted-foreground">{row.borrowerName}</td>
                     <td className="px-3 py-3 text-center text-muted-foreground">{row.amount}</td>
                     <td className="px-3 py-3 text-center text-muted-foreground">{row.interest}</td>
-                    <td className="px-3 py-3 text-center text-muted-foreground">{row.virtualBank}</td>
                     <td className="px-3 py-3 text-center text-muted-foreground">{row.tenure}</td>
-                    <td className="px-3 py-3 text-center text-muted-foreground">{row.installment ?? ""}</td>
+                <td className="px-3 py-3 text-center text-muted-foreground">{row.repaymentAmount ?? ""}</td>
                     <td className="px-3 py-3 text-center text-muted-foreground">{row.bank}</td>
-                    <td className="px-3 py-3 text-center text-muted-foreground">{row.accountName}</td>
-                    <td className="px-3 py-3 text-center text-muted-foreground">{row.accountNumber}</td>
+                    <td className="px-3 py-3 text-center text-muted-foreground">{row.status}</td>
                   </tr>
                 ))}
 
               {!isLoading && !isError && !hasRemoteData && (
                 <tr className="border-b border-border">
-                  <td colSpan={9} className="px-3 py-3 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-3 py-3 text-center text-muted-foreground">
                     No loans found.
                   </td>
                 </tr>

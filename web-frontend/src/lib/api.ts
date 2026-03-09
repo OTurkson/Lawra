@@ -112,6 +112,7 @@ export type LoanSummary = {
   interest?: string;
   virtualBank?: string;
   tenure?: string;
+  repaymentAmount?: number;
   installment?: number;
   bank?: string;
   accountName?: string;
@@ -119,8 +120,32 @@ export type LoanSummary = {
   status: LoanStatus;
 };
 
+export type PasswordResetStartRequest = {
+  email: string;
+  tenantId: number;
+};
+
+export type PasswordResetRequest = {
+  token: string;
+  newPassword: string;
+};
+
 export function login(request: LoginRequest) {
   return apiFetch<LoginResponse>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify(request),
+  });
+}
+
+export function requestPasswordReset(request: PasswordResetStartRequest) {
+  return apiFetch<void>("/auth/request-password-reset", {
+    method: "POST",
+    body: JSON.stringify(request),
+  });
+}
+
+export function resetPassword(request: PasswordResetRequest) {
+  return apiFetch<void>("/auth/reset-password", {
     method: "POST",
     body: JSON.stringify(request),
   });
@@ -252,13 +277,11 @@ export function createLoan(request: LoanRequest) {
   return apiFetch<unknown>("/loans", {
     method: "POST",
     body: JSON.stringify({
-      loanPackage: { id: request.loanPackageId },
-      borrower: { id: request.borrowerId },
+      loanPackageId: request.loanPackageId,
+      borrowerId: request.borrowerId,
       principalAmount: request.principalAmount,
       interestRate: request.interestRate,
       period: request.period,
-      totalRepaymentAmount: request.principalAmount,
-      dueDate: new Date().toISOString().split("T")[0],
     }),
   });
 }

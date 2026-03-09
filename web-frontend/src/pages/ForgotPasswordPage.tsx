@@ -1,41 +1,22 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import signupHero from "@/assets/signup-hero.jpg";
 import { useToast } from "@/hooks/use-toast";
-import { fetchTenants, login, type Tenant } from "@/lib/api";
-import { saveAuth } from "@/lib/auth";
+import { fetchTenants, requestPasswordReset, type Tenant } from "@/lib/api";
 
-const LoginPage = () => {
+const ForgotPasswordPage = () => {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [tenantId, setTenantId] = useState("");
-  const [remember, setRemember] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [isLoadingTenants, setIsLoadingTenants] = useState(false);
-
-  const emailInputRef = useRef<HTMLInputElement | null>(null);
-  const passwordInputRef = useRef<HTMLInputElement | null>(null);
-  const rememberInputRef = useRef<HTMLInputElement | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
     setEmail("");
-    setPassword("");
     setTenantId("");
-    setRemember(false);
-
-    const timeoutId = window.setTimeout(() => {
-      if (emailInputRef.current) emailInputRef.current.value = "";
-      if (passwordInputRef.current) passwordInputRef.current.value = "";
-      if (rememberInputRef.current) rememberInputRef.current.checked = false;
-    }, 50);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
   }, []);
 
   useEffect(() => {
@@ -68,10 +49,10 @@ const LoginPage = () => {
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
-    if (!email || !password || !tenantId) {
+    if (!email || !tenantId) {
       toast({
         title: "Missing details",
-        description: "Fill out all fields before continuing.",
+        description: "Email and tenant are required.",
       });
       return;
     }
@@ -87,24 +68,18 @@ const LoginPage = () => {
 
     try {
       setIsSubmitting(true);
-      const authResponse = await login({ email, password, tenantId: tenantNumeric });
-      saveAuth({
-        token: authResponse.token,
-        userId: authResponse.userId,
-        tenantId: authResponse.tenantId,
-        role: authResponse.role,
-      });
+      await requestPasswordReset({ email, tenantId: tenantNumeric });
 
       toast({
-        title: "Welcome back",
-        description: "You are now signed in.",
+        title: "Check your email",
+        description: "If an account exists for this email and tenant, a reset link has been sent.",
       });
 
-      navigate("/dashboard");
+      navigate("/");
     } catch (error: any) {
       toast({
-        title: "Login failed",
-        description: error?.message || "Please check your details and try again.",
+        title: "Request failed",
+        description: error?.message || "Unable to start password reset. Please try again.",
       });
     } finally {
       setIsSubmitting(false);
@@ -114,7 +89,7 @@ const LoginPage = () => {
   return (
     <div className="flex min-h-screen">
       <div className="hidden lg:flex lg:w-1/2 relative">
-        <img src={signupHero} alt="Lawra handshake" className="w-full h-full object-cover" />
+        <img src={signupHero} alt="Lawra forgot password" className="w-full h-full object-cover" />
         <div className="absolute top-8 left-8">
           <div className="flex items-center gap-2">
             <div className="w-8 h-10 bg-primary-foreground rounded-full flex items-center justify-center">
@@ -128,8 +103,10 @@ const LoginPage = () => {
 
       <div className="flex-1 flex items-center justify-center bg-card px-8 lg:px-16">
         <div className="w-full max-w-md">
-          <h1 className="text-3xl font-light text-foreground mb-1">Sign in</h1>
-          <p className="text-muted-foreground text-sm mb-10">Enter your workspace credentials to continue</p>
+          <h1 className="text-3xl font-light text-foreground mb-1">Forgot password</h1>
+          <p className="text-muted-foreground text-sm mb-10">
+            Enter your email and tenant to receive a password reset link.
+          </p>
 
           <form className="space-y-6" onSubmit={handleSubmit} autoComplete="off">
             <div>
@@ -139,7 +116,6 @@ const LoginPage = () => {
                 placeholder="Email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                ref={emailInputRef}
                 autoComplete="off"
                 className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
               />
@@ -158,8 +134,7 @@ const LoginPage = () => {
                     ? "Loading tenants..."
                     : tenants.length
                       ? "Select tenant"
-                      : "No tenants available"
-                  }
+                      : "No tenants available"}
                 </option>
                 {tenants.map((tenant) => (
                   <option key={tenant.id} value={tenant.id}>
@@ -169,47 +144,18 @@ const LoginPage = () => {
               </select>
             </div>
 
-            <div>
-              <label className="block text-primary font-semibold text-sm mb-2">Password</label>
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                ref={passwordInputRef}
-                autoComplete="off"
-                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(event) => setRemember(event.target.checked)}
-                  ref={rememberInputRef}
-                  className="w-5 h-5 rounded accent-primary"
-                />
-                <span className="text-muted-foreground text-sm">Remember Me</span>
-              </label>
-              <Link to="/forgot-password" className="text-primary text-sm font-semibold hover:underline">
-                Forgot Password?
-              </Link>
-            </div>
-
             <button
               type="submit"
               disabled={isSubmitting}
               className="block w-full text-center py-4 rounded-full signup-btn-gradient text-primary-foreground text-lg font-semibold shadow-lg hover:opacity-90 transition-opacity mt-8 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Signing In..." : "Sign In"}
+              {isSubmitting ? "Sending link..." : "Send reset link"}
             </button>
 
             <p className="text-center text-muted-foreground text-sm">
-              New to Lawra? {" "}
-              <Link to="/signup" className="text-primary font-semibold hover:underline">
-                Create an account
+              Remembered your password?{" "}
+              <Link to="/" className="text-primary font-semibold hover:underline">
+                Go back to sign in
               </Link>
             </p>
           </form>
@@ -219,4 +165,4 @@ const LoginPage = () => {
   );
 };
 
-export default LoginPage;
+export default ForgotPasswordPage;

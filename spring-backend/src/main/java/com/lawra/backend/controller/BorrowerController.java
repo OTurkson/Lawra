@@ -1,5 +1,6 @@
 package com.lawra.backend.controller;
 
+import com.lawra.backend.dto.LoanRequestDTO;
 import com.lawra.backend.model.Loan;
 import com.lawra.backend.service.BorrowerService;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,7 @@ public class BorrowerController {
 
 //    request loan - Only BORROWER role can create loan requests
     @PostMapping
-    public ResponseEntity<Loan> createLoan(@RequestBody Loan loanRequest) {
+    public ResponseEntity<Loan> createLoan(@RequestBody LoanRequestDTO loanRequest) {
         Loan loan = borrowerService.createLoan(loanRequest);
         return ResponseEntity.ok(loan);
     }

@@ -1,5 +1,6 @@
 package com.lawra.backend.controller;
 
+import com.lawra.backend.dto.InviteUserRequestDTO;
 import com.lawra.backend.dto.UserRequestDTO;
 import com.lawra.backend.dto.UserResponseDTO;
 import com.lawra.backend.model.User;
@@ -14,7 +15,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
-public class UserController {
+public class        UserController {
 
     private final UserRepository userRepository;
 
@@ -32,6 +33,14 @@ public class UserController {
 //    @PreAuthorize("hasRole('ADMIN') or hasRole('PAYMASTER')")
     public ResponseEntity<UserResponseDTO> createUser(@RequestBody UserRequestDTO userRequestDTO) {
         UserResponseDTO userResponseDTO = userService.createUser(userRequestDTO);
+        return ResponseEntity.ok(userResponseDTO);
+    }
+
+    // Admin-only: invite a user and send them a password reset email to set their own password
+    @PostMapping("/invite")
+//    @PreAuthorize("hasRole('ADMIN') or hasRole('PAYMASTER')")
+    public ResponseEntity<UserResponseDTO> inviteUser(@RequestBody InviteUserRequestDTO request) {
+        UserResponseDTO userResponseDTO = userService.inviteUser(request);
         return ResponseEntity.ok(userResponseDTO);
     }
 
