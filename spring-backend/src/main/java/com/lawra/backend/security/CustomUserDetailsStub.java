@@ -1,5 +1,6 @@
 package com.lawra.backend.security;
 
+import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -13,7 +14,9 @@ import java.util.List;
  */
 public class CustomUserDetailsStub implements UserDetails {
 
+    @Getter
     private final Long userId;
+    @Getter
     private final Long tenantId;
     private final String role;
 
@@ -21,14 +24,6 @@ public class CustomUserDetailsStub implements UserDetails {
         this.userId = userId;
         this.tenantId = tenantId;
         this.role = role;
-    }
-
-    public Long getUserId() {
-        return userId;
-    }
-
-    public Long getTenantId() {
-        return tenantId;
     }
 
     @Override
