@@ -79,6 +79,6 @@ public class BorrowerService {
     }
 
     // display loans requests per user/borrower.
-    // Corresponding list of ALL loans -> Paymaster Controller
+    // Corresponding list of ALL loans -> Paymaster Service
 
 }

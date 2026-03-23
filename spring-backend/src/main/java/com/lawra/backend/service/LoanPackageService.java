@@ -15,6 +15,7 @@ public class LoanPackageService {
 
 	private final LoanPackageRepository loanPackageRepository;
 
+//	list all loan packages from the virtual banks available
 	public List<LoanPackage> getAll() {
 		return loanPackageRepository.findAll();
 	}

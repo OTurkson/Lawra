@@ -153,7 +153,7 @@ const LoginPage = () => {
                 disabled={isLoadingTenants || tenants.length === 0}
                 className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
               >
-                <option value="" disabled>
+                <option value="">
                   {isLoadingTenants
                     ? "Loading tenants..."
                     : tenants.length
