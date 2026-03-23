@@ -8,6 +8,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -33,11 +34,11 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(@NonNull HttpSecurity http) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable())
+                .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
+                .authorizeHttpRequests(auth -> auth
                 // For testing, allow all endpoints without authentication.
-                // You can tighten this later by requiring authentication and roles.
+                // Can be tightened later by requiring authentication and roles.
                 .anyRequest().permitAll()
             )
                 // Add JWT filter before UsernamePasswordAuthenticationFilter
@@ -45,25 +46,24 @@ public class SecurityConfig {
                 // Add Tenant filter after JWT filter to ensure tenant context is set
                 .addFilterAfter(tenantFilter, JwtAuthenticationFilter.class);
 
+
         return http.build();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        
-        // Allow requests from frontend development servers
-        configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:3000",
-            "http://localhost:5173",
-            "http://localhost:4173"
+
+        // Allow requests from frontend
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:5173"
         ));
         
         // Allow all HTTP methods
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         
         // Allow all headers
-        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowedHeaders(List.of("*"));
         
         // Allow credentials (cookies, authorization headers)
         configuration.setAllowCredentials(true);
