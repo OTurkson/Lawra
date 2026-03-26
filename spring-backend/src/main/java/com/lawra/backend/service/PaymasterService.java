@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -37,6 +38,40 @@ public class PaymasterService {
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Loan not found"));
 
 		loan.setStatus(status);
+
+		if (loan.getStatus().equals(LoanStatus.APPROVED)) {
+			try {
+				BigDecimal userBalance = loan.getBorrower().getBalance();
+				userBalance = userBalance.add(loan.getPrincipalAmount());
+				loan.getBorrower().setBalance(userBalance);
+			} catch (Exception e) {
+				throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Problem updating loan status");
+			}
+
+//			If successful, change loanStatus to DEFAULTED. NB: For now, we cannot track part repayment.
+			loan.setStatus(LoanStatus.DEFAULTED);
+
+		} else if (loan.getStatus().equals(LoanStatus.REJECTED)) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Loan not found");
+		}
+//		When the borrower is repaying, return money to Virtual Bank
+		else if (loan.getStatus().equals(LoanStatus.COMPLETED)) {
+			try {
+//				subtract from borrower's balance
+				BigDecimal borrowerBalance = loan.getBorrower().getBalance();
+				borrowerBalance = borrowerBalance.subtract(loan.getTotalRepaymentAmount());
+				loan.getBorrower().setBalance(borrowerBalance);
+
+//				add to virtual bank balance
+				BigDecimal virtualBankBalance = loan.getLoanPackage().getVirtualBank().getBalance();
+				virtualBankBalance = virtualBankBalance.add(loan.getTotalRepaymentAmount());
+				loan.getLoanPackage().setBalance(virtualBankBalance);
+
+			} catch (Exception e) {
+				throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Problem updating loan status");
+			}
+		}
+
 		Loan saved = loanRepository.save(loan);
 		return loanMapper.toSummary(saved);
 	}

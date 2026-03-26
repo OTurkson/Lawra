@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Getter
@@ -43,6 +44,9 @@ public class User {
 
     @Column(nullable = false)
     private String phoneNumber;
+
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal balance;
 
 //    Tenant associated with a particular user
     @ManyToOne(fetch = FetchType.LAZY)
