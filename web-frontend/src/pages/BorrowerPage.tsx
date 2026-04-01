@@ -1,18 +1,14 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  approveLoan,
   createLoan,
+  fetchBorrowerLoans,
   fetchLoanPackages,
-  fetchLoans,
   LoanPeriod,
-  LoanStatus,
   LoanSummary,
-  rejectLoan,
 } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useToast } from "@/hooks/use-toast";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const BorrowerPage = () => {
   const queryClient = useQueryClient();
@@ -24,20 +20,31 @@ const BorrowerPage = () => {
   const [interestRate, setInterestRate] = useState("");
   const [period, setPeriod] = useState<LoanPeriod>("THREE_MONTHS");
 
-  const { data: pendingLoans, isLoading: isPendingLoading, isError: isPendingError } = useQuery<LoanSummary[]>({
-    queryKey: ["loans", "PENDING"],
-    queryFn: () => fetchLoans("PENDING" as LoanStatus),
+  const {
+    data: borrowerLoans,
+    isLoading: isBorrowerLoansLoading,
+    isError: isBorrowerLoansError,
+    error: borrowerLoansError,
+  } = useQuery<LoanSummary[]>({
+    queryKey: ["borrower-loans", user?.id],
+    queryFn: () => {
+      if (!user?.id) {
+        throw new Error("User not loaded yet.");
+      }
+      return fetchBorrowerLoans(user.id);
+    },
+    enabled: !!user?.id,
   });
 
-  const { data: approvedLoans, isLoading: isApprovedLoading, isError: isApprovedError } = useQuery<LoanSummary[]>({
-    queryKey: ["loans", "APPROVED"],
-    queryFn: () => fetchLoans("APPROVED" as LoanStatus),
-  });
-
-  const { data: allLoans, isLoading: isAllLoading, isError: isAllError } = useQuery<LoanSummary[]>({
-    queryKey: ["loans", "ALL"],
-    queryFn: () => fetchLoans(),
-  });
+  const pendingLoans = useMemo(
+    () => (borrowerLoans ?? []).filter((loan) => loan.status === "PENDING"),
+    [borrowerLoans]
+  );
+  const approvedLoans = useMemo(
+    () => (borrowerLoans ?? []).filter((loan) => loan.status === "APPROVED"),
+    [borrowerLoans]
+  );
+  const allLoans = borrowerLoans ?? [];
 
   const { data: loanPackages } = useQuery({
     queryKey: ["loan-packages"],
@@ -45,20 +52,6 @@ const BorrowerPage = () => {
   });
 
   const availablePackages = useMemo(() => loanPackages ?? [], [loanPackages]);
-
-  const approveMutation = useMutation({
-    mutationFn: (id: number) => approveLoan(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["loans"] });
-    },
-  });
-
-  const rejectMutation = useMutation({
-    mutationFn: (id: number) => rejectLoan(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["loans"] });
-    },
-  });
 
   const createLoanMutation = useMutation({
     mutationFn: () => {
@@ -80,7 +73,7 @@ const BorrowerPage = () => {
       setPrincipalAmount("");
       setInterestRate("");
       setPeriod("THREE_MONTHS");
-      queryClient.invalidateQueries({ queryKey: ["loans"] });
+      queryClient.invalidateQueries({ queryKey: ["borrower-loans"] });
       toast({ title: "Loan submitted", description: "Loan request has been created." });
     },
     onError: (error: any) => {
@@ -94,7 +87,7 @@ const BorrowerPage = () => {
         {/* New Loan Applications */}
         <div className="bg-card rounded-lg shadow-sm overflow-hidden">
           <div className="p-4 pb-2">
-            <h2 className="text-lg font-light text-foreground">New Loan Applications</h2>
+            <h2 className="text-lg font-light text-foreground">Your Loan Applications</h2>
           </div>
           <table className="w-full text-sm">
             <thead>
@@ -103,25 +96,24 @@ const BorrowerPage = () => {
                 <th className="px-4 py-2 text-left">Name</th>
                 <th className="px-4 py-2 text-center">Amount</th>
                 <th className="px-4 py-2 text-center">Interest</th>
-                <th className="px-4 py-2 text-center w-32">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {isPendingLoading && (
+              {isBorrowerLoansLoading && (
                 <tr className="border-b border-border">
                   <td colSpan={4} className="px-4 py-2 text-muted-foreground text-center">
                     Loading pending applications...
                   </td>
                 </tr>
               )}
-              {!isPendingLoading && isPendingError && (
+              {!isBorrowerLoansLoading && isBorrowerLoansError && (
                 <tr className="border-b border-border">
                   <td colSpan={4} className="px-4 py-2 text-destructive text-center">
-                    Unable to load pending applications.
+                    {(borrowerLoansError as Error | undefined)?.message ?? "Unable to load pending applications."}
                   </td>
                 </tr>
               )}
-              {(pendingLoans ?? []).map((loan, i) => (
+              {pendingLoans.map((loan) => (
                 <tr key={loan.id} className="border-b border-border">
                   <td className="px-4 py-2">
                     <div className="w-4 h-4 rounded-sm bg-muted-foreground" />
@@ -129,39 +121,9 @@ const BorrowerPage = () => {
                   <td className="px-4 py-2 text-muted-foreground">{loan.borrowerName ?? "-"}</td>
                   <td className="px-4 py-2 text-center text-muted-foreground">{loan.amount ?? "-"}</td>
                   <td className="px-4 py-2 text-center text-muted-foreground">{loan.interest ?? "-"}</td>
-                  <td className="px-4 py-2 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-approve text-approve-foreground text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                            onClick={() => loan.id && approveMutation.mutate(loan.id)}
-                            disabled={approveMutation.isPending || rejectMutation.isPending}
-                          >
-                            ✓
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>Approve this loan</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                            onClick={() => loan.id && rejectMutation.mutate(loan.id)}
-                            disabled={approveMutation.isPending || rejectMutation.isPending}
-                          >
-                            ✕
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>Decline this loan</TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </td>
                 </tr>
               ))}
-              {!isPendingLoading && !isPendingError && (!pendingLoans || pendingLoans.length === 0) && (
+              {!isBorrowerLoansLoading && !isBorrowerLoansError && pendingLoans.length === 0 && (
                 <tr className="border-b border-border">
                   <td colSpan={4} className="px-4 py-2 text-muted-foreground text-center">
                     No pending loan applications.
@@ -187,21 +149,21 @@ const BorrowerPage = () => {
               </tr>
             </thead>
             <tbody>
-              {isApprovedLoading && (
+              {isBorrowerLoansLoading && (
                 <tr className="border-b border-border">
                   <td colSpan={4} className="px-4 py-2 text-muted-foreground text-center">
                     Loading approved applications...
                   </td>
                 </tr>
               )}
-              {!isApprovedLoading && isApprovedError && (
+              {!isBorrowerLoansLoading && isBorrowerLoansError && (
                 <tr className="border-b border-border">
                   <td colSpan={4} className="px-4 py-2 text-destructive text-center">
-                    Unable to load approved applications.
+                    {(borrowerLoansError as Error | undefined)?.message ?? "Unable to load approved applications."}
                   </td>
                 </tr>
               )}
-              {(approvedLoans ?? []).map((loan, i) => (
+              {approvedLoans.map((loan) => (
                 <tr key={loan.id} className="border-b border-border">
                   <td className="px-4 py-2">
                     <div className="w-4 h-4 rounded-sm bg-approve" />
@@ -211,7 +173,7 @@ const BorrowerPage = () => {
                   <td className="px-4 py-2 text-center text-muted-foreground">{loan.interest ?? "-"}</td>
                 </tr>
               ))}
-              {!isApprovedLoading && !isApprovedError && (!approvedLoans || approvedLoans.length === 0) && (
+              {!isBorrowerLoansLoading && !isBorrowerLoansError && approvedLoans.length === 0 && (
                 <tr className="border-b border-border">
                   <td colSpan={4} className="px-4 py-2 text-muted-foreground text-center">
                     No approved applications.
@@ -239,21 +201,21 @@ const BorrowerPage = () => {
             </tr>
           </thead>
           <tbody>
-            {isAllLoading && (
+            {isBorrowerLoansLoading && (
               <tr className="border-b border-border">
-                <td colSpan={7} className="px-4 py-3 text-muted-foreground text-center">
+                <td colSpan={5} className="px-4 py-3 text-muted-foreground text-center">
                   Loading dashboard loans...
                 </td>
               </tr>
             )}
-            {!isAllLoading && isAllError && (
+            {!isBorrowerLoansLoading && isBorrowerLoansError && (
               <tr className="border-b border-border">
-                <td colSpan={7} className="px-4 py-3 text-destructive text-center">
-                  Unable to load dashboard loans.
+                <td colSpan={5} className="px-4 py-3 text-destructive text-center">
+                  {(borrowerLoansError as Error | undefined)?.message ?? "Unable to load dashboard loans."}
                 </td>
               </tr>
             )}
-            {(allLoans ?? []).map((row) => (
+            {allLoans.map((row) => (
               <tr key={row.id} className="border-b border-border">
                 <td className="px-4 py-3 text-muted-foreground">{row.borrowerName ?? "-"}</td>
                 <td className="px-4 py-3 text-center text-muted-foreground">{row.amount ?? "-"}</td>
@@ -262,9 +224,9 @@ const BorrowerPage = () => {
                 <td className="px-4 py-3 text-center text-muted-foreground">{row.bank ?? "-"}</td>
               </tr>
             ))}
-            {!isAllLoading && !isAllError && (!allLoans || allLoans.length === 0) && (
+            {!isBorrowerLoansLoading && !isBorrowerLoansError && allLoans.length === 0 && (
               <tr className="border-b border-border">
-                <td colSpan={7} className="px-4 py-3 text-muted-foreground text-center">
+                <td colSpan={5} className="px-4 py-3 text-muted-foreground text-center">
                   No loans available.
                 </td>
               </tr>
@@ -273,7 +235,7 @@ const BorrowerPage = () => {
         </table>
       </div>
 
-      {/* LOAN / Approve / Decline */}
+      {/* Request Loan */}
       <div className="bg-card rounded-lg shadow-sm p-6 text-center space-y-4">
         <p className="text-muted-foreground text-lg tracking-widest">LOAN</p>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-left">
@@ -321,33 +283,13 @@ const BorrowerPage = () => {
             <option value="ONE_YEAR">1 Year</option>
           </select>
         </div>
-        <div className="flex items-center justify-center gap-12">
+        <div className="flex items-center justify-center">
           <button
             className="px-10 py-2 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
             onClick={() => createLoanMutation.mutate()}
             disabled={createLoanMutation.isPending}
           >
             {createLoanMutation.isPending ? "Submitting..." : "Request Loan"}
-          </button>
-          <button
-            className="px-10 py-2 rounded-full bg-approve text-approve-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
-            onClick={() => {
-              if (pendingLoans && pendingLoans.length > 0) {
-                approveMutation.mutate(pendingLoans[0].id);
-              }
-            }}
-          >
-            Approve
-          </button>
-          <button
-            className="px-10 py-2 rounded-full bg-destructive text-destructive-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
-            onClick={() => {
-              if (pendingLoans && pendingLoans.length > 0) {
-                rejectMutation.mutate(pendingLoans[0].id);
-              }
-            }}
-          >
-            Decline
           </button>
         </div>
       </div>

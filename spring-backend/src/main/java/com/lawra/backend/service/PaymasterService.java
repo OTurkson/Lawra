@@ -48,11 +48,8 @@ public class PaymasterService {
 				throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Problem updating loan status");
 			}
 
-//			If successful, change loanStatus to DEFAULTED. NB: For now, we cannot track part repayment.
-			loan.setStatus(LoanStatus.DEFAULTED);
-
 		} else if (loan.getStatus().equals(LoanStatus.REJECTED)) {
-			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Loan not found");
+			// Rejected loans still need to be persisted so they appear in the loan history.
 		}
 //		When the borrower is repaying, return money to Virtual Bank
 		else if (loan.getStatus().equals(LoanStatus.COMPLETED)) {
@@ -65,7 +62,7 @@ public class PaymasterService {
 //				add to virtual bank balance
 				BigDecimal virtualBankBalance = loan.getLoanPackage().getVirtualBank().getBalance();
 				virtualBankBalance = virtualBankBalance.add(loan.getTotalRepaymentAmount());
-				loan.getLoanPackage().setBalance(virtualBankBalance);
+				loan.getLoanPackage().getVirtualBank().setBalance(virtualBankBalance);
 
 			} catch (Exception e) {
 				throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Problem updating loan status");

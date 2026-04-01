@@ -1,6 +1,7 @@
 package com.lawra.backend.service;
 
 import com.lawra.backend.dto.LoanRequestDTO;
+import com.lawra.backend.dto.LoanSummaryDTO;
 import com.lawra.backend.enums.LoanPeriod;
 import com.lawra.backend.mapper.LoanMapper;
 import com.lawra.backend.model.Loan;
@@ -17,6 +18,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -47,7 +50,6 @@ public class BorrowerService {
             switch (period) {
                 case THREE_MONTHS -> years = BigDecimal.valueOf(0.25);
                 case SIX_MONTHS -> years = BigDecimal.valueOf(0.5);
-                case ONE_YEAR -> years = BigDecimal.ONE;
                 default -> years = BigDecimal.ONE;
             }
 
@@ -78,7 +80,20 @@ public class BorrowerService {
         return loanRepository.save(loan);
     }
 
-    // display loans requests per user/borrower.
+    // display loan requests per user/borrower.
+    public List<LoanSummaryDTO> getLoansPerBorrower(Long borrowerId) {
+        userRepository.findById(borrowerId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Borrower not found"));
+
+        List<Loan> loans = loanRepository.findByBorrower_Id(borrowerId);
+        List<LoanSummaryDTO> loansPerBorrower = new ArrayList<>();
+
+        for (Loan loan : loans) {
+            loansPerBorrower.add(loanMapper.toSummary(loan));
+        }
+        return loansPerBorrower;
+    }
+
     // Corresponding list of ALL loans -> Paymaster Service
 
 }

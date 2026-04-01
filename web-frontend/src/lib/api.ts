@@ -286,6 +286,10 @@ export function createLoan(request: LoanRequest) {
   });
 }
 
+export function fetchBorrowerLoans(borrowerId: number) {
+  return apiFetch<LoanSummary[]>(`/users/${borrowerId}/loans`);
+}
+
 export function fetchLoans(status?: LoanStatus) {
   const query = status ? `?status=${status}` : "";
   return apiFetch<LoanSummary[]>(`/paymaster/loans${query}`);
