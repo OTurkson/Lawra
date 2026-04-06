@@ -30,10 +30,25 @@ public class BorrowerService {
     private final LoanMapper loanMapper;
 
     // request loan
-    public Loan createLoan(LoanRequestDTO loanRequest) {
+    public LoanSummaryDTO createLoan(LoanRequestDTO loanRequest) {
         // Resolve referenced entities safely
         LoanPackage loanPackage = loanPackageRepository.findById(loanRequest.getLoanPackageId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Loan package not found"));
+
+        if (loanRequest.getPrincipalAmount() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Principal amount is required");
+        }
+
+        if (loanRequest.getPrincipalAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Principal amount must be greater than zero");
+        }
+
+        if (loanPackage.getBalance() != null && loanRequest.getPrincipalAmount().compareTo(loanPackage.getBalance()) > 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Requested amount exceeds package balance. Please enter a lower amount."
+            );
+        }
 
         User borrower = userRepository.findById(loanRequest.getBorrowerId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Borrower not found"));
@@ -77,7 +92,9 @@ public class BorrowerService {
             loan.setDueDate(dueDate);
         }
 
-        return loanRepository.save(loan);
+        loanRepository.save(loan);
+
+        return loanMapper.toSummary(loan);
     }
 
     // display loan requests per user/borrower.

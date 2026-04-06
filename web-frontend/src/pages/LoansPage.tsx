@@ -1,10 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchLoans, LoanSummary } from "@/lib/api";
+import { fetchBorrowerLoans, LoanSummary } from "@/lib/api";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 const LoansPage = () => {
+  const { user } = useCurrentUser();
+
   const { data, isLoading, isError, error } = useQuery<LoanSummary[]>({
-    queryKey: ["loans"],
-    queryFn: () => fetchLoans(),
+    queryKey: ["borrower-loans", user?.id],
+    queryFn: () => {
+      if (!user?.id) {
+        throw new Error("User not loaded yet.");
+      }
+
+      return fetchBorrowerLoans(user.id);
+    },
+    enabled: !!user?.id,
   });
 
   const hasRemoteData = Array.isArray(data) && data.length > 0;
@@ -52,7 +62,7 @@ const LoansPage = () => {
                     <td className="px-3 py-3 text-center text-muted-foreground">{row.amount}</td>
                     <td className="px-3 py-3 text-center text-muted-foreground">{row.interest}</td>
                     <td className="px-3 py-3 text-center text-muted-foreground">{row.tenure}</td>
-                <td className="px-3 py-3 text-center text-muted-foreground">{row.repaymentAmount ?? ""}</td>
+                    <td className="px-3 py-3 text-center text-muted-foreground">{row.repaymentAmount ?? ""}</td>
                     <td className="px-3 py-3 text-center text-muted-foreground">{row.bank}</td>
                     <td className="px-3 py-3 text-center text-muted-foreground">{row.status}</td>
                   </tr>

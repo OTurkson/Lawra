@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createVirtualBank, fetchVirtualBanks, VirtualBank } from "@/lib/api";
+import { createVirtualBank, fetchLoanPackages, LoanPackage } from "@/lib/api";
 import { getAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -12,9 +12,14 @@ const VirtualBanksPage = () => {
   const [name, setName] = useState("");
   const [balance, setBalance] = useState("");
 
-  const { data, isLoading, isError, error } = useQuery<VirtualBank[]>({
-    queryKey: ["virtual-banks"],
-    queryFn: fetchVirtualBanks,
+  const {
+    data: loanPackages,
+    isLoading: isLoanPackagesLoading,
+    isError: isLoanPackagesError,
+    error: loanPackagesError,
+  } = useQuery<LoanPackage[]>({
+    queryKey: ["loan-packages"],
+    queryFn: fetchLoanPackages,
   });
 
   const createMutation = useMutation({
@@ -40,7 +45,7 @@ const VirtualBanksPage = () => {
     },
   });
 
-  const hasRemoteData = Array.isArray(data) && data.length > 0 && !isError;
+  const hasLoanPackageData = Array.isArray(loanPackages) && loanPackages.length > 0 && !isLoanPackagesError;
 
   return (
     <div className="space-y-6">
@@ -54,40 +59,40 @@ const VirtualBanksPage = () => {
             <thead>
               <tr className="border-b border-border">
                 <th className="px-4 py-2 text-left text-muted-foreground font-normal">Name</th>
-                <th className="px-4 py-2 text-center text-muted-foreground font-normal">Amount</th>
-                <th className="px-4 py-2 text-center text-muted-foreground font-normal">Interest</th>
+                <th className="px-4 py-2 text-center text-muted-foreground font-normal">Virtual Bank</th>
+                <th className="px-4 py-2 text-center text-muted-foreground font-normal">Interest Rate</th>
               </tr>
             </thead>
             <tbody>
-              {isLoading && (
+              {isLoanPackagesLoading && (
                 <tr className="border-b border-border">
                   <td className="px-4 py-2 text-muted-foreground" colSpan={3}>
-                    Loading virtual banks...
+                    Loading loan packages...
                   </td>
                 </tr>
               )}
 
-              {!isLoading && isError && (
+              {!isLoanPackagesLoading && isLoanPackagesError && (
                 <tr className="border-b border-border">
                   <td className="px-4 py-2 text-destructive text-center" colSpan={3}>
-                    {(error as Error)?.message ?? "Unable to load virtual banks."}
+                    {(loanPackagesError as Error)?.message ?? "Unable to load loan packages."}
                   </td>
                 </tr>
               )}
 
-              {!isLoading && hasRemoteData &&
-                data!.map((bank) => (
-                  <tr key={bank.id} className="border-b border-border">
-                    <td className="px-4 py-2 text-muted-foreground">{bank.name}</td>
-                    <td className="px-4 py-2 text-center text-muted-foreground">{bank.balance ?? ""}</td>
-                    <td className="px-4 py-2 text-center text-muted-foreground">-</td>
+              {!isLoanPackagesLoading && hasLoanPackageData &&
+                loanPackages!.map((pkg) => (
+                  <tr key={pkg.id} className="border-b border-border">
+                    <td className="px-4 py-2 text-muted-foreground">Package #{pkg.id}</td>
+                    <td className="px-4 py-2 text-center text-muted-foreground">{pkg.virtualBank?.name ?? "-"}</td>
+                    <td className="px-4 py-2 text-center text-muted-foreground">{pkg.interestRate ?? "-"}</td>
                   </tr>
                 ))}
 
-              {!isLoading && !hasRemoteData && (
+              {!isLoanPackagesLoading && !hasLoanPackageData && (
                 <tr className="border-b border-border">
                   <td className="px-4 py-2 text-muted-foreground text-center" colSpan={3}>
-                    No virtual banks found.
+                    No loan packages found.
                   </td>
                 </tr>
               )}
@@ -95,10 +100,10 @@ const VirtualBanksPage = () => {
           </table>
         </div>
 
-        {/* Bank Accounts */}
+        {/* Loan Packages */}
         <div className="bg-card rounded-lg shadow-sm overflow-hidden">
           <div className="p-4 pb-2">
-            <h2 className="text-lg font-light text-foreground">Bank Accounts</h2>
+            <h2 className="text-lg font-light text-foreground">Loan Packages</h2>
           </div>
           <div className="px-4 pb-4 flex flex-col sm:flex-row gap-2">
             <input
@@ -124,36 +129,38 @@ const VirtualBanksPage = () => {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
-                <th className="px-4 py-2 text-left text-muted-foreground font-normal">Banks</th>
-                <th className="px-4 py-2 text-center text-muted-foreground font-normal">Account Number</th>
+                <th className="px-4 py-2 text-left text-muted-foreground font-normal">Name</th>
+                <th className="px-4 py-2 text-center text-muted-foreground font-normal">Virtual Bank</th>
+                <th className="px-4 py-2 text-center text-muted-foreground font-normal">Interest Rate</th>
               </tr>
             </thead>
             <tbody>
-              {isLoading && (
+              {isLoanPackagesLoading && (
                 <tr className="border-b border-border">
-                  <td className="px-4 py-2 text-muted-foreground text-center" colSpan={2}>
-                    Loading accounts...
+                  <td className="px-4 py-2 text-muted-foreground text-center" colSpan={3}>
+                    Loading loan packages...
                   </td>
                 </tr>
               )}
-              {!isLoading && isError && (
+              {!isLoanPackagesLoading && isLoanPackagesError && (
                 <tr className="border-b border-border">
-                  <td className="px-4 py-2 text-destructive text-center" colSpan={2}>
-                    {(error as Error)?.message ?? "Unable to load account data."}
+                  <td className="px-4 py-2 text-destructive text-center" colSpan={3}>
+                    {(loanPackagesError as Error)?.message ?? "Unable to load loan packages."}
                   </td>
                 </tr>
               )}
-              {!isLoading && hasRemoteData &&
-                data!.map((bank) => (
-                  <tr key={`acc-${bank.id}`} className="border-b border-border">
-                    <td className="px-4 py-2 text-muted-foreground">{bank.name}</td>
-                    <td className="px-4 py-2 text-center text-muted-foreground">-</td>
+              {!isLoanPackagesLoading && hasLoanPackageData &&
+                loanPackages!.map((pkg) => (
+                  <tr key={`pkg-${pkg.id}`} className="border-b border-border">
+                    <td className="px-4 py-2 text-muted-foreground">Package #{pkg.id}</td>
+                    <td className="px-4 py-2 text-center text-muted-foreground">{pkg.virtualBank?.name ?? "-"}</td>
+                    <td className="px-4 py-2 text-center text-muted-foreground">{pkg.interestRate ?? "-"}</td>
                   </tr>
                 ))}
-              {!isLoading && !hasRemoteData && (
+              {!isLoanPackagesLoading && !hasLoanPackageData && (
                 <tr className="border-b border-border">
-                  <td className="px-4 py-2 text-muted-foreground text-center" colSpan={2}>
-                    No account data found.
+                  <td className="px-4 py-2 text-muted-foreground text-center" colSpan={3}>
+                    No loan packages found.
                   </td>
                 </tr>
               )}

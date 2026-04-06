@@ -2,6 +2,7 @@ package com.lawra.backend.controller;
 
 import com.lawra.backend.dto.LoanRequestDTO;
 import com.lawra.backend.dto.LoanSummaryDTO;
+import com.lawra.backend.mapper.LoanMapper;
 import com.lawra.backend.model.Loan;
 import com.lawra.backend.service.BorrowerService;
 import lombok.RequiredArgsConstructor;
@@ -16,12 +17,13 @@ import java.util.List;
 @RequestMapping()
 public class BorrowerController {
     private final BorrowerService borrowerService;
+    private final LoanMapper loanMapper;
 
 //    request loan - Only BORROWER role can create loan requests
     @PostMapping("/loans")
-    public ResponseEntity<Loan> createLoan(@RequestBody LoanRequestDTO loanRequest) {
-        Loan loan = borrowerService.createLoan(loanRequest);
-        return ResponseEntity.ok(loan);
+    public ResponseEntity<LoanSummaryDTO> createLoan(@RequestBody LoanRequestDTO loanRequest) {
+        LoanSummaryDTO loanSummary = borrowerService.createLoan(loanRequest);
+        return ResponseEntity.ok(loanSummary);
     }
 
 //    display loans requests per user/borrower.

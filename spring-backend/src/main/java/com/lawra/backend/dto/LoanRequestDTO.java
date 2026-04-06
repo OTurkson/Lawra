@@ -1,6 +1,7 @@
 package com.lawra.backend.dto;
 
 import com.lawra.backend.enums.LoanPeriod;
+import com.lawra.backend.enums.LoanStatus;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -14,4 +15,5 @@ public class LoanRequestDTO {
     private BigDecimal interestRate;
     private LoanPeriod period;
     private Long borrowerId;
+    private LoanStatus loanStatus;
 }

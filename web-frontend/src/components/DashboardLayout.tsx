@@ -1,8 +1,15 @@
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { HelpCircle, Bell, User, LogOut, Settings, Landmark, HandCoins, Banknote, CircleDollarSign } from "lucide-react";
 import avatarDog from "@/assets/avatar-dog.jpg";
 import { getAuth } from "@/lib/auth";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const navItems = [
   { label: "Borrower", icon: HandCoins, path: "/dashboard" },
@@ -15,9 +22,27 @@ const navItems = [
 
 const DashboardLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useCurrentUser();
+  const previousDashboardPathRef = useRef("/dashboard");
 
   const auth = getAuth();
+
+  useEffect(() => {
+    if (location.pathname !== "/dashboard/notifications") {
+      previousDashboardPathRef.current = location.pathname;
+    }
+  }, [location.pathname]);
+
+  const toggleNotifications = () => {
+    if (location.pathname === "/dashboard/notifications") {
+      navigate(previousDashboardPathRef.current || "/dashboard");
+      return;
+    }
+
+    previousDashboardPathRef.current = location.pathname;
+    navigate("/dashboard/notifications");
+  };
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -65,13 +90,40 @@ const DashboardLayout = () => {
             <button className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground">
               <HelpCircle size={16} />
             </button>
-            <Link to="/dashboard/notifications" className="relative text-muted-foreground hover:text-foreground">
+            <button
+              type="button"
+              onClick={toggleNotifications}
+              className="relative text-muted-foreground hover:text-foreground"
+              aria-label="Toggle notifications"
+            >
               <Bell size={20} />
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-destructive rounded-full" />
-            </Link>
-            <button className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
-              <User size={16} />
             </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground"
+                  aria-label="Open user menu"
+                >
+                  <User size={16} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem asChild>
+                  <Link to="/dashboard/settings" className="flex items-center gap-2">
+                    <Settings size={14} />
+                    <span>Settings</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/dashboard/logout" className="flex items-center gap-2 text-destructive">
+                    <LogOut size={14} />
+                    <span>Sign out</span>
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 

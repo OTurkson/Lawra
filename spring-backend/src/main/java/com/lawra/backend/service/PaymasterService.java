@@ -1,5 +1,6 @@
 package com.lawra.backend.service;
 
+import com.lawra.backend.dto.LoanRequestDTO;
 import com.lawra.backend.dto.LoanSummaryDTO;
 import com.lawra.backend.enums.LoanStatus;
 import com.lawra.backend.mapper.LoanMapper;
@@ -33,17 +34,29 @@ public class PaymasterService {
 	}
 
 //	Update a single loan (status)
-	public LoanSummaryDTO updateLoanStatus(Long id, LoanStatus status) {
+	public LoanSummaryDTO updateLoanStatus(Long id, LoanRequestDTO loanUpdate) {
 		Loan loan = loanRepository.findById(id)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Loan not found"));
 
-		loan.setStatus(status);
+		if (loanUpdate == null || loanUpdate.getLoanStatus() == null) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "loanStatus is required");
+		}
+
+		loan.setStatus(loanUpdate.getLoanStatus());
 
 		if (loan.getStatus().equals(LoanStatus.APPROVED)) {
 			try {
 				BigDecimal userBalance = loan.getBorrower().getBalance();
 				userBalance = userBalance.add(loan.getPrincipalAmount());
 				loan.getBorrower().setBalance(userBalance);
+			} catch (Exception e) {
+				throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Problem updating loan status");
+			}
+
+			try {
+				BigDecimal loanPackageBalance = loan.getLoanPackage().getBalance();
+				loanPackageBalance = loanPackageBalance.subtract(loan.getPrincipalAmount());
+				loan.getLoanPackage().setBalance(loanPackageBalance);
 			} catch (Exception e) {
 				throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Problem updating loan status");
 			}

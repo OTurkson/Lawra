@@ -120,6 +120,10 @@ export type LoanSummary = {
   status: LoanStatus;
 };
 
+export type LoanStatusUpdateRequest = {
+  loanStatus: LoanStatus;
+};
+
 export type PasswordResetStartRequest = {
   email: string;
   tenantId: number;
@@ -295,10 +299,9 @@ export function fetchLoans(status?: LoanStatus) {
   return apiFetch<LoanSummary[]>(`/paymaster/loans${query}`);
 }
 
-export function approveLoan(id: number) {
-  return apiFetch<LoanSummary>(`/paymaster/loans/${id}/approve`, { method: "POST" });
-}
-
-export function rejectLoan(id: number) {
-  return apiFetch<LoanSummary>(`/paymaster/loans/${id}/reject`, { method: "POST" });
+export function updateLoanStatus(id: number, request: LoanStatusUpdateRequest) {
+  return apiFetch<LoanSummary>(`/loans/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(request),
+  });
 }

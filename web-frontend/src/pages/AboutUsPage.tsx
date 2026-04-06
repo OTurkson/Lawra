@@ -14,7 +14,7 @@ const AboutUsPage = () => {
       {/* Terms and Conditions */}
       <div className="bg-card rounded-lg shadow-sm p-6">
         <h2 className="text-lg font-light text-foreground mb-4">Terms and Conditions</h2>
-        <h3 className="text-sm font-semibold text-foreground mb-2">WHY BOND APP</h3>
+        <h3 className="text-sm font-semibold text-foreground mb-2">WHY LAWRA?</h3>
         <p className="text-sm text-muted-foreground leading-relaxed">
           Making employees as comfortable as possible is achievable, this is not to say organizations have the
           responsibility of providing all their needs. Every now and then human needs are increasing beyond the salaries

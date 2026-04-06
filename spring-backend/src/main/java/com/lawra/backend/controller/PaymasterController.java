@@ -1,5 +1,6 @@
 package com.lawra.backend.controller;
 
+import com.lawra.backend.dto.LoanRequestDTO;
 import com.lawra.backend.dto.LoanSummaryDTO;
 import com.lawra.backend.enums.LoanStatus;
 import com.lawra.backend.service.PaymasterService;
@@ -8,7 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/paymaster")
+@RequestMapping("")
 @RequiredArgsConstructor
 public class PaymasterController {
 
@@ -20,15 +21,9 @@ public class PaymasterController {
 		return ResponseEntity.ok(paymasterService.getLoanSummaries(status));
 	}
 
-	// Approve a specific loan
-	@PostMapping("/loans/{id}/approve")
-	public ResponseEntity<LoanSummaryDTO> approveLoan(@PathVariable Long id) {
-		return ResponseEntity.ok(paymasterService.updateLoanStatus(id, LoanStatus.APPROVED));
-	}
-
-	// Reject a specific loan
-	@PostMapping("/loans/{id}/reject")
-	public ResponseEntity<LoanSummaryDTO> rejectLoan(@PathVariable Long id) {
-		return ResponseEntity.ok(paymasterService.updateLoanStatus(id, LoanStatus.REJECTED));
+	// Update status of a specific loan
+	@PutMapping("/loans/{id}")
+	public ResponseEntity<LoanSummaryDTO> updateLoanStatus(@PathVariable Long id, @RequestBody LoanRequestDTO loanUpdate) {
+		return ResponseEntity.ok(paymasterService.updateLoanStatus(id, loanUpdate));
 	}
 }

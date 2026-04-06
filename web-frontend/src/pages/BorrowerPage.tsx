@@ -60,10 +60,21 @@ const BorrowerPage = () => {
         throw new Error("Loan package, amount, and interest are required.");
       }
 
+      const principal = Number(principalAmount);
+      const selected = availablePackages.find((pkg) => String(pkg.id) === selectedPackageId);
+
+      if (!Number.isFinite(principal) || principal <= 0) {
+        throw new Error("Please enter a valid amount greater than zero.");
+      }
+
+      if (selected && Number.isFinite(Number(selected.balance)) && principal > Number(selected.balance)) {
+        throw new Error("Requested amount exceeds package balance. Please enter a lower amount.");
+      }
+
       return createLoan({
         borrowerId: user.id,
         loanPackageId: Number(selectedPackageId),
-        principalAmount: Number(principalAmount),
+        principalAmount: principal,
         interestRate: Number(interestRate),
         period,
       });
