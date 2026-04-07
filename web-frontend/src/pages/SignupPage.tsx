@@ -4,6 +4,7 @@ import signupHero from "@/assets/signup-hero.jpg";
 import { useToast } from "@/hooks/use-toast";
 import { createUser, fetchTenants, login, type Tenant } from "@/lib/api";
 import { saveAuth } from "@/lib/auth";
+import { queryClient } from "@/lib/query-client";
 
 const SignupPage = () => {
   const [email, setEmail] = useState("");
@@ -96,8 +97,8 @@ const SignupPage = () => {
       return;
     }
 
-    const tenantNumeric = Number(tenantId);
-    if (!Number.isFinite(tenantNumeric)) {
+    const tenantUuid = tenantId;
+    if (!tenantUuid) {
       toast({
         title: "Invalid tenant",
         description: "Please choose a tenant from the list.",
@@ -112,10 +113,11 @@ const SignupPage = () => {
         fullName,
         phoneNumber,
         password,
-        tenantId: tenantNumeric,
+        tenantId: tenantUuid,
       });
 
-      const authResponse = await login({ email, password, tenantId: tenantNumeric });
+      const authResponse = await login({ email, password, tenantId: tenantUuid });
+      queryClient.clear();
       saveAuth({
         token: authResponse.token,
         userId: authResponse.userId,

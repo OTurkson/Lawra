@@ -42,6 +42,21 @@ public class AuthController {
                         .body(Map.of("error", "Invalid credentials"));
             }
 
+            // Check if user needs to reset password
+            User user = userRepository
+                    .findByEmailAndTenantId(request.getEmail(), request.getTenantId())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            
+            if (user.getPasswordResetRequired()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of(
+                            "error", "You must reset your password before logging in",
+                            "requiresPasswordReset", true,
+                            "email", request.getEmail(),
+                            "tenantId", request.getTenantId()
+                        ));
+            }
+
             // Generate token with custom claims (userId, tenantId, role)
             String token = jwtService.generateToken(userDetails);
 

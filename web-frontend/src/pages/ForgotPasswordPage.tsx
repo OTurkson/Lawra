@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import signupHero from "@/assets/signup-hero.jpg";
 import { useToast } from "@/hooks/use-toast";
 import { fetchTenants, requestPasswordReset, type Tenant } from "@/lib/api";
@@ -12,12 +12,16 @@ const ForgotPasswordPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
 
+  const locationEmail = location.state?.email as string | undefined;
+  const locationTenantId = location.state?.tenantId as string | undefined;
+
   useEffect(() => {
-    setEmail("");
-    setTenantId("");
-  }, []);
+    setEmail(locationEmail ?? "");
+    setTenantId(locationTenantId ?? "");
+  }, [locationEmail, locationTenantId]);
 
   useEffect(() => {
     let isActive = true;
@@ -57,8 +61,8 @@ const ForgotPasswordPage = () => {
       return;
     }
 
-    const tenantNumeric = Number(tenantId);
-    if (!Number.isFinite(tenantNumeric)) {
+    const tenantUuid = tenantId;
+    if (!tenantUuid) {
       toast({
         title: "Invalid tenant",
         description: "Please choose a tenant from the dropdown.",
@@ -68,7 +72,7 @@ const ForgotPasswordPage = () => {
 
     try {
       setIsSubmitting(true);
-      await requestPasswordReset({ email, tenantId: tenantNumeric });
+      await requestPasswordReset({ email, tenantId: tenantUuid });
 
       toast({
         title: "Check your email",

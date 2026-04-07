@@ -10,12 +10,14 @@ import com.lawra.backend.security.CustomUserDetails;
 
 import lombok.RequiredArgsConstructor;
 
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class CustomUserDetailsService {
      private final UserRepository userRepository;
 
-    public UserDetails loadUserByEmailAndTenant(String email, Long tenantId) {
+    public UserDetails loadUserByEmailAndTenant(String email, UUID tenantId) {
         User user = userRepository
                 .findByEmailAndTenantId(email, tenantId)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));

@@ -14,6 +14,7 @@ import java.util.List;
 public class LenderService {
     private final VirtualBankRepository lenderRepository;
     private final VirtualBankMapper virtualBankMapper;
+    private final AuthenticatedUserContextService authenticatedUserContextService;
 
     //    List all VBs
     public List<VirtualBankDTO> getAllVirtualBanks () {
@@ -25,6 +26,9 @@ public class LenderService {
 
     //    Create new Virtual Bank
     public VirtualBank createVirtualBank(VirtualBank virtualBank) {
+        // Always derive tenant/user from authentication context to prevent tenant spoofing.
+        virtualBank.setTenant(authenticatedUserContextService.getCurrentTenant());
+        virtualBank.setCreatedBy(authenticatedUserContextService.getCurrentUser());
         return lenderRepository.save(virtualBank);
     }
 }

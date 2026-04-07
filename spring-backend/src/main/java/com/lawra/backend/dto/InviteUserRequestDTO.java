@@ -9,5 +9,4 @@ public class InviteUserRequestDTO {
     private String email;
     private String fullName;
     private String phoneNumber;
-    private Long tenantId;
 }

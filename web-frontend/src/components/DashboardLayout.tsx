@@ -10,6 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { jwtDecode } from "jwt-decode";
 
 const navItems = [
   { label: "Borrower", icon: HandCoins, path: "/dashboard" },
@@ -20,6 +21,15 @@ const navItems = [
   { label: "Logout", icon: LogOut, path: "/dashboard/logout" },
 ];
 
+const getRoleDisplayName = (role: string): string => {
+  const roleMap: Record<string, string> = {
+    "ROLE_ADMIN": "Platform Administrator",
+    "ROLE_PAYMASTER": "HR Manager",
+    "ROLE_BORROWER": "Employee",
+  };
+  return roleMap[role] || role;
+};
+
 const DashboardLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -27,6 +37,18 @@ const DashboardLayout = () => {
   const previousDashboardPathRef = useRef("/dashboard");
 
   const auth = getAuth();
+  
+  // Decode JWT to get role and tenant info
+  let decodedJwt: any = null;
+  if (auth?.token) {
+    try {
+      decodedJwt = jwtDecode(auth.token);
+    } catch (e) {
+      console.error("Failed to decode JWT:", e);
+    }
+  }
+
+  const roleDisplayName = decodedJwt?.role ? getRoleDisplayName(decodedJwt.role) : auth?.role || "User";
 
   useEffect(() => {
     if (location.pathname !== "/dashboard/notifications") {
@@ -59,6 +81,7 @@ const DashboardLayout = () => {
         </div>
         <p className="font-semibold text-sm">{user?.fullName ?? auth?.userId ?? "Mama One"}</p>
         <p className="text-xs opacity-80">{user?.email ?? auth?.role ?? "Unilever Ghana"}</p>
+        <p className="text-xs opacity-70 font-medium text-primary-foreground/80">{roleDisplayName}</p>
         <p className="text-xs opacity-80 mb-6">Staff ID</p>
 
         {/* Nav */}

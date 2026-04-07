@@ -33,6 +33,10 @@ public class LoanMapper {
             dto.setBorrowerName(loan.getBorrower().getFullName());
         }
 
+        if (loan.getApprovedBy() != null) {
+            dto.setApprovedBy(loan.getApprovedBy().getFullName());
+        }
+
         LoanPackage loanPackage = loan.getLoanPackage();
         if (loanPackage != null) {
             VirtualBank bank = loanPackage.getVirtualBank();

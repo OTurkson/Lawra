@@ -2,14 +2,14 @@ package com.lawra.backend.controller;
 
 import com.lawra.backend.dto.LoanRequestDTO;
 import com.lawra.backend.dto.LoanSummaryDTO;
-import com.lawra.backend.mapper.LoanMapper;
-import com.lawra.backend.model.Loan;
 import com.lawra.backend.service.BorrowerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 // LOAN APPLICATIONS
 @RestController
@@ -17,18 +17,19 @@ import java.util.List;
 @RequestMapping()
 public class BorrowerController {
     private final BorrowerService borrowerService;
-    private final LoanMapper loanMapper;
 
-//    request loan - Only BORROWER role can create loan requests
+//    request loan - BORROWER and PAYMASTER roles can create their own loan requests
     @PostMapping("/loans")
+    @PreAuthorize("hasRole('BORROWER') or hasRole('PAYMASTER')")
     public ResponseEntity<LoanSummaryDTO> createLoan(@RequestBody LoanRequestDTO loanRequest) {
         LoanSummaryDTO loanSummary = borrowerService.createLoan(loanRequest);
         return ResponseEntity.ok(loanSummary);
     }
 
-//    display loans requests per user/borrower.
+//    display loans requests for the authenticated borrower/paymaster user.
     @GetMapping("/users/{borrowerId}/loans")
-    public ResponseEntity<List<LoanSummaryDTO>> getLoansPerBorrower(@PathVariable Long borrowerId) {
+    @PreAuthorize("hasRole('BORROWER') or hasRole('PAYMASTER')")
+    public ResponseEntity<List<LoanSummaryDTO>> getLoansPerBorrower(@PathVariable UUID borrowerId) {
         List<LoanSummaryDTO> loansPerBorrower = borrowerService.getLoansPerBorrower(borrowerId);
         return ResponseEntity.ok(loansPerBorrower);
     }

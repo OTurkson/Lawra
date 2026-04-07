@@ -9,6 +9,7 @@ import org.hibernate.annotations.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -21,7 +22,7 @@ import java.time.LocalDateTime;
 )
 @FilterDef(
     name = "tenantFilter",
-    parameters = @ParamDef(name = "tenantId", type = Long.class)
+    parameters = @ParamDef(name = "tenantId", type = String.class)
 )
 @Filter(
     name = "tenantFilter",
@@ -30,8 +31,9 @@ import java.time.LocalDateTime;
 
 public class User {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(columnDefinition = "CHAR(36)")
+    private UUID id;
 
     @Column(nullable = false, length = 150)
     private String email;
@@ -56,6 +58,9 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role; // Role from UserRole enum
+
+    @Column(nullable = false)
+    private Boolean passwordResetRequired = true; // New users must reset password
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

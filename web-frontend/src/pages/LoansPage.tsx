@@ -35,13 +35,14 @@ const LoansPage = () => {
                 <th className="px-3 py-3 text-center">Tenure</th>
                 <th className="px-3 py-3 text-center">Repayment Amount</th>
                 <th className="px-3 py-3 text-center">Bank</th>
+                <th className="px-3 py-3 text-center">Approved By</th>
                 <th className="px-3 py-3 text-center">Status</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && (
                 <tr className="border-b border-border">
-                  <td colSpan={7} className="px-3 py-3 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-3 py-3 text-center text-muted-foreground">
                     Loading loans...
                   </td>
                 </tr>
@@ -49,7 +50,7 @@ const LoansPage = () => {
 
               {!isLoading && isError && (
                 <tr className="border-b border-border">
-                  <td colSpan={7} className="px-3 py-3 text-center text-destructive">
+                  <td colSpan={8} className="px-3 py-3 text-center text-destructive">
                     {(error as Error)?.message ?? "Unable to load loans."}
                   </td>
                 </tr>
@@ -64,13 +65,14 @@ const LoansPage = () => {
                     <td className="px-3 py-3 text-center text-muted-foreground">{row.tenure}</td>
                     <td className="px-3 py-3 text-center text-muted-foreground">{row.repaymentAmount ?? ""}</td>
                     <td className="px-3 py-3 text-center text-muted-foreground">{row.bank}</td>
+                    <td className="px-3 py-3 text-center text-muted-foreground">{row.approvedBy ?? "-"}</td>
                     <td className="px-3 py-3 text-center text-muted-foreground">{row.status}</td>
                   </tr>
                 ))}
 
               {!isLoading && !isError && !hasRemoteData && (
                 <tr className="border-b border-border">
-                  <td colSpan={7} className="px-3 py-3 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-3 py-3 text-center text-muted-foreground">
                     No loans found.
                   </td>
                 </tr>

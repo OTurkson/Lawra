@@ -7,8 +7,10 @@ import java.util.UUID;
 
 @Getter
 @Setter
-public class LoginRequestDTO {
+public class SignupUserRequestDTO {
     private String email;
-    private UUID tenantId;
+    private String fullName;
+    private String phoneNumber;
     private String password;
+    private UUID tenantId;
 }

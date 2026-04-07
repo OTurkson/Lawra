@@ -18,6 +18,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.lawra.backend.security.TenantValidationFilter;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -29,6 +31,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtFilter;
     private final TenantFilterEnabler tenantFilter;
+    private final TenantValidationFilter tenantValidationFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(@NonNull HttpSecurity http) throws Exception {
@@ -37,14 +40,19 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                // For testing, allow all endpoints without authentication.
-                // Can be tightened later by requiring authentication and roles.
-                .anyRequest().permitAll()
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers("/auth/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/users").permitAll()
+                .requestMatchers(HttpMethod.GET, "/tenants").permitAll()
+                .requestMatchers("/actuator/health", "/error").permitAll()
+                .anyRequest().authenticated()
             )
                 // Add JWT filter before UsernamePasswordAuthenticationFilter
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-                // Add Tenant filter after JWT filter to ensure tenant context is set
-                .addFilterAfter(tenantFilter, JwtAuthenticationFilter.class);
+                // Add Tenant validation filter after JWT filter
+                .addFilterAfter(tenantValidationFilter, JwtAuthenticationFilter.class)
+                // Add Tenant filter after validation to ensure tenant context is set
+                .addFilterAfter(tenantFilter, TenantValidationFilter.class);
 
 
         return http.build();

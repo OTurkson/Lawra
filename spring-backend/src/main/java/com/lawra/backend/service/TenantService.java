@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -19,7 +20,7 @@ public class TenantService {
 		return tenantRepository.findAll();
 	}
 
-	public Tenant getById(Long id) {
+	public Tenant getById(UUID id) {
 		return tenantRepository.findById(id)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found"));
 	}
@@ -28,13 +29,13 @@ public class TenantService {
 		return tenantRepository.save(tenant);
 	}
 
-	public Tenant update(Long id, Tenant tenant) {
+	public Tenant update(UUID id, Tenant tenant) {
 		Tenant existing = getById(id);
 		existing.setName(tenant.getName());
 		return tenantRepository.save(existing);
 	}
 
-	public void delete(Long id) {
+	public void delete(UUID id) {
 		Tenant existing = getById(id);
 		tenantRepository.delete(existing);
 	}

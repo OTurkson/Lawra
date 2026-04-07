@@ -51,6 +51,8 @@ public class DataInitializer {
             borrower.setPhoneNumber("0240000001");
             borrower.setPassword(passwordEncoder.encode("password"));
             borrower.setRole(UserRole.BORROWER);
+            borrower.setBalance(BigDecimal.ZERO);
+            borrower.setPasswordResetRequired(false);
             borrower.setTenant(tenant);
             borrower = userRepository.save(borrower);
 
@@ -60,6 +62,8 @@ public class DataInitializer {
             paymaster.setPhoneNumber("0240000002");
             paymaster.setPassword(passwordEncoder.encode("password"));
             paymaster.setRole(UserRole.PAYMASTER);
+            paymaster.setBalance(BigDecimal.ZERO);
+            paymaster.setPasswordResetRequired(false);
             paymaster.setTenant(tenant);
             paymaster = userRepository.save(paymaster);
 
@@ -100,6 +104,7 @@ public class DataInitializer {
                     .totalRepaymentAmount(new BigDecimal("1800.00"))
                     .dueDate(LocalDate.now().plusDays(LoanPeriod.ONE_YEAR.getDays()))
                     .borrower(borrower)
+                    .approvedBy(paymaster)
                     .status(LoanStatus.APPROVED)
                     .build();
             loanRepository.save(approvedLoan);

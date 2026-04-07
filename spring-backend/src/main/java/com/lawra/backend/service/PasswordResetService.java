@@ -60,6 +60,7 @@ public class PasswordResetService {
 
         User user = token.getUser();
         user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPasswordResetRequired(false); // Allow user to login after resetting password
         userRepository.save(user);
 
         token.setUsed(true);

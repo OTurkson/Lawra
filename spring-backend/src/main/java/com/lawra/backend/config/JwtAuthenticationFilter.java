@@ -21,6 +21,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 
 @RequiredArgsConstructor
 @Component
@@ -51,8 +52,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // Extract claims
                 Claims claims = jwtService.extractClaim(token);
 
-                Long userId = claims.get("userId", Long.class);
-                Long tenantId = claims.get("tenantId", Long.class);
+                UUID userId = parseUuidClaim(claims, "userId");
+                UUID tenantId = parseUuidClaim(claims, "tenantId");
                 String role = claims.get("role", String.class);
 
                 // Validate required claims
@@ -81,5 +82,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private UUID parseUuidClaim(Claims claims, String claimName) {
+        Object raw = claims.get(claimName);
+        if (raw == null) {
+            return null;
+        }
+
+        try {
+            return UUID.fromString(String.valueOf(raw));
+        } catch (IllegalArgumentException ex) {
+            logger.warn("JWT claim {} is not a valid UUID", claimName);
+            return null;
+        }
     }
 }

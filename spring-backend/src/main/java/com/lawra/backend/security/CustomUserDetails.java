@@ -7,6 +7,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 
 public class CustomUserDetails implements UserDetails {
 
@@ -16,11 +17,11 @@ public class CustomUserDetails implements UserDetails {
         this.user = user;
     }
 
-    public Long getTenantId() {
+    public UUID getTenantId() {
         return user.getTenant().getId();
     }
 
-    public Long getUserId() {
+    public UUID getUserId() {
         return user.getId();
     }
 

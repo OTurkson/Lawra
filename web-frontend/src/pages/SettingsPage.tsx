@@ -42,7 +42,7 @@ const SettingsPage = () => {
 
   const { data: selectedTenant } = useQuery({
     queryKey: ["tenant", tenantId],
-    queryFn: () => fetchTenantById(Number(tenantId)),
+    queryFn: () => fetchTenantById(tenantId),
     enabled: !!tenantId,
   });
 
@@ -62,7 +62,7 @@ const SettingsPage = () => {
   });
 
   const updateTenantMutation = useMutation({
-    mutationFn: () => updateTenant(Number(tenantId), { name: tenantName }),
+    mutationFn: () => updateTenant(tenantId, { name: tenantName }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenants"] });
       toast({ title: "Tenant updated" });
@@ -71,7 +71,7 @@ const SettingsPage = () => {
   });
 
   const deleteTenantMutation = useMutation({
-    mutationFn: () => deleteTenant(Number(tenantId)),
+    mutationFn: () => deleteTenant(tenantId),
     onSuccess: () => {
       setTenantId("");
       queryClient.invalidateQueries({ queryKey: ["tenants"] });
@@ -81,13 +81,19 @@ const SettingsPage = () => {
   });
 
   const createUserMutation = useMutation({
-    mutationFn: () =>
-      createUser({
+    mutationFn: () => {
+      if (!tenantId) {
+        throw new Error("Select a tenant before creating a user.");
+      }
+
+      return createUser({
         email: userEmail,
         fullName: userFullName,
         phoneNumber: userPhone,
         password: userPassword,
-      }),
+        tenantId,
+      });
+    },
     onSuccess: () => {
       setUserEmail("");
       setUserFullName("");
@@ -101,7 +107,7 @@ const SettingsPage = () => {
 
   const updateUserMutation = useMutation({
     mutationFn: () =>
-      updateUser(Number(userId), {
+      updateUser(userId, {
         email: userEmail,
         fullName: userFullName,
         phoneNumber: userPhone,
@@ -115,7 +121,7 @@ const SettingsPage = () => {
   });
 
   const deleteUserMutation = useMutation({
-    mutationFn: () => deleteUser(Number(userId)),
+    mutationFn: () => deleteUser(userId),
     onSuccess: () => {
       setUserId("");
       queryClient.invalidateQueries({ queryKey: ["users"] });

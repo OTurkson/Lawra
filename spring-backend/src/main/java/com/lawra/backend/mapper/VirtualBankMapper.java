@@ -2,7 +2,6 @@ package com.lawra.backend.mapper;
 
 import com.lawra.backend.dto.VirtualBankDTO;
 import com.lawra.backend.model.VirtualBank;
-import org.hibernate.annotations.Comment;
 import org.springframework.stereotype.Component;
 
 @Component

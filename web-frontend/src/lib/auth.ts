@@ -1,7 +1,7 @@
 export type AuthData = {
   token: string;
-  userId: number;
-  tenantId: number;
+  userId: string;
+  tenantId: string;
   role: string;
 };
 

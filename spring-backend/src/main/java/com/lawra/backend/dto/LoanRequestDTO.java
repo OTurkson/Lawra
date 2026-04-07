@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -14,6 +15,6 @@ public class LoanRequestDTO {
     private BigDecimal principalAmount;
     private BigDecimal interestRate;
     private LoanPeriod period;
-    private Long borrowerId;
+    private UUID borrowerId;
     private LoanStatus loanStatus;
 }

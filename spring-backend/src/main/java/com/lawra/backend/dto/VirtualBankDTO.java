@@ -1,7 +1,5 @@
 package com.lawra.backend.dto;
 
-import com.lawra.backend.model.Tenant;
-import com.lawra.backend.model.User;
 import lombok.*;
 
 import java.math.BigDecimal;

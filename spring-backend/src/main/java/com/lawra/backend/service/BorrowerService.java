@@ -20,6 +20,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -28,11 +29,20 @@ public class BorrowerService {
     private final LoanPackageRepository loanPackageRepository;
     private final UserRepository userRepository;
     private final LoanMapper loanMapper;
+    private final AuthenticatedUserContextService authenticatedUserContextService;
 
     // request loan
     public LoanSummaryDTO createLoan(LoanRequestDTO loanRequest) {
+        UUID currentTenantId = authenticatedUserContextService.getCurrentTenantId();
+        UUID currentUserId = authenticatedUserContextService.getCurrentUserId();
+
+        if (!currentUserId.equals(loanRequest.getBorrowerId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only create loans for your own account");
+        }
+
         // Resolve referenced entities safely
-        LoanPackage loanPackage = loanPackageRepository.findById(loanRequest.getLoanPackageId())
+        LoanPackage loanPackage = loanPackageRepository
+                .findByIdAndVirtualBank_Tenant_Id(loanRequest.getLoanPackageId(), currentTenantId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Loan package not found"));
 
         if (loanRequest.getPrincipalAmount() == null) {
@@ -52,6 +62,14 @@ public class BorrowerService {
 
         User borrower = userRepository.findById(loanRequest.getBorrowerId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Borrower not found"));
+
+        if (!borrower.getTenant().getId().equals(currentTenantId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Borrower does not belong to your tenant");
+        }
+
+        if (!loanPackage.getVirtualBank().getTenant().getId().equals(currentTenantId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Loan package does not belong to your tenant");
+        }
 
         Loan loan = loanMapper.map(loanRequest, loanPackage, borrower);
 
@@ -98,11 +116,19 @@ public class BorrowerService {
     }
 
     // display loan requests per user/borrower.
-    public List<LoanSummaryDTO> getLoansPerBorrower(Long borrowerId) {
+    public List<LoanSummaryDTO> getLoansPerBorrower(UUID borrowerId) {
+        UUID currentTenantId = authenticatedUserContextService.getCurrentTenantId();
+        UUID currentUserId = authenticatedUserContextService.getCurrentUserId();
+
+        if (!currentUserId.equals(borrowerId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only view your own loans");
+        }
+
         userRepository.findById(borrowerId)
+            .filter(user -> user.getTenant().getId().equals(currentTenantId))
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Borrower not found"));
 
-        List<Loan> loans = loanRepository.findByBorrower_Id(borrowerId);
+        List<Loan> loans = loanRepository.findByBorrower_IdAndBorrower_Tenant_Id(borrowerId, currentTenantId);
         List<LoanSummaryDTO> loansPerBorrower = new ArrayList<>();
 
         for (Loan loan : loans) {

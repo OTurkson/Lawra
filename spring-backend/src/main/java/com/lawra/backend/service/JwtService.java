@@ -28,6 +28,22 @@ public class JwtService {
         return extractClaim(token, Claims::getSubject);
     }
 
+    public String extractUserIdAsString(String token) {
+        Claims claims = extractAllClaims(token);
+        return String.valueOf(claims.get("userId"));
+    }
+
+    public String extractTenantIdAsString(String token) {
+        Claims claims = extractAllClaims(token);
+        Object tenantId = claims.get("tenantId");
+        return tenantId != null ? String.valueOf(tenantId) : null;
+    }
+
+    public String extractRole(String token) {
+        Claims claims = extractAllClaims(token);
+        return (String) claims.get("role");
+    }
+
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);

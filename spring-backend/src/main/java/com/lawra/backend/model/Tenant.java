@@ -11,6 +11,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -19,8 +20,9 @@ import java.util.List;
 public class Tenant {
 // include users list. users belong to a tenant by unique email
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(columnDefinition = "CHAR(36)")
+    private UUID id;
 
     @Column(nullable = false, length = 150)
     private String name;

@@ -2,6 +2,18 @@ import { getAuth } from "./auth";
 
 const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL ?? "http://localhost:8080";
 
+export class ApiError extends Error {
+  status: number;
+  data: unknown;
+
+  constructor(message: string, status: number, data: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.data = data;
+  }
+}
+
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
 
@@ -23,7 +35,7 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 
   if (!response.ok) {
     const message = (body as any)?.error || (body as any)?.message || response.statusText;
-    throw new Error(typeof message === "string" ? message : "Request failed");
+    throw new ApiError(typeof message === "string" ? message : "Request failed", response.status, body);
   }
 
   return body as T;
@@ -32,14 +44,15 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 export type LoginRequest = {
   email: string;
   password: string;
-  tenantId: number;
+  tenantId: string; // UUID
 };
 
 export type LoginResponse = {
   token: string;
-  userId: number;
-  tenantId: number;
+  userId: string; // UUID
+  tenantId: string; // UUID
   role: string;
+  requiresPasswordReset?: boolean;
 };
 
 export type VirtualBank = {
@@ -51,8 +64,8 @@ export type VirtualBank = {
 export type VirtualBankRequest = {
   name: string;
   balance?: number;
-  createdById: number;
-  tenantId: number;
+  createdById: string;
+  tenantId: string;
 };
 
 export type LoanPackage = {
@@ -72,14 +85,14 @@ export type LoanPeriod = "THREE_MONTHS" | "SIX_MONTHS" | "ONE_YEAR";
 
 export type LoanRequest = {
   loanPackageId: number;
-  borrowerId: number;
+  borrowerId: string;
   principalAmount: number;
   interestRate: number;
   period: LoanPeriod;
 };
 
 export type Tenant = {
-  id: number;
+  id: string;
   name: string;
 };
 
@@ -92,11 +105,18 @@ export type UserRequest = {
   fullName: string;
   phoneNumber: string;
   password: string;
-  tenantId: number;
+  tenantId: string;
+};
+
+export type UserUpdateRequest = {
+  email: string;
+  fullName: string;
+  phoneNumber: string;
+  password?: string;
 };
 
 export type UserResponse = {
-  id: number;
+  id: string;
   email: string;
   fullName: string;
   phoneNumber?: string;
@@ -108,6 +128,7 @@ export type LoanStatus = "PENDING" | "APPROVED" | "REJECTED" | "COMPLETED" | "DE
 export type LoanSummary = {
   id: number;
   borrowerName?: string;
+  approvedBy?: string;
   amount?: number;
   interest?: string;
   virtualBank?: string;
@@ -126,7 +147,7 @@ export type LoanStatusUpdateRequest = {
 
 export type PasswordResetStartRequest = {
   email: string;
-  tenantId: number;
+  tenantId: string;
 };
 
 export type PasswordResetRequest = {
@@ -171,7 +192,7 @@ export function createVirtualBank(request: VirtualBankRequest) {
   });
 }
 
-export function fetchUserById(id: number) {
+export function fetchUserById(id: string) {
   return apiFetch<UserResponse>(`/users/${id}`);
 }
 
@@ -186,14 +207,14 @@ export function createUser(request: UserRequest) {
   });
 }
 
-export function updateUser(id: number, request: UserRequest) {
+export function updateUser(id: string, request: UserUpdateRequest) {
   return apiFetch<UserResponse>(`/users/${id}`, {
     method: "PUT",
     body: JSON.stringify(request),
   });
 }
 
-export function deleteUser(id: number) {
+export function deleteUser(id: string) {
   return apiFetch<void>(`/users/${id}`, { method: "DELETE" });
 }
 
@@ -201,7 +222,7 @@ export function fetchTenants() {
   return apiFetch<Tenant[]>("/tenants");
 }
 
-export function fetchTenantById(id: number) {
+export function fetchTenantById(id: string) {
   return apiFetch<Tenant>(`/tenants/${id}`);
 }
 
@@ -212,14 +233,14 @@ export function createTenant(request: TenantRequest) {
   });
 }
 
-export function updateTenant(id: number, request: TenantRequest) {
+export function updateTenant(id: string, request: TenantRequest) {
   return apiFetch<Tenant>(`/tenants/${id}`, {
     method: "PUT",
     body: JSON.stringify(request),
   });
 }
 
-export function deleteTenant(id: number) {
+export function deleteTenant(id: string) {
   return apiFetch<void>(`/tenants/${id}`, { method: "DELETE" });
 }
 
@@ -290,7 +311,7 @@ export function createLoan(request: LoanRequest) {
   });
 }
 
-export function fetchBorrowerLoans(borrowerId: number) {
+export function fetchBorrowerLoans(borrowerId: string) {
   return apiFetch<LoanSummary[]>(`/users/${borrowerId}/loans`);
 }
 

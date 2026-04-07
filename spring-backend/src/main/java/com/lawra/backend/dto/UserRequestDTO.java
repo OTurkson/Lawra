@@ -10,5 +10,4 @@ public class UserRequestDTO {
     private String fullName;
     private String phoneNumber;
     private String password;
-    private Long tenantId;
 }

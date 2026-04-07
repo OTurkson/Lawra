@@ -17,5 +17,6 @@ public class LoanSummaryDTO {
     private String tenure;
     private BigDecimal repaymentAmount;
     private String bank;
+    private String approvedBy;
     private LoanStatus status;
 }

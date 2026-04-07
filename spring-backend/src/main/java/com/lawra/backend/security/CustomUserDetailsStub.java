@@ -7,6 +7,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Lightweight implementation of CustomUserDetails for JWT authentication.
@@ -15,12 +16,12 @@ import java.util.List;
 public class CustomUserDetailsStub implements UserDetails {
 
     @Getter
-    private final Long userId;
+    private final UUID userId;
     @Getter
-    private final Long tenantId;
+    private final UUID tenantId;
     private final String role;
 
-    public CustomUserDetailsStub(Long userId, Long tenantId, String role) {
+    public CustomUserDetailsStub(UUID userId, UUID tenantId, String role) {
         this.userId = userId;
         this.tenantId = tenantId;
         this.role = role;

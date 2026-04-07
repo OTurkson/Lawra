@@ -2,8 +2,9 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import signupHero from "@/assets/signup-hero.jpg";
 import { useToast } from "@/hooks/use-toast";
-import { fetchTenants, login, type Tenant } from "@/lib/api";
+import { ApiError, fetchTenants, login, type Tenant } from "@/lib/api";
 import { saveAuth } from "@/lib/auth";
+import { queryClient } from "@/lib/query-client";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -76,8 +77,8 @@ const LoginPage = () => {
       return;
     }
 
-    const tenantNumeric = Number(tenantId);
-    if (!Number.isFinite(tenantNumeric)) {
+    const tenantUuid = tenantId; // Now it's a string UUID, not a number
+    if (!tenantUuid) {
       toast({
         title: "Invalid tenant",
         description: "Please choose a tenant from the dropdown.",
@@ -87,7 +88,22 @@ const LoginPage = () => {
 
     try {
       setIsSubmitting(true);
-      const authResponse = await login({ email, password, tenantId: tenantNumeric });
+      const authResponse = await login({ email, password, tenantId: tenantUuid });
+      
+      // Check if user requires password reset
+      if (authResponse.requiresPasswordReset) {
+        toast({
+          title: "Password Reset Required",
+          description: "Your account requires a password reset before you can log in. Please check your email for the reset link.",
+          variant: "destructive",
+        });
+        navigate("/forgot-password", {
+          state: { email, tenantId: tenantUuid }
+        });
+        return;
+      }
+
+      queryClient.clear();
       saveAuth({
         token: authResponse.token,
         userId: authResponse.userId,
@@ -102,6 +118,18 @@ const LoginPage = () => {
 
       navigate("/dashboard");
     } catch (error: any) {
+      if (error instanceof ApiError && error.status === 403 && (error.data as any)?.requiresPasswordReset) {
+        toast({
+          title: "Password Reset Required",
+          description: "Your account requires a password reset before you can log in.",
+          variant: "destructive",
+        });
+        navigate("/forgot-password", {
+          state: { email, tenantId: tenantUuid }
+        });
+        return;
+      }
+
       toast({
         title: "Login failed",
         description: error?.message || "Please check your details and try again.",
