@@ -5,11 +5,13 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Getter
 @Setter
 public class LoanSummaryDTO {
     private Long id;
+    private UUID borrowerId;
     private String borrowerName;
     private BigDecimal amount;
     private String interest;

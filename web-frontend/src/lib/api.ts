@@ -127,6 +127,7 @@ export type LoanStatus = "PENDING" | "APPROVED" | "REJECTED" | "COMPLETED" | "DE
 
 export type LoanSummary = {
   id: number;
+  borrowerId?: string;
   borrowerName?: string;
   approvedBy?: string;
   amount?: number;
@@ -317,7 +318,7 @@ export function fetchBorrowerLoans(borrowerId: string) {
 
 export function fetchLoans(status?: LoanStatus) {
   const query = status ? `?status=${status}` : "";
-  return apiFetch<LoanSummary[]>(`/paymaster/loans${query}`);
+  return apiFetch<LoanSummary[]>(`/loans${query}`);
 }
 
 export function updateLoanStatus(id: number, request: LoanStatusUpdateRequest) {

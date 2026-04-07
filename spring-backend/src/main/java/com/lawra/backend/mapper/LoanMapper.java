@@ -30,6 +30,7 @@ public class LoanMapper {
         dto.setRepaymentAmount(loan.getTotalRepaymentAmount());
 
         if (loan.getBorrower() != null) {
+            dto.setBorrowerId(loan.getBorrower().getId());
             dto.setBorrowerName(loan.getBorrower().getFullName());
         }
 

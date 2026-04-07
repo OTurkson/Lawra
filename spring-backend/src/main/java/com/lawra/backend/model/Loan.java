@@ -56,7 +56,7 @@ public class Loan {
     private User borrower;
 
     // User (ADMIN/PAYMASTER) who approved this loan. Null until approved.
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "approved_by_id")
     private User approvedBy;
 

@@ -1,11 +1,36 @@
-import { useQuery } from "@tanstack/react-query";
-import { fetchBorrowerLoans, LoanSummary } from "@/lib/api";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchBorrowerLoans, fetchLoans, LoanSummary, LoanStatus, updateLoanStatus } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const LoansPage = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const { user } = useCurrentUser();
+  const isPaymaster = user?.role === "PAYMASTER";
+  const [pendingDecision, setPendingDecision] = useState<{
+    id: number;
+    status: "APPROVED" | "REJECTED";
+    borrowerName?: string;
+  } | null>(null);
 
-  const { data, isLoading, isError, error } = useQuery<LoanSummary[]>({
+  const {
+    data: personalLoans,
+    isLoading: isPersonalLoading,
+    isError: isPersonalError,
+    error: personalError,
+  } = useQuery<LoanSummary[]>({
     queryKey: ["borrower-loans", user?.id],
     queryFn: () => {
       if (!user?.id) {
@@ -17,71 +42,212 @@ const LoansPage = () => {
     enabled: !!user?.id,
   });
 
-  const hasRemoteData = Array.isArray(data) && data.length > 0;
+  const {
+    data: tenantLoans,
+    isLoading: isTenantLoading,
+    isError: isTenantError,
+    error: tenantError,
+  } = useQuery<LoanSummary[]>({
+    queryKey: ["paymaster-loans", user?.id],
+    queryFn: () => fetchLoans(),
+    enabled: !!user?.id && isPaymaster,
+  });
+
+  const employeeLoans = useMemo(() => {
+    if (!isPaymaster) return [];
+    return (tenantLoans ?? []).filter((loan) => loan.borrowerId && loan.borrowerId !== user?.id);
+  }, [isPaymaster, tenantLoans, user?.id]);
+
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: LoanStatus }) => updateLoanStatus(id, { loanStatus: status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["paymaster-loans"] });
+      queryClient.invalidateQueries({ queryKey: ["borrower-loans"] });
+      toast({ title: "Loan updated", description: "Loan status has been updated." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Update failed", description: error?.message ?? "Could not update loan status." });
+    },
+  });
+
+  const renderLoanTable = (
+    rows: LoanSummary[],
+    isLoading: boolean,
+    isError: boolean,
+    error: unknown,
+    emptyMessage: string,
+    withActions = false
+  ) => (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-table-header text-table-header-foreground">
+            <th className="px-3 py-3 text-left">Borrower</th>
+            <th className="px-3 py-3 text-center">Loan Amount</th>
+            <th className="px-3 py-3 text-center">Interest Rate</th>
+            <th className="px-3 py-3 text-center">Tenure</th>
+            <th className="px-3 py-3 text-center">Repayment Amount</th>
+            <th className="px-3 py-3 text-center">Bank</th>
+            <th className="px-3 py-3 text-center">Approved By</th>
+            <th className="px-3 py-3 text-center">Status</th>
+            {withActions && <th className="px-3 py-3 text-center">Actions</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {isLoading && (
+            <tr className="border-b border-border">
+              <td colSpan={withActions ? 9 : 8} className="px-3 py-3 text-center text-muted-foreground">
+                Loading loans...
+              </td>
+            </tr>
+          )}
+
+          {!isLoading && isError && (
+            <tr className="border-b border-border">
+              <td colSpan={withActions ? 9 : 8} className="px-3 py-3 text-center text-destructive">
+                {(error as Error)?.message ?? "Unable to load loans."}
+              </td>
+            </tr>
+          )}
+
+          {!isLoading && !isError && rows.map((row) => (
+            <tr key={row.id} className="border-b border-border">
+              <td className="px-3 py-3 text-muted-foreground">{row.borrowerName}</td>
+              <td className="px-3 py-3 text-center text-muted-foreground">{row.amount}</td>
+              <td className="px-3 py-3 text-center text-muted-foreground">{row.interest}</td>
+              <td className="px-3 py-3 text-center text-muted-foreground">{row.tenure}</td>
+              <td className="px-3 py-3 text-center text-muted-foreground">{row.repaymentAmount ?? ""}</td>
+              <td className="px-3 py-3 text-center text-muted-foreground">{row.bank}</td>
+              <td className="px-3 py-3 text-center text-muted-foreground">{row.approvedBy ?? "-"}</td>
+              <td className="px-3 py-3 text-center text-muted-foreground">{row.status}</td>
+              {withActions && (
+                <td className="px-3 py-3 text-center">
+                  {row.status === "PENDING" ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        className="w-8 h-8 rounded-full bg-approve text-approve-foreground text-sm font-semibold disabled:opacity-60"
+                        disabled={updateStatusMutation.isPending}
+                        onClick={() => setPendingDecision({ id: row.id, status: "APPROVED", borrowerName: row.borrowerName })}
+                        aria-label="Approve loan"
+                        title="Approve"
+                      >
+                        ✓
+                      </button>
+                      <button
+                        className="w-8 h-8 rounded-full bg-destructive text-destructive-foreground text-sm font-semibold disabled:opacity-60"
+                        disabled={updateStatusMutation.isPending}
+                        onClick={() => setPendingDecision({ id: row.id, status: "REJECTED", borrowerName: row.borrowerName })}
+                        aria-label="Reject loan"
+                        title="Reject"
+                      >
+                        X
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground text-xs">No action</span>
+                  )}
+                </td>
+              )}
+            </tr>
+          ))}
+
+          {!isLoading && !isError && rows.length === 0 && (
+            <tr className="border-b border-border">
+              <td colSpan={withActions ? 9 : 8} className="px-3 py-3 text-center text-muted-foreground">
+                {emptyMessage}
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="bg-card rounded-lg shadow-sm overflow-hidden">
-        <div className="p-4 pb-2 border-b border-border">
-          <h2 className="text-lg font-light text-foreground">Loans</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-table-header text-table-header-foreground">
-                <th className="px-3 py-3 text-left">Borrower</th>
-                <th className="px-3 py-3 text-center">Loan Amount</th>
-                <th className="px-3 py-3 text-center">Interest Rate</th>
-                <th className="px-3 py-3 text-center">Tenure</th>
-                <th className="px-3 py-3 text-center">Repayment Amount</th>
-                <th className="px-3 py-3 text-center">Bank</th>
-                <th className="px-3 py-3 text-center">Approved By</th>
-                <th className="px-3 py-3 text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading && (
-                <tr className="border-b border-border">
-                  <td colSpan={8} className="px-3 py-3 text-center text-muted-foreground">
-                    Loading loans...
-                  </td>
-                </tr>
+    <>
+      <div className="space-y-6">
+        {isPaymaster ? (
+          <>
+            <div className="bg-card rounded-lg shadow-sm overflow-hidden">
+              <div className="p-4 pb-2 border-b border-border">
+                <h2 className="text-lg font-light text-foreground">My Loans</h2>
+              </div>
+              {renderLoanTable(
+                personalLoans ?? [],
+                isPersonalLoading,
+                isPersonalError,
+                personalError,
+                "No personal loans found."
               )}
+            </div>
 
-              {!isLoading && isError && (
-                <tr className="border-b border-border">
-                  <td colSpan={8} className="px-3 py-3 text-center text-destructive">
-                    {(error as Error)?.message ?? "Unable to load loans."}
-                  </td>
-                </tr>
+            <div className="bg-card rounded-lg shadow-sm overflow-hidden">
+              <div className="p-4 pb-2 border-b border-border">
+                <h2 className="text-lg font-light text-foreground">Other Employees Loans</h2>
+              </div>
+              {renderLoanTable(
+                employeeLoans,
+                isTenantLoading,
+                isTenantError,
+                tenantError,
+                "No employee loans found.",
+                true
               )}
-
-              {!isLoading && hasRemoteData &&
-                data!.map((row) => (
-                  <tr key={row.id} className="border-b border-border">
-                    <td className="px-3 py-3 text-muted-foreground">{row.borrowerName}</td>
-                    <td className="px-3 py-3 text-center text-muted-foreground">{row.amount}</td>
-                    <td className="px-3 py-3 text-center text-muted-foreground">{row.interest}</td>
-                    <td className="px-3 py-3 text-center text-muted-foreground">{row.tenure}</td>
-                    <td className="px-3 py-3 text-center text-muted-foreground">{row.repaymentAmount ?? ""}</td>
-                    <td className="px-3 py-3 text-center text-muted-foreground">{row.bank}</td>
-                    <td className="px-3 py-3 text-center text-muted-foreground">{row.approvedBy ?? "-"}</td>
-                    <td className="px-3 py-3 text-center text-muted-foreground">{row.status}</td>
-                  </tr>
-                ))}
-
-              {!isLoading && !isError && !hasRemoteData && (
-                <tr className="border-b border-border">
-                  <td colSpan={8} className="px-3 py-3 text-center text-muted-foreground">
-                    No loans found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          </>
+        ) : (
+          <div className="bg-card rounded-lg shadow-sm overflow-hidden">
+            <div className="p-4 pb-2 border-b border-border">
+              <h2 className="text-lg font-light text-foreground">Loans</h2>
+            </div>
+            {renderLoanTable(
+              personalLoans ?? [],
+              isPersonalLoading,
+              isPersonalError,
+              personalError,
+              "No loans found."
+            )}
+          </div>
+        )}
       </div>
-    </div>
+
+      <AlertDialog
+        open={!!pendingDecision}
+        onOpenChange={(open) => {
+          if (!open) setPendingDecision(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingDecision?.status === "APPROVED" ? "Confirm Approval" : "Confirm Rejection"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDecision?.status === "APPROVED"
+                ? `Are you sure you want to approve ${pendingDecision?.borrowerName ?? "this"} loan request?`
+                : `Are you sure you want to reject ${pendingDecision?.borrowerName ?? "this"} loan request?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={updateStatusMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={updateStatusMutation.isPending || !pendingDecision}
+              onClick={() => {
+                if (!pendingDecision) return;
+                updateStatusMutation.mutate(
+                  { id: pendingDecision.id, status: pendingDecision.status },
+                  {
+                    onSettled: () => setPendingDecision(null),
+                  }
+                );
+              }}
+            >
+              {pendingDecision?.status === "APPROVED" ? "Approve" : "Reject"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 
