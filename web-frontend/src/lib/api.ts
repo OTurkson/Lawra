@@ -59,13 +59,22 @@ export type VirtualBank = {
   id: number;
   name: string;
   balance?: number;
+  createdById?: string;
+  createdBy?: string;
+  tenant?: string;
 };
 
 export type VirtualBankRequest = {
   name: string;
   balance?: number;
-  createdById: string;
-  tenantId: string;
+};
+
+export type VirtualBankUpdateRequest = {
+  name: string;
+};
+
+export type VirtualBankTopUpRequest = {
+  amount: number;
 };
 
 export type LoanPackage = {
@@ -187,10 +196,26 @@ export function createVirtualBank(request: VirtualBankRequest) {
     body: JSON.stringify({
       name: request.name,
       balance: request.balance,
-      createdBy: { id: request.createdById },
-      tenant: { id: request.tenantId },
     }),
   });
+}
+
+export function updateVirtualBank(id: number, request: VirtualBankUpdateRequest) {
+  return apiFetch<VirtualBank>(`/banks/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(request),
+  });
+}
+
+export function topUpVirtualBank(id: number, request: VirtualBankTopUpRequest) {
+  return apiFetch<VirtualBank>(`/banks/${id}/top-up`, {
+    method: "PATCH",
+    body: JSON.stringify(request),
+  });
+}
+
+export function deleteVirtualBank(id: number) {
+  return apiFetch<void>(`/banks/${id}`, { method: "DELETE" });
 }
 
 export function fetchUserById(id: string) {

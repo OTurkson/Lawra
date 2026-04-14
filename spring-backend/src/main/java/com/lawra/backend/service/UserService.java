@@ -128,12 +128,29 @@ public class UserService {
 
     // update a user
     public UserResponseDTO updateUser(UserRequestDTO userRequestDTO, UUID id) {
+        User currentUser = authenticatedUserContextService.getCurrentUser();
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User with id " + id + " not found"));
 
-        user.setEmail(userRequestDTO.getEmail());
-        user.setFullName(userRequestDTO.getFullName());
-        user.setPhoneNumber(userRequestDTO.getPhoneNumber());
+        boolean isTenantAdmin = currentUser.getRole() == UserRole.PAYMASTER || currentUser.getRole() == UserRole.ADMIN;
+        boolean isSelf = currentUser.getId().equals(id);
+
+        if (!isTenantAdmin && !isSelf) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not allowed to update this account");
+        }
+
+        if (isTenantAdmin) {
+            if (userRequestDTO.getEmail() != null && !userRequestDTO.getEmail().isBlank()) {
+                user.setEmail(userRequestDTO.getEmail());
+            }
+            if (userRequestDTO.getFullName() != null && !userRequestDTO.getFullName().isBlank()) {
+                user.setFullName(userRequestDTO.getFullName());
+            }
+        }
+
+        if (userRequestDTO.getPhoneNumber() != null && !userRequestDTO.getPhoneNumber().isBlank()) {
+            user.setPhoneNumber(userRequestDTO.getPhoneNumber());
+        }
 
         // Optional: update password if provided
         if (userRequestDTO.getPassword() != null && !userRequestDTO.getPassword().isBlank()) {
@@ -146,7 +163,19 @@ public class UserService {
     }
 
     public void deleteUser(UUID id) {
-        userRepository.findById(id).map(userMapper::map).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"User with id " + id + " not found"));
+        User currentUser = authenticatedUserContextService.getCurrentUser();
+        boolean isTenantAdmin = currentUser.getRole() == UserRole.PAYMASTER || currentUser.getRole() == UserRole.ADMIN;
+        if (!isTenantAdmin) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not allowed to delete users");
+        }
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User with id " + id + " not found"));
+
+        if (user.getId().equals(currentUser.getId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You cannot delete your own account");
+        }
+
         userRepository.deleteById(id);
     }
 

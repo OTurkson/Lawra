@@ -61,15 +61,15 @@ public class UserController {
 
     // Update a user
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('PAYMASTER')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('PAYMASTER') or #id.toString() == authentication.principal.userId.toString()")
     public ResponseEntity<UserResponseDTO> updateUser(@PathVariable UUID id, @RequestBody UserRequestDTO userRequestDTO) {
         UserResponseDTO userResponseDTO = userService.updateUser(userRequestDTO, id);
         return ResponseEntity.ok(userResponseDTO);
     }
 
-    // Delete a user - ADMIN only
+    // Delete a user - tenant admin roles only
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('PAYMASTER')")
     public ResponseEntity<Void> deleteUser(@PathVariable UUID id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();

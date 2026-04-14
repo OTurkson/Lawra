@@ -108,7 +108,7 @@ const DashboardLayout = () => {
       <div className="flex-1 flex flex-col">
         {/* Top bar */}
         <header className="h-14 bg-card flex items-center justify-between px-6 border-b border-border">
-          <span className="paymaster-font text-muted-foreground text-xl tracking-wide">paymaster</span>
+          <span className="paymaster-font text-muted-foreground text-xl tracking-wide">{user?.role}</span>
           <div className="flex items-center gap-4">
             <button className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground">
               <HelpCircle size={16} />

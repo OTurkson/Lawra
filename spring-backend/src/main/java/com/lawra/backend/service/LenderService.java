@@ -1,13 +1,22 @@
 package com.lawra.backend.service;
 
+import com.lawra.backend.dto.VirtualBankTopUpRequestDTO;
+import com.lawra.backend.dto.VirtualBankUpdateRequestDTO;
 import com.lawra.backend.dto.VirtualBankDTO;
+import com.lawra.backend.enums.UserRole;
 import com.lawra.backend.mapper.VirtualBankMapper;
+import com.lawra.backend.model.User;
 import com.lawra.backend.model.VirtualBank;
 import com.lawra.backend.repository.VirtualBankRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -18,17 +27,108 @@ public class LenderService {
 
     //    List all VBs
     public List<VirtualBankDTO> getAllVirtualBanks () {
-        return lenderRepository.findAll()
+        UUID tenantId = authenticatedUserContextService.getCurrentTenantId();
+        return lenderRepository.findByTenant_Id(tenantId)
                 .stream()
                 .map(virtualBankMapper::map)
                 .toList();
     }
 
     //    Create new Virtual Bank
+    @Transactional
     public VirtualBank createVirtualBank(VirtualBank virtualBank) {
         // Always derive tenant/user from authentication context to prevent tenant spoofing.
+        User currentUser = authenticatedUserContextService.getCurrentUser();
+        BigDecimal initialDeposit = normalizeInitialDeposit(virtualBank.getBalance());
+
+        ensureSufficientUserBalance(currentUser, initialDeposit);
+
+        currentUser.setBalance(currentUser.getBalance().subtract(initialDeposit));
+
         virtualBank.setTenant(authenticatedUserContextService.getCurrentTenant());
-        virtualBank.setCreatedBy(authenticatedUserContextService.getCurrentUser());
+        virtualBank.setCreatedBy(currentUser);
+        virtualBank.setBalance(initialDeposit);
+
         return lenderRepository.save(virtualBank);
+    }
+
+    @Transactional
+    public VirtualBank updateVirtualBank(Long id, VirtualBankUpdateRequestDTO request) {
+        VirtualBank bank = getTenantBank(id);
+        User currentUser = authenticatedUserContextService.getCurrentUser();
+
+        ensureCanManageBank(currentUser, bank);
+
+        if (request.getName() == null || request.getName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Virtual bank name is required");
+        }
+
+        bank.setName(request.getName().trim());
+        return lenderRepository.save(bank);
+    }
+
+    @Transactional
+    public VirtualBank topUpVirtualBank(Long id, VirtualBankTopUpRequestDTO request) {
+        VirtualBank bank = getTenantBank(id);
+        User currentUser = authenticatedUserContextService.getCurrentUser();
+
+        ensureCanManageBank(currentUser, bank);
+
+        BigDecimal amount = normalizeRequiredAmount(request.getAmount());
+        ensureSufficientUserBalance(currentUser, amount);
+
+        currentUser.setBalance(currentUser.getBalance().subtract(amount));
+        bank.setBalance(bank.getBalance().add(amount));
+
+        return lenderRepository.save(bank);
+    }
+
+    @Transactional
+    public void deleteVirtualBank(Long id) {
+        VirtualBank bank = getTenantBank(id);
+        User currentUser = authenticatedUserContextService.getCurrentUser();
+
+        ensureCanManageBank(currentUser, bank);
+        lenderRepository.delete(bank);
+    }
+
+    private VirtualBank getTenantBank(Long id) {
+        UUID tenantId = authenticatedUserContextService.getCurrentTenantId();
+        return lenderRepository.findByIdAndTenant_Id(id, tenantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Virtual bank not found"));
+    }
+
+    private void ensureCanManageBank(User currentUser, VirtualBank bank) {
+        boolean isTenantAdmin = currentUser.getRole() == UserRole.PAYMASTER || currentUser.getRole() == UserRole.ADMIN;
+        boolean isOwner = bank.getCreatedBy().getId().equals(currentUser.getId());
+
+        if (!isTenantAdmin && !isOwner) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only manage virtual banks created by you");
+        }
+    }
+
+    private BigDecimal normalizeInitialDeposit(BigDecimal amount) {
+        if (amount == null) {
+            return BigDecimal.ZERO;
+        }
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Amount must be greater than zero");
+        }
+        return amount;
+    }
+
+    private BigDecimal normalizeRequiredAmount(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Amount must be greater than zero");
+        }
+        return amount;
+    }
+
+    private void ensureSufficientUserBalance(User currentUser, BigDecimal amount) {
+        BigDecimal currentBalance = currentUser.getBalance() == null ? BigDecimal.ZERO : currentUser.getBalance();
+        System.out.println(currentBalance);
+        if (currentBalance.compareTo(amount) < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Insufficient balance for this action");
+        }
     }
 }

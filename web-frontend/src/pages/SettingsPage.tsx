@@ -19,6 +19,7 @@ const SettingsPage = () => {
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const isTenantAdmin = user?.role === "PAYMASTER" || user?.role === "ADMIN";
 
   const [name, setName] = useState("Mama One");
   const [company, setCompany] = useState("Unilever Ghana Limited");
@@ -38,17 +39,45 @@ const SettingsPage = () => {
   const { data: tenants } = useQuery({
     queryKey: ["tenants"],
     queryFn: fetchTenants,
+    enabled: isTenantAdmin,
   });
 
   const { data: selectedTenant } = useQuery({
     queryKey: ["tenant", tenantId],
     queryFn: () => fetchTenantById(tenantId),
-    enabled: !!tenantId,
+    enabled: isTenantAdmin && !!tenantId,
   });
 
   const { data: users } = useQuery({
     queryKey: ["users"],
     queryFn: fetchUsers,
+    enabled: isTenantAdmin,
+  });
+
+  const profileMutation = useMutation({
+    mutationFn: () => {
+      if (!user?.id) {
+        throw new Error("Unable to determine current user.");
+      }
+      if (newPassword && newPassword !== confirmPassword) {
+        throw new Error("New password and confirmation do not match.");
+      }
+
+      return updateUser(user.id, {
+        fullName: isTenantAdmin ? name : undefined,
+        phoneNumber: company,
+        password: newPassword || undefined,
+      });
+    },
+    onSuccess: () => {
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      queryClient.invalidateQueries({ queryKey: ["current-user"] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast({ title: "Profile updated" });
+    },
+    onError: (error: any) => toast({ title: "Profile update failed", description: error?.message }),
   });
 
   const createTenantMutation = useMutation({
@@ -130,6 +159,25 @@ const SettingsPage = () => {
     onError: (error: any) => toast({ title: "User delete failed", description: error?.message }),
   });
 
+  const hasNameChange = isTenantAdmin && name.trim() !== (user?.fullName ?? "").trim();
+  const hasPhoneChange = company.trim() !== (user?.phoneNumber ?? "").trim();
+  const hasPasswordChange = !!newPassword || !!confirmPassword;
+  const hasProfileChanges = hasNameChange || hasPhoneChange || hasPasswordChange;
+
+  const handleSaveProfile = () => {
+    if (!hasProfileChanges) {
+      toast({ title: "No changes detected", description: "Update at least one field before saving." });
+      return;
+    }
+
+    if (hasPasswordChange && newPassword !== confirmPassword) {
+      toast({ title: "Password mismatch", description: "New password and confirmation do not match." });
+      return;
+    }
+
+    profileMutation.mutate();
+  };
+
   useEffect(() => {
     if (user?.fullName) {
       setName(user.fullName);
@@ -140,10 +188,27 @@ const SettingsPage = () => {
   }, [user]);
 
   useEffect(() => {
+    if (!isTenantAdmin && user?.id) {
+      setUserId(String(user.id));
+    }
+  }, [isTenantAdmin, user?.id]);
+
+  useEffect(() => {
     if (selectedTenant?.name) {
       setTenantName(selectedTenant.name);
     }
   }, [selectedTenant]);
+
+  useEffect(() => {
+    const selectedUser = (users ?? []).find((managedUser) => String(managedUser.id) === userId);
+    if (!selectedUser) {
+      return;
+    }
+    setUserEmail(selectedUser.email ?? "");
+    setUserFullName(selectedUser.fullName ?? "");
+    setUserPhone(selectedUser.phoneNumber ?? "");
+    setUserPassword("");
+  }, [userId, users]);
 
   return (
     <div className="space-y-6">
@@ -169,34 +234,25 @@ const SettingsPage = () => {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              disabled={!isTenantAdmin}
               className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground focus:outline-none focus:border-primary transition-colors"
             />
+            {!isTenantAdmin && (
+              <p className="mt-1 text-xs text-muted-foreground">Name updates are managed by paymaster.</p>
+            )}
           </div>
 
           {/* Company */}
           <div>
-            <label className="block text-muted-foreground text-sm mb-1">{company}</label>
-          </div>
-
-          {/* Email and SMS */}
-          <div>
-            <label className="block text-primary font-semibold text-sm mb-2">Email and SMS</label>
+            <label className="block text-primary font-semibold text-sm mb-2">Phone Number</label>
             <input
               type="text"
-              placeholder="Email and SMS notifications"
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
               className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
             />
           </div>
 
-          {/* Security */}
-          <div>
-            <label className="block text-primary font-semibold text-sm mb-2">Security</label>
-            <input
-              type="text"
-              placeholder="Security settings"
-              className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-            />
-          </div>
         </div>
 
         {/* Right column - Change Password */}
@@ -235,9 +291,18 @@ const SettingsPage = () => {
               className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
             />
           </div>
+
+          <button
+            onClick={handleSaveProfile}
+            disabled={profileMutation.isPending || !hasProfileChanges}
+            className="px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-60"
+          >
+            {profileMutation.isPending ? "Saving..." : "Save Profile"}
+          </button>
         </div>
       </div>
 
+      {isTenantAdmin && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-card rounded-lg shadow-sm p-6 space-y-4">
           <h3 className="text-primary font-semibold text-sm">Tenant Management</h3>
@@ -355,6 +420,7 @@ const SettingsPage = () => {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };

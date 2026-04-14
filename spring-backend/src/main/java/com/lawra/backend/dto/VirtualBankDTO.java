@@ -3,6 +3,7 @@ package com.lawra.backend.dto;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -12,6 +13,7 @@ public class VirtualBankDTO {
     private Long id;
     private String name;
     private BigDecimal balance;
+    private UUID createdById;
     private String createdBy;
     private String tenant;
 }
