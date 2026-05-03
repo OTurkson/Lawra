@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Getter
@@ -18,6 +19,7 @@ public class LoanSummaryDTO {
     private String virtualBank;
     private String tenure;
     private BigDecimal repaymentAmount;
+    private LocalDate dueDate;
     private String bank;
     private String approvedBy;
     private LoanStatus status;

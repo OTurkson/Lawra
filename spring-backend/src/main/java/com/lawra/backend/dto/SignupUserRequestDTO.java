@@ -1,5 +1,6 @@
 package com.lawra.backend.dto;
 
+import com.lawra.backend.enums.UserRole;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -13,4 +14,5 @@ public class SignupUserRequestDTO {
     private String phoneNumber;
     private String password;
     private UUID tenantId;
+    private UserRole role;
 }

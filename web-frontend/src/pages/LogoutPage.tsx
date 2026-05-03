@@ -1,17 +1,23 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import avatarDog from "@/assets/avatar-dog.jpg";
 import { clearAuth } from "@/lib/auth";
 import { queryClient } from "@/lib/query-client";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { Spinner } from "@/components/Spinner";
 
 const LogoutPage = () => {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogout = () => {
-    queryClient.clear();
-    clearAuth();
-    navigate("/", { replace: true });
+    setIsLoading(true);
+    setTimeout(() => {
+      queryClient.clear();
+      clearAuth();
+      navigate("/", { replace: true });
+    }, 500);
   };
 
   return (
@@ -30,9 +36,17 @@ const LogoutPage = () => {
           <button
             type="button"
             onClick={handleLogout}
-            className="flex-1 py-3 rounded-full bg-destructive text-destructive-foreground font-semibold text-sm text-center hover:opacity-90 transition-opacity"
+            disabled={isLoading}
+            className="flex-1 py-3 rounded-full bg-destructive text-destructive-foreground font-semibold text-sm text-center hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Logout
+            {isLoading ? (
+              <>
+                <Spinner size="sm" />
+                Logging out...
+              </>
+            ) : (
+              "Logout"
+            )}
           </button>
           <Link
             to="/dashboard"

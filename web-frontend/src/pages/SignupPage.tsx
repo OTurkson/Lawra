@@ -10,6 +10,7 @@ const SignupPage = () => {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [accountType, setAccountType] = useState<"BORROWER" | "PAYMASTER">("BORROWER");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [tenantId, setTenantId] = useState("");
@@ -32,6 +33,7 @@ const SignupPage = () => {
     setEmail("");
     setFullName("");
     setPhoneNumber("");
+    setAccountType("BORROWER");
     setPassword("");
     setConfirmPassword("");
     setTenantId("");
@@ -114,6 +116,7 @@ const SignupPage = () => {
         phoneNumber,
         password,
         tenantId: tenantUuid,
+        role: accountType,
       });
 
       const authResponse = await login({ email, password, tenantId: tenantUuid });
@@ -142,7 +145,7 @@ const SignupPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen h-lvh">
       <div className="hidden lg:flex lg:w-1/2 relative">
         <img src={signupHero} alt="Woman using phone" className="w-full h-full object-cover" />
         <div className="absolute top-8 left-8">
@@ -202,6 +205,18 @@ const SignupPage = () => {
             </div>
 
             <div>
+              <label className="block text-primary font-semibold text-sm mb-2">Account type</label>
+              <select
+                value={accountType}
+                onChange={(event) => setAccountType(event.target.value as "BORROWER" | "PAYMASTER")}
+                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground focus:outline-none focus:border-primary transition-colors"
+              >
+                <option value="BORROWER">Borrower</option>
+                <option value="PAYMASTER">Paymaster</option>
+              </select>
+            </div>
+
+            <div>
               <label className="block text-primary font-semibold text-sm mb-2">Tenant</label>
               <select
                 value={tenantId}
@@ -249,22 +264,6 @@ const SignupPage = () => {
                 autoComplete="off"
                 className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
               />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(event) => setRemember(event.target.checked)}
-                  ref={rememberInputRef}
-                  className="w-5 h-5 rounded accent-primary"
-                />
-                <span className="text-muted-foreground text-sm">Remember Me</span>
-              </label>
-              <a href="#" className="text-primary text-sm font-semibold hover:underline">
-                Forgot Password?
-              </a>
             </div>
 
             <button

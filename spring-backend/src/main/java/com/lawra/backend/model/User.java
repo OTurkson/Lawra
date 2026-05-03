@@ -47,8 +47,8 @@ public class User {
     @Column(nullable = false)
     private String phoneNumber;
 
-    @Column(nullable = false, precision = 12, scale = 2)
-    private BigDecimal balance;
+    @Column(precision = 12, scale = 2)
+    private BigDecimal balance = BigDecimal.valueOf(0.00);
 
 //    Tenant associated with a particular user
     @ManyToOne(fetch = FetchType.LAZY)

@@ -1,6 +1,7 @@
 package com.lawra.backend.controller;
 
 import com.lawra.backend.dto.InviteUserRequestDTO;
+import com.lawra.backend.dto.UserBalanceTopUpRequestDTO;
 import com.lawra.backend.dto.SignupUserRequestDTO;
 import com.lawra.backend.dto.UserRequestDTO;
 import com.lawra.backend.dto.UserResponseDTO;
@@ -64,6 +65,14 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN') or hasRole('PAYMASTER') or #id.toString() == authentication.principal.userId.toString()")
     public ResponseEntity<UserResponseDTO> updateUser(@PathVariable UUID id, @RequestBody UserRequestDTO userRequestDTO) {
         UserResponseDTO userResponseDTO = userService.updateUser(userRequestDTO, id);
+        return ResponseEntity.ok(userResponseDTO);
+    }
+
+    // Authenticated user: top up their own balance
+    @PostMapping("/me/balance/top-up")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('PAYMASTER') or hasRole('BORROWER')")
+    public ResponseEntity<UserResponseDTO> topUpCurrentUserBalance(@RequestBody UserBalanceTopUpRequestDTO request) {
+        UserResponseDTO userResponseDTO = userService.topUpCurrentUserBalance(request);
         return ResponseEntity.ok(userResponseDTO);
     }
 

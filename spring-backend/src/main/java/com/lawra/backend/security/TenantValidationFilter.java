@@ -112,6 +112,10 @@ public class TenantValidationFilter extends OncePerRequestFilter {
         if (path.startsWith("/swagger") || path.startsWith("/v3/api-docs")) return true;
         // Skip health check
         if (path.equals("/health")) return true;
+        // Skip public tenant list endpoint - marked as permitAll() in SecurityConfig
+        if (path.equals("/tenants")) return true;
+        // Skip public user registration endpoint - marked as permitAll() in SecurityConfig
+        if (path.equals("/users")) return true;
         return false;
     }
 

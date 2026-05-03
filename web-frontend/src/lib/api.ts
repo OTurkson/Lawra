@@ -1,4 +1,4 @@
-import { getAuth } from "./auth";
+import { clearAuth, getAuth } from "./auth";
 
 const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL ?? "http://localhost:8080";
 
@@ -16,12 +16,15 @@ export class ApiError extends Error {
 
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
+  const pathname = path.startsWith("http") ? new URL(path).pathname : path;
+  const isPublicAuthRoute =
+    pathname === "/auth/login" || pathname === "/auth/request-password-reset" || pathname === "/auth/reset-password";
 
   const headers = new Headers(options.headers || {});
   headers.set("Content-Type", "application/json");
 
   const auth = getAuth();
-  if (auth && !headers.has("Authorization")) {
+  if (auth && !headers.has("Authorization") && !isPublicAuthRoute) {
     headers.set("Authorization", `Bearer ${auth.token}`);
   }
 
@@ -35,6 +38,12 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 
   if (!response.ok) {
     const message = (body as any)?.error || (body as any)?.message || response.statusText;
+
+    if (response.status === 401 && !isPublicAuthRoute) {
+      clearAuth();
+      window.location.replace("/");
+    }
+
     throw new ApiError(typeof message === "string" ? message : "Request failed", response.status, body);
   }
 
@@ -115,13 +124,18 @@ export type UserRequest = {
   phoneNumber: string;
   password: string;
   tenantId: string;
+  role?: "BORROWER" | "PAYMASTER";
 };
 
 export type UserUpdateRequest = {
-  email: string;
-  fullName: string;
-  phoneNumber: string;
+  email?: string;
+  fullName?: string;
+  phoneNumber?: string;
   password?: string;
+};
+
+export type UserBalanceTopUpRequest = {
+  amount: number;
 };
 
 export type UserResponse = {
@@ -130,6 +144,7 @@ export type UserResponse = {
   fullName: string;
   phoneNumber?: string;
   role: string;
+  balance?: number;
 };
 
 export type LoanStatus = "PENDING" | "APPROVED" | "REJECTED" | "COMPLETED" | "DEFAULTED";
@@ -146,6 +161,7 @@ export type LoanSummary = {
   repaymentAmount?: number;
   installment?: number;
   bank?: string;
+  dueDate?: string;
   accountName?: string;
   accountNumber?: string;
   status: LoanStatus;
@@ -236,6 +252,13 @@ export function createUser(request: UserRequest) {
 export function updateUser(id: string, request: UserUpdateRequest) {
   return apiFetch<UserResponse>(`/users/${id}`, {
     method: "PUT",
+    body: JSON.stringify(request),
+  });
+}
+
+export function topUpCurrentUserBalance(request: UserBalanceTopUpRequest) {
+  return apiFetch<UserResponse>("/users/me/balance/top-up", {
+    method: "POST",
     body: JSON.stringify(request),
   });
 }

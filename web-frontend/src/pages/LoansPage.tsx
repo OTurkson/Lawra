@@ -3,6 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchBorrowerLoans, fetchLoans, LoanSummary, LoanStatus, updateLoanStatus } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useToast } from "@/hooks/use-toast";
+import { Spinner } from "@/components/Spinner";
+import { getAuth } from "@/lib/auth";
+import { pushNotification } from "@/lib/notifications";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,10 +63,20 @@ const LoansPage = () => {
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number; status: LoanStatus }) => updateLoanStatus(id, { loanStatus: status }),
-    onSuccess: () => {
+    onSuccess: (_data, { id, status }) => {
+      const auth = getAuth();
       queryClient.invalidateQueries({ queryKey: ["paymaster-loans"] });
       queryClient.invalidateQueries({ queryKey: ["borrower-loans"] });
       toast({ title: "Loan updated", description: "Loan status has been updated." });
+      
+      // Push notification for approval/rejection
+      const loanDetails = employeeLoans.find((l) => l.id === id);
+      if (loanDetails && (status === "APPROVED" || status === "REJECTED")) {
+        pushNotification(queryClient, auth?.userId, {
+          type: 'loan-decision',
+          message: `${status === "APPROVED" ? "Approved" : "Rejected"} loan of Gh¢ ${Number(loanDetails.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} for ${loanDetails.borrowerName || "employee"}`,
+        });
+      }
     },
     onError: (error: any) => {
       toast({ title: "Update failed", description: error?.message ?? "Could not update loan status." });
@@ -241,8 +254,16 @@ const LoansPage = () => {
                   }
                 );
               }}
+              className="flex items-center justify-center gap-2"
             >
-              {pendingDecision?.status === "APPROVED" ? "Approve" : "Reject"}
+              {updateStatusMutation.isPending ? (
+                <>
+                  <Spinner size="sm" />
+                  {pendingDecision?.status === "APPROVED" ? "Approving..." : "Rejecting..."}
+                </>
+              ) : (
+                pendingDecision?.status === "APPROVED" ? "Approve" : "Reject"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

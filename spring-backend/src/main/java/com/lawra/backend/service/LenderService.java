@@ -7,6 +7,7 @@ import com.lawra.backend.enums.UserRole;
 import com.lawra.backend.mapper.VirtualBankMapper;
 import com.lawra.backend.model.User;
 import com.lawra.backend.model.VirtualBank;
+import com.lawra.backend.repository.UserRepository;
 import com.lawra.backend.repository.VirtualBankRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -22,6 +23,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class LenderService {
     private final VirtualBankRepository lenderRepository;
+    private final UserRepository userRepository;
     private final VirtualBankMapper virtualBankMapper;
     private final AuthenticatedUserContextService authenticatedUserContextService;
 
@@ -89,6 +91,15 @@ public class LenderService {
         User currentUser = authenticatedUserContextService.getCurrentUser();
 
         ensureCanManageBank(currentUser, bank);
+        BigDecimal refundAmount = bank.getBalance() == null ? BigDecimal.ZERO : bank.getBalance();
+        User refundTarget = bank.getCreatedBy() != null ? bank.getCreatedBy() : currentUser;
+
+        if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal currentBalance = refundTarget.getBalance() == null ? BigDecimal.ZERO : refundTarget.getBalance();
+            refundTarget.setBalance(currentBalance.add(refundAmount));
+            userRepository.save(refundTarget);
+        }
+
         lenderRepository.delete(bank);
     }
 

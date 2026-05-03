@@ -34,20 +34,56 @@ public class LoanPackageService {
 
 	public LoanPackage create(LoanPackage loanPackage) {
 		VirtualBank bank = resolveTenantScopedBank(loanPackage.getVirtualBank());
+		
+		// Validate that loan package balance doesn't exceed virtual bank balance
+		if (loanPackage.getBalance().compareTo(bank.getBalance()) > 0) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, 
+				"Loan package balance cannot exceed virtual bank balance. Available: " + bank.getBalance());
+		}
+		
+		// Deduct loan package balance from virtual bank
+		bank.setBalance(bank.getBalance().subtract(loanPackage.getBalance()));
+		virtualBankRepository.save(bank);
+		
 		loanPackage.setVirtualBank(bank);
 		return loanPackageRepository.save(loanPackage);
 	}
 
 	public LoanPackage update(Long id, LoanPackage updated) {
 		LoanPackage existing = getById(id);
+		VirtualBank bank = resolveTenantScopedBank(updated.getVirtualBank());
+		
+		// Calculate the balance difference
+		java.math.BigDecimal balanceDifference = updated.getBalance().subtract(existing.getBalance());
+		
+		// If balance is increasing, check if virtual bank has enough funds
+		if (balanceDifference.compareTo(java.math.BigDecimal.ZERO) > 0) {
+			if (balanceDifference.compareTo(bank.getBalance()) > 0) {
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, 
+					"Insufficient virtual bank balance. Available: " + bank.getBalance());
+			}
+			// Deduct the difference from virtual bank
+			bank.setBalance(bank.getBalance().subtract(balanceDifference));
+		} else if (balanceDifference.compareTo(java.math.BigDecimal.ZERO) < 0) {
+			// If balance is decreasing, refund the difference back to virtual bank
+			bank.setBalance(bank.getBalance().add(balanceDifference.negate()));
+		}
+		
+		virtualBankRepository.save(bank);
 		existing.setBalance(updated.getBalance());
 		existing.setInterestRate(updated.getInterestRate());
-		existing.setVirtualBank(resolveTenantScopedBank(updated.getVirtualBank()));
+		existing.setVirtualBank(bank);
 		return loanPackageRepository.save(existing);
 	}
 
 	public void delete(Long id) {
 		LoanPackage existing = getById(id);
+		VirtualBank bank = existing.getVirtualBank();
+		
+		// Refund loan package balance back to virtual bank
+		bank.setBalance(bank.getBalance().add(existing.getBalance()));
+		virtualBankRepository.save(bank);
+		
 		loanPackageRepository.delete(existing);
 	}
 

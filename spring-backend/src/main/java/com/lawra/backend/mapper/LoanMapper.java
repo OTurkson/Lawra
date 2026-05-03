@@ -28,6 +28,7 @@ public class LoanMapper {
         dto.setAmount(loan.getPrincipalAmount());
         dto.setInterest(loan.getInterestRate() != null ? loan.getInterestRate().toPlainString() + "%" : "");
         dto.setRepaymentAmount(loan.getTotalRepaymentAmount());
+        dto.setDueDate(loan.getDueDate());
 
         if (loan.getBorrower() != null) {
             dto.setBorrowerId(loan.getBorrower().getId());

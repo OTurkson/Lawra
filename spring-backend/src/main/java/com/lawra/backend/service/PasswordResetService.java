@@ -59,6 +59,13 @@ public class PasswordResetService {
         }
 
         User user = token.getUser();
+        if (newPassword == null || newPassword.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password is required");
+        }
+        if (user.getPassword() != null && passwordEncoder.matches(newPassword, user.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password must be different from the current password");
+        }
+
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setPasswordResetRequired(false); // Allow user to login after resetting password
         userRepository.save(user);

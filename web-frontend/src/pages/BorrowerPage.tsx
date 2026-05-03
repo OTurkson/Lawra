@@ -9,6 +9,9 @@ import {
 } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useToast } from "@/hooks/use-toast";
+import { Spinner } from "@/components/Spinner";
+import { getAuth } from "@/lib/auth";
+import { pushNotification } from "@/lib/notifications";
 
 const BorrowerPage = () => {
   const queryClient = useQueryClient();
@@ -36,15 +39,11 @@ const BorrowerPage = () => {
     enabled: !!user?.id,
   });
 
-  const pendingLoans = useMemo(
-    () => (borrowerLoans ?? []).filter((loan) => loan.status === "PENDING"),
-    [borrowerLoans]
+  const allLoans = useMemo(() => borrowerLoans ?? [], [borrowerLoans]);
+  const outstandingRepayments = useMemo(
+    () => allLoans.filter((loan) => loan.status === "APPROVED"),
+    [allLoans]
   );
-  const approvedLoans = useMemo(
-    () => (borrowerLoans ?? []).filter((loan) => loan.status === "APPROVED"),
-    [borrowerLoans]
-  );
-  const allLoans = borrowerLoans ?? [];
 
   const { data: loanPackages } = useQuery({
     queryKey: ["loan-packages"],
@@ -80,172 +79,61 @@ const BorrowerPage = () => {
       });
     },
     onSuccess: () => {
+      const auth = getAuth();
       setSelectedPackageId("");
       setPrincipalAmount("");
       setInterestRate("");
       setPeriod("THREE_MONTHS");
       queryClient.invalidateQueries({ queryKey: ["borrower-loans"] });
+      queryClient.invalidateQueries({ queryKey: ["current-user"] });
       toast({ title: "Loan submitted", description: "Loan request has been created." });
+      pushNotification(queryClient, auth?.userId, {
+        type: 'loan-request',
+        message: `Requested loan of Gh¢ ${Number(principalAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} at ${interestRate}% interest`,
+      });
     },
     onError: (error: any) => {
       toast({ title: "Loan creation failed", description: error?.message ?? "Unable to create loan." });
     },
   });
+
+  const formatDueDate = (dueDate?: string) => {
+    if (!dueDate) return "Not set";
+    const date = new Date(dueDate);
+    if (Number.isNaN(date.getTime())) return dueDate;
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const getDueBadge = (dueDate?: string) => {
+    if (!dueDate) return { label: "Date pending", className: "bg-muted text-muted-foreground" };
+
+    const due = new Date(dueDate);
+    if (Number.isNaN(due.getTime())) {
+      return { label: "Date pending", className: "bg-muted text-muted-foreground" };
+    }
+
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const startOfDue = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+    const diffInDays = Math.ceil((startOfDue.getTime() - startOfToday.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffInDays < 0) {
+      return { label: "Overdue", className: "bg-destructive/15 text-destructive" };
+    }
+
+    if (diffInDays <= 7) {
+      return { label: `Due in ${diffInDays} day${diffInDays === 1 ? "" : "s"}`, className: "bg-amber-100 text-amber-700" };
+    }
+
+    return { label: "Upcoming", className: "bg-approve/15 text-approve" };
+  };
+
   return (
     <div className="space-y-6">
-      {/* Top tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* New Loan Applications */}
-        <div className="bg-card rounded-lg shadow-sm overflow-hidden">
-          <div className="p-4 pb-2">
-            <h2 className="text-lg font-light text-foreground">Your Loan Applications</h2>
-          </div>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-primary text-primary-foreground">
-                <th className="px-4 py-2 text-left w-8"></th>
-                <th className="px-4 py-2 text-left">Name</th>
-                <th className="px-4 py-2 text-center">Amount</th>
-                <th className="px-4 py-2 text-center">Interest</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isBorrowerLoansLoading && (
-                <tr className="border-b border-border">
-                  <td colSpan={4} className="px-4 py-2 text-muted-foreground text-center">
-                    Loading pending applications...
-                  </td>
-                </tr>
-              )}
-              {!isBorrowerLoansLoading && isBorrowerLoansError && (
-                <tr className="border-b border-border">
-                  <td colSpan={4} className="px-4 py-2 text-destructive text-center">
-                    {(borrowerLoansError as Error | undefined)?.message ?? "Unable to load pending applications."}
-                  </td>
-                </tr>
-              )}
-              {pendingLoans.map((loan) => (
-                <tr key={loan.id} className="border-b border-border">
-                  <td className="px-4 py-2">
-                    <div className="w-4 h-4 rounded-sm bg-muted-foreground" />
-                  </td>
-                  <td className="px-4 py-2 text-muted-foreground">{loan.borrowerName ?? "-"}</td>
-                  <td className="px-4 py-2 text-center text-muted-foreground">{loan.amount ?? "-"}</td>
-                  <td className="px-4 py-2 text-center text-muted-foreground">{loan.interest ?? "-"}</td>
-                </tr>
-              ))}
-              {!isBorrowerLoansLoading && !isBorrowerLoansError && pendingLoans.length === 0 && (
-                <tr className="border-b border-border">
-                  <td colSpan={4} className="px-4 py-2 text-muted-foreground text-center">
-                    No pending loan applications.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Approved Applications */}
-        <div className="bg-card rounded-lg shadow-sm overflow-hidden">
-          <div className="p-4 pb-2">
-            <h2 className="text-lg font-light text-foreground text-right">Approved Applications</h2>
-          </div>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-primary text-primary-foreground">
-                <th className="px-4 py-2 text-left w-8"></th>
-                <th className="px-4 py-2 text-left">Name</th>
-                <th className="px-4 py-2 text-center">Amount</th>
-                <th className="px-4 py-2 text-center">Interest</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isBorrowerLoansLoading && (
-                <tr className="border-b border-border">
-                  <td colSpan={4} className="px-4 py-2 text-muted-foreground text-center">
-                    Loading approved applications...
-                  </td>
-                </tr>
-              )}
-              {!isBorrowerLoansLoading && isBorrowerLoansError && (
-                <tr className="border-b border-border">
-                  <td colSpan={4} className="px-4 py-2 text-destructive text-center">
-                    {(borrowerLoansError as Error | undefined)?.message ?? "Unable to load approved applications."}
-                  </td>
-                </tr>
-              )}
-              {approvedLoans.map((loan) => (
-                <tr key={loan.id} className="border-b border-border">
-                  <td className="px-4 py-2">
-                    <div className="w-4 h-4 rounded-sm bg-approve" />
-                  </td>
-                  <td className="px-4 py-2 text-muted-foreground">{loan.borrowerName ?? "-"}</td>
-                  <td className="px-4 py-2 text-center text-muted-foreground">{loan.amount ?? "-"}</td>
-                  <td className="px-4 py-2 text-center text-muted-foreground">{loan.interest ?? "-"}</td>
-                </tr>
-              ))}
-              {!isBorrowerLoansLoading && !isBorrowerLoansError && approvedLoans.length === 0 && (
-                <tr className="border-b border-border">
-                  <td colSpan={4} className="px-4 py-2 text-muted-foreground text-center">
-                    No approved applications.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Main Dashboard */}
-      <div className="bg-card rounded-lg shadow-sm overflow-hidden">
-        <div className="p-4 pb-2 border-b border-border">
-          <h2 className="text-lg font-light text-muted-foreground">Loan Requests</h2>
-        </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-table-header text-table-header-foreground">
-              <th className="px-4 py-3 text-left">Name<br/>of Borrower</th>
-              <th className="px-4 py-3 text-center">Amount (Gh¢)</th>
-              <th className="px-4 py-3 text-center">Interest</th>
-              <th className="px-4 py-3 text-center">Tenure</th>
-              <th className="px-4 py-3 text-center">Bank</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isBorrowerLoansLoading && (
-              <tr className="border-b border-border">
-                <td colSpan={5} className="px-4 py-3 text-muted-foreground text-center">
-                  Loading dashboard loans...
-                </td>
-              </tr>
-            )}
-            {!isBorrowerLoansLoading && isBorrowerLoansError && (
-              <tr className="border-b border-border">
-                <td colSpan={5} className="px-4 py-3 text-destructive text-center">
-                  {(borrowerLoansError as Error | undefined)?.message ?? "Unable to load dashboard loans."}
-                </td>
-              </tr>
-            )}
-            {allLoans.map((row) => (
-              <tr key={row.id} className="border-b border-border">
-                <td className="px-4 py-3 text-muted-foreground">{row.borrowerName ?? "-"}</td>
-                <td className="px-4 py-3 text-center text-muted-foreground">{row.amount ?? "-"}</td>
-                <td className="px-4 py-3 text-center text-muted-foreground">{row.interest ?? "-"}</td>
-                <td className="px-4 py-3 text-center text-muted-foreground">{row.tenure ?? "-"}</td>
-                <td className="px-4 py-3 text-center text-muted-foreground">{row.bank ?? "-"}</td>
-              </tr>
-            ))}
-            {!isBorrowerLoansLoading && !isBorrowerLoansError && allLoans.length === 0 && (
-              <tr className="border-b border-border">
-                <td colSpan={5} className="px-4 py-3 text-muted-foreground text-center">
-                  No loans available.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
       {/* Request Loan */}
       <div className="bg-card rounded-lg shadow-sm p-6 text-center space-y-4">
         <p className="text-muted-foreground text-lg tracking-widest">LOAN</p>
@@ -296,14 +184,110 @@ const BorrowerPage = () => {
         </div>
         <div className="flex items-center justify-center">
           <button
-            className="px-10 py-2 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
+            className="px-10 py-2 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             onClick={() => createLoanMutation.mutate()}
             disabled={createLoanMutation.isPending}
           >
-            {createLoanMutation.isPending ? "Submitting..." : "Request Loan"}
+            {createLoanMutation.isPending ? (
+              <>
+                <Spinner size="sm" />
+                Submitting...
+              </>
+            ) : (
+              "Request Loan"
+            )}
           </button>
         </div>
       </div>
+      
+      {/* Applications */}
+      <div className="bg-card rounded-lg shadow-sm overflow-hidden">
+        <div className="p-4 pb-2 border-b border-border">
+          <h2 className="text-lg font-light text-muted-foreground">My Loan Applications</h2>
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-table-header text-table-header-foreground">
+              <th className="px-4 py-3 text-left">Name<br/>of Borrower</th>
+              <th className="px-4 py-3 text-center">Amount (Gh¢)</th>
+              <th className="px-4 py-3 text-center">Interest</th>
+              <th className="px-4 py-3 text-center">Tenure</th>
+              <th className="px-4 py-3 text-center">Bank</th>
+              <th className="px-4 py-3 text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isBorrowerLoansLoading && (
+              <tr className="border-b border-border">
+                <td colSpan={6} className="px-4 py-3 text-muted-foreground text-center">
+                  Loading your applications...
+                </td>
+              </tr>
+            )}
+            {!isBorrowerLoansLoading && isBorrowerLoansError && (
+              <tr className="border-b border-border">
+                <td colSpan={6} className="px-4 py-3 text-destructive text-center">
+                  {(borrowerLoansError as Error | undefined)?.message ?? "Unable to load your applications."}
+                </td>
+              </tr>
+            )}
+            {allLoans.map((row) => (
+              <tr key={row.id} className="border-b border-border">
+                <td className="px-4 py-3 text-muted-foreground">{row.borrowerName ?? "-"}</td>
+                <td className="px-4 py-3 text-center text-muted-foreground">{row.amount ?? "-"}</td>
+                <td className="px-4 py-3 text-center text-muted-foreground">{row.interest ?? "-"}</td>
+                <td className="px-4 py-3 text-center text-muted-foreground">{row.tenure ?? "-"}</td>
+                <td className="px-4 py-3 text-center text-muted-foreground">{row.bank ?? "-"}</td>
+                <td className="px-4 py-3 text-center text-muted-foreground">{row.status ?? "-"}</td>
+              </tr>
+            ))}
+            {!isBorrowerLoansLoading && !isBorrowerLoansError && allLoans.length === 0 && (
+              <tr className="border-b border-border">
+                <td colSpan={6} className="px-4 py-3 text-muted-foreground text-center">
+                  No loan applications yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {outstandingRepayments.length > 0 && (
+        <div className="bg-card rounded-lg shadow-sm overflow-hidden">
+          <div className="p-4 pb-2 border-b border-border">
+            <h2 className="text-lg font-light text-muted-foreground">Upcoming Repayments</h2>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-table-header text-table-header-foreground">
+                <th className="px-4 py-3 text-left">Loan</th>
+                <th className="px-4 py-3 text-center">Repayment (Gh¢)</th>
+                <th className="px-4 py-3 text-center">Due Date</th>
+                <th className="px-4 py-3 text-center">Timeline</th>
+              </tr>
+            </thead>
+            <tbody>
+              {outstandingRepayments.map((loan) => {
+                const dueBadge = getDueBadge(loan.dueDate);
+                return (
+                  <tr key={loan.id} className="border-b border-border">
+                    <td className="px-4 py-3 text-muted-foreground">#{loan.id}</td>
+                    <td className="px-4 py-3 text-center text-muted-foreground">{loan.repaymentAmount ?? "-"}</td>
+                    <td className="px-4 py-3 text-center text-muted-foreground">{formatDueDate(loan.dueDate)}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${dueBadge.className}`}>
+                        {dueBadge.label}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      
     </div>
   );
 };

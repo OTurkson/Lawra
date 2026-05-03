@@ -1,6 +1,7 @@
 package com.lawra.backend.service;
 
 import com.lawra.backend.dto.InviteUserRequestDTO;
+import com.lawra.backend.dto.UserBalanceTopUpRequestDTO;
 import com.lawra.backend.dto.SignupUserRequestDTO;
 import com.lawra.backend.dto.UserRequestDTO;
 import com.lawra.backend.dto.UserResponseDTO;
@@ -14,11 +15,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
@@ -47,7 +50,7 @@ public class UserService {
         }
 
         user.setPassword(passwordEncoder.encode(userRequestDTO.getPassword()));
-        user.setRole(UserRole.BORROWER);
+    user.setRole(userRequestDTO.getRole() != null ? userRequestDTO.getRole() : UserRole.BORROWER);
         user.setPasswordResetRequired(false); // User provided their own password
 
         UUID tenantId = userRequestDTO.getTenantId();
@@ -154,11 +157,26 @@ public class UserService {
 
         // Optional: update password if provided
         if (userRequestDTO.getPassword() != null && !userRequestDTO.getPassword().isBlank()) {
+            if (passwordEncoder.matches(userRequestDTO.getPassword(), user.getPassword())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password must be different from the current password");
+            }
             user.setPassword(passwordEncoder.encode(userRequestDTO.getPassword()));
             user.setPasswordResetRequired(false);
         }
 
         User saved = userRepository.save(user);
+        return userMapper.map(saved);
+    }
+
+    @Transactional
+    public UserResponseDTO topUpCurrentUserBalance(UserBalanceTopUpRequestDTO request) {
+        User currentUser = authenticatedUserContextService.getCurrentUser();
+        BigDecimal amount = normalizeAmount(request.getAmount());
+
+        BigDecimal currentBalance = currentUser.getBalance() == null ? BigDecimal.ZERO : currentUser.getBalance();
+        currentUser.setBalance(currentBalance.add(amount));
+
+        User saved = userRepository.save(currentUser);
         return userMapper.map(saved);
     }
 
@@ -177,6 +195,14 @@ public class UserService {
         }
 
         userRepository.deleteById(id);
+    }
+
+    private BigDecimal normalizeAmount(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Amount must be greater than zero");
+        }
+
+        return amount;
     }
 
 }

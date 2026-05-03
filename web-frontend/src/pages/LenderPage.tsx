@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createLoanPackage,
@@ -10,15 +10,28 @@ import {
   updateLoanPackage,
 } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { getAuth } from "@/lib/auth";
+import { Spinner } from "@/components/Spinner";
+import { pushNotification } from "@/lib/notifications";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const LenderPage = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const auth = getAuth();
 
   const [selectedId, setSelectedId] = useState("");
   const [virtualBankId, setVirtualBankId] = useState("");
   const [balance, setBalance] = useState("");
   const [interestRate, setInterestRate] = useState("");
+  const [isPackageDialogOpen, setIsPackageDialogOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   const { data: loanPackages, isLoading: isLoanPackagesLoading, isError: isLoanPackagesError } = useQuery<LoanPackage[]>({
     queryKey: ["loan-packages"],
@@ -48,7 +61,12 @@ const LenderPage = () => {
       setBalance("");
       setInterestRate("");
       queryClient.invalidateQueries({ queryKey: ["loan-packages"] });
+      queryClient.invalidateQueries({ queryKey: ["current-user", auth?.userId] });
       toast({ title: "Loan package created" });
+      pushNotification(queryClient, auth?.userId, {
+        type: 'loan-create',
+        message: `Created loan package on VB #${virtualBankId} for Gh¢ ${Number(balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      });
     },
     onError: (error: any) => toast({ title: "Create failed", description: error?.message }),
   });
@@ -62,7 +80,9 @@ const LenderPage = () => {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["loan-packages"] });
+      queryClient.invalidateQueries({ queryKey: ["current-user", auth?.userId] });
       toast({ title: "Loan package updated" });
+      pushNotification(queryClient, auth?.userId, { type: 'loan-update', message: `Updated loan package #${selectedId}` });
     },
     onError: (error: any) => toast({ title: "Update failed", description: error?.message }),
   });
@@ -71,30 +91,43 @@ const LenderPage = () => {
     mutationFn: () => deleteLoanPackage(Number(selectedId)),
     onSuccess: () => {
       setSelectedId("");
+      setIsPackageDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["loan-packages"] });
+      queryClient.invalidateQueries({ queryKey: ["current-user", auth?.userId] });
       toast({ title: "Loan package deleted" });
+      pushNotification(queryClient, auth?.userId, { type: 'loan-delete', message: `Deleted loan package #${selectedId}` });
     },
     onError: (error: any) => toast({ title: "Delete failed", description: error?.message }),
   });
 
-  const lenderData = (loanPackages ?? []).map((pkg) => ({
-    id: pkg.id,
-    fund: pkg.virtualBank?.name ?? "-",
-    lending: pkg.balance,
-    interest: `${pkg.interestRate}%`,
-  }));
+  const lenderData = (loanPackages ?? [])
+    .filter((pkg) => pkg.virtualBank?.createdById === auth?.userId)
+    .map((pkg) => ({
+      id: pkg.id,
+      loanPackage: pkg.virtualBank?.name ?? "-",
+      lending: pkg.balance,
+      interest: `${pkg.interestRate}%`,
+    }));
+
+  useEffect(() => {
+    if (!selectedLoanPackage) return;
+
+    setVirtualBankId(String(selectedLoanPackage.virtualBank?.id ?? ""));
+    setBalance(String(selectedLoanPackage.balance ?? ""));
+    setInterestRate(String(selectedLoanPackage.interestRate ?? ""));
+  }, [selectedLoanPackage]);
 
   return (
     <div className="space-y-6">
-      {/* Main Dashboard */}
       <div className="bg-card rounded-lg shadow-sm overflow-hidden">
         <div className="p-4 pb-2 border-b border-border">
           <h2 className="text-lg font-light text-muted-foreground">Main Dashboard</h2>
+          <p className="text-xs text-muted-foreground mt-1">Click a loan package to edit it.</p>
         </div>
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-table-header text-table-header-foreground">
-              <th className="px-4 py-3 text-left">Name of Fund</th>
+              <th className="px-4 py-3 text-left">Loan Package</th>
               <th className="px-4 py-3 text-center">Lending (Gh¢)</th>
               <th className="px-4 py-3 text-center">Interest</th>
             </tr>
@@ -115,8 +148,15 @@ const LenderPage = () => {
               </tr>
             )}
             {lenderData.map((row) => (
-              <tr key={row.id} className="border-b border-border">
-                <td className="px-4 py-3 text-muted-foreground">{row.fund}</td>
+              <tr
+                key={row.id}
+                className={`border-b border-border cursor-pointer transition-colors hover:bg-muted/30 ${String(row.id) === selectedId ? "bg-muted/40" : ""}`}
+                onClick={() => {
+                  setSelectedId(String(row.id));
+                  setIsPackageDialogOpen(true);
+                }}
+              >
+                <td className="px-4 py-3 text-muted-foreground">{row.loanPackage}</td>
                 <td className="px-4 py-3 text-center text-muted-foreground">{row.lending}</td>
                 <td className="px-4 py-3 text-center text-muted-foreground">{row.interest}</td>
               </tr>
@@ -132,34 +172,140 @@ const LenderPage = () => {
         </table>
       </div>
 
-      {/* FUNDS / Approve / Decline */}
-      <div className="bg-card rounded-lg shadow-sm p-6 text-center space-y-4">
-        <p className="text-muted-foreground text-lg tracking-widest">FUNDS</p>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-left">
-          <select
-            value={selectedId}
-            onChange={(e) => {
-              const id = e.target.value;
-              setSelectedId(id);
-              const selected = (loanPackages ?? []).find((pkg) => String(pkg.id) === id);
-              if (selected) {
-                setVirtualBankId(String(selected.virtualBank?.id ?? ""));
-                setBalance(String(selected.balance ?? ""));
-                setInterestRate(String(selected.interestRate ?? ""));
-              }
-            }}
-            className="px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
-          >
-            <option value="">Loan Package ID</option>
-            {(loanPackages ?? []).map((pkg) => (
-              <option key={pkg.id} value={pkg.id}>
-                {pkg.id}
-              </option>
-            ))}
-          </select>
-          {selectedLoanPackage && (
-            <span className="text-xs text-muted-foreground px-2 py-2">Selected package #{selectedLoanPackage.id}</span>
+      <Dialog
+        open={isPackageDialogOpen}
+        onOpenChange={(open) => {
+          setIsPackageDialogOpen(open);
+          if (!open && selectedLoanPackage) {
+            setVirtualBankId(String(selectedLoanPackage.virtualBank?.id ?? ""));
+            setBalance(String(selectedLoanPackage.balance ?? ""));
+            setInterestRate(String(selectedLoanPackage.interestRate ?? ""));
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Selected Package</DialogTitle>
+            <DialogDescription>Update or remove the package you selected from the table.</DialogDescription>
+          </DialogHeader>
+
+          {selectedId ? (
+            <div className="space-y-4">
+              <div className="space-y-2 rounded-lg border border-border p-4 bg-muted/20">
+                <p className="text-sm font-semibold text-foreground">Loan package #{selectedId}</p>
+                <p className="text-xs text-muted-foreground">
+                  Virtual bank: {selectedLoanPackage?.virtualBank?.name ?? "-"}
+                </p>
+                <p className="text-xs text-muted-foreground">Current balance: {selectedLoanPackage?.balance ?? "-"}</p>
+                <p className="text-xs text-muted-foreground">Interest: {selectedLoanPackage?.interestRate ?? "-"}%</p>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-xs text-muted-foreground">Virtual bank</label>
+                <select
+                  value={virtualBankId}
+                  onChange={(e) => setVirtualBankId(e.target.value)}
+                  className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+                >
+                  <option value="">Virtual Bank</option>
+                  {isVirtualBanksLoading && <option value="">Loading virtual banks...</option>}
+                  {(virtualBanks ?? [])
+                    .filter((bank) => bank.createdById === auth?.userId)
+                    .map((bank) => (
+                      <option key={bank.id} value={bank.id}>
+                        {bank.name}
+                      </option>
+                    ))}
+                </select>
+
+                <label className="text-xs text-muted-foreground">Balance</label>
+                <input
+                  value={balance}
+                  onChange={(e) => setBalance(e.target.value)}
+                  placeholder="Balance"
+                  className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+                />
+
+                <label className="text-xs text-muted-foreground">Interest rate</label>
+                <input
+                  value={interestRate}
+                  onChange={(e) => setInterestRate(e.target.value)}
+                  placeholder="Interest Rate"
+                  className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+                />
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <button
+                  className="px-10 py-2 rounded-full bg-approve text-approve-foreground font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  onClick={() => updateMutation.mutate()}
+                  disabled={updateMutation.isPending || !selectedId}
+                >
+                  {updateMutation.isPending ? (
+                    <>
+                      <Spinner size="sm" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update"
+                  )}
+                </button>
+                <button
+                  className="px-10 py-2 rounded-full bg-destructive text-destructive-foreground font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  onClick={() => setIsDeleteConfirmOpen(true)}
+                  disabled={!selectedId}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+              Select a loan package from the table to edit or delete it.
+            </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this loan package? The balance will be refunded to the virtual bank.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={() => setIsDeleteConfirmOpen(false)}
+              className="px-6 py-2 rounded-full border border-border text-foreground text-sm font-semibold hover:bg-muted/30 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                deleteMutation.mutate();
+                setIsDeleteConfirmOpen(false);
+              }}
+              disabled={deleteMutation.isPending}
+              className="px-6 py-2 rounded-full bg-destructive text-destructive-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <Spinner size="sm" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <div className="bg-card rounded-lg shadow-sm p-6 text-center space-y-4">
+        <p className="text-muted-foreground text-lg tracking-widest">CREATE LOAN PACKAGE</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-left">
           <select
             value={virtualBankId}
             onChange={(e) => setVirtualBankId(e.target.value)}
@@ -167,11 +313,13 @@ const LenderPage = () => {
           >
             <option value="">Virtual Bank</option>
             {isVirtualBanksLoading && <option value="">Loading virtual banks...</option>}
-            {(virtualBanks ?? []).map((bank) => (
-              <option key={bank.id} value={bank.id}>
-                {bank.name}
-              </option>
-            ))}
+            {(virtualBanks ?? [])
+              .filter((bank) => bank.createdById === auth?.userId)
+              .map((bank) => (
+                <option key={bank.id} value={bank.id}>
+                  {bank.name}
+                </option>
+              ))}
           </select>
           <input
             value={balance}
@@ -188,25 +336,18 @@ const LenderPage = () => {
         </div>
         <div className="flex items-center justify-center gap-12">
           <button
-            className="px-10 py-2 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
+            className="px-10 py-2 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             onClick={() => createMutation.mutate()}
             disabled={createMutation.isPending}
           >
-            Create
-          </button>
-          <button
-            className="px-10 py-2 rounded-full bg-approve text-approve-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
-            onClick={() => updateMutation.mutate()}
-            disabled={updateMutation.isPending || !selectedId}
-          >
-            Update
-          </button>
-          <button
-            className="px-10 py-2 rounded-full bg-destructive text-destructive-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
-            onClick={() => deleteMutation.mutate()}
-            disabled={deleteMutation.isPending || !selectedId}
-          >
-            Delete
+            {createMutation.isPending ? (
+              <>
+                <Spinner size="sm" />
+                Creating...
+              </>
+            ) : (
+              "Create"
+            )}
           </button>
         </div>
       </div>

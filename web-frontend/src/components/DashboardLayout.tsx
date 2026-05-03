@@ -1,9 +1,23 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { HelpCircle, Bell, User, LogOut, Settings, Landmark, HandCoins, Banknote, CircleDollarSign } from "lucide-react";
+import { HelpCircle, User, LogOut, Settings, Landmark, HandCoins, Banknote, CircleDollarSign, Eye, EyeOff } from "lucide-react";
 import avatarDog from "@/assets/avatar-dog.jpg";
 import { getAuth } from "@/lib/auth";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { topUpCurrentUserBalance } from "@/lib/api";
+import { Spinner } from "@/components/Spinner";
+import { useToast } from "@/hooks/use-toast";
+import { NotificationsDropdown } from "@/components/NotificationsDropdown";
+import { pushNotification } from "@/lib/notifications";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,7 +48,12 @@ const DashboardLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useCurrentUser();
+  const queryClient = useQueryClient();
   const previousDashboardPathRef = useRef("/dashboard");
+  const [showBalance, setShowBalance] = useState(false);
+  const [isDepositDialogOpen, setIsDepositDialogOpen] = useState(false);
+  const [depositAmount, setDepositAmount] = useState("");
+  const { toast } = useToast();
 
   const auth = getAuth();
   
@@ -49,6 +68,29 @@ const DashboardLayout = () => {
   }
 
   const roleDisplayName = decodedJwt?.role ? getRoleDisplayName(decodedJwt.role) : auth?.role || "User";
+
+  const depositMutation = useMutation({
+    mutationFn: async (amount: number) => {
+      if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error("Enter a valid deposit amount greater than zero.");
+      }
+
+      return topUpCurrentUserBalance({ amount });
+    },
+    onSuccess: async (_data, amount) => {
+      setDepositAmount("");
+      setIsDepositDialogOpen(false);
+      toast({
+        title: "Balance updated",
+        description: "Your account balance has been successfully updated.",
+      });
+      pushNotification(queryClient, auth?.userId, {
+        type: 'deposit',
+        message: `You deposited Gh¢ ${Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["current-user", auth?.userId] });
+    },
+  });
 
   useEffect(() => {
     if (location.pathname !== "/dashboard/notifications") {
@@ -82,7 +124,38 @@ const DashboardLayout = () => {
         <p className="font-semibold text-sm">{user?.fullName ?? auth?.userId ?? "Mama One"}</p>
         <p className="text-xs opacity-80">{user?.email ?? auth?.role ?? "Unilever Ghana"}</p>
         <p className="text-xs opacity-70 font-medium text-primary-foreground/80">{roleDisplayName}</p>
-        <p className="text-xs opacity-80 mb-6">Staff ID</p>
+        
+        {/* Balance Section */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setIsDepositDialogOpen(true)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setIsDepositDialogOpen(true);
+            }
+          }}
+          className="flex w-[calc(100%-2rem)] items-center gap-2 mt-4 mb-6 px-4 py-2 bg-primary-foreground/10 rounded-lg text-left transition-colors hover:bg-primary-foreground/15 cursor-pointer"
+        >
+          <div className="flex-1">
+            <p className="text-xs opacity-70 mb-1">Balance</p>
+            <p className="text-sm font-semibold">
+              {showBalance ? `Gh¢ ${(user?.balance ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "••••••"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setShowBalance(!showBalance);
+            }}
+            className="p-1 hover:bg-primary-foreground/20 rounded transition-colors"
+            title={showBalance ? "Hide balance" : "Show balance"}
+          >
+            {showBalance ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </div>
 
         {/* Nav */}
         <nav className="w-full px-4 space-y-1">
@@ -113,15 +186,7 @@ const DashboardLayout = () => {
             <button className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground">
               <HelpCircle size={16} />
             </button>
-            <button
-              type="button"
-              onClick={toggleNotifications}
-              className="relative text-muted-foreground hover:text-foreground"
-              aria-label="Toggle notifications"
-            >
-              <Bell size={20} />
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-destructive rounded-full" />
-            </button>
+            <NotificationsDropdown />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -168,6 +233,59 @@ const DashboardLayout = () => {
           <span>2026 LAWRA</span>
         </footer>
       </div>
+
+      <Dialog open={isDepositDialogOpen} onOpenChange={setIsDepositDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Deposit balance</DialogTitle>
+            <DialogDescription>
+              Add money to your account balance. The amount must be greater than zero.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="deposit-amount">
+              Amount (Gh¢)
+            </label>
+            <input
+              id="deposit-amount"
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={depositAmount}
+              onChange={(event) => setDepositAmount(event.target.value)}
+              placeholder="0.00"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setIsDepositDialogOpen(false)}
+              className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => depositMutation.mutate(Number(depositAmount))}
+              disabled={depositMutation.isPending}
+              className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {depositMutation.isPending ? (
+                <>
+                  <Spinner size="sm" />
+                  Depositing...
+                </>
+              ) : (
+                "Deposit"
+              )}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+       
     </div>
   );
 };
