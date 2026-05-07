@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,18 +15,67 @@ class LaunchGate extends StatefulWidget {
 
 class _LaunchGateState extends State<LaunchGate> {
   static const _firstLaunchKey = 'first_launch_done';
-  late final Future<bool> _future;
+  static const _greenSplashDuration = Duration(milliseconds: 1100);
+  static const _whiteSplashDuration = Duration(milliseconds: 850);
+
+  bool _showWhiteSplash = false;
+  bool? _isFirstLaunch;
+  Timer? _greenTimer;
+  Timer? _whiteTimer;
 
   @override
   void initState() {
     super.initState();
-    _future = _loadFirstLaunch();
+    _primeLaunchFlow();
   }
 
   Future<bool> _loadFirstLaunch() async {
-    await Future<void>.delayed(const Duration(milliseconds: 1400));
     final prefs = await SharedPreferences.getInstance();
     return !(prefs.getBool(_firstLaunchKey) ?? false);
+  }
+
+  void _primeLaunchFlow() {
+    _loadFirstLaunch().then((value) {
+      _isFirstLaunch = value;
+      _tryCompleteLaunch();
+    });
+
+    _greenTimer = Timer(_greenSplashDuration, () {
+      if (!mounted) return;
+      setState(() => _showWhiteSplash = true);
+      _tryCompleteLaunch();
+    });
+  }
+
+  void _tryCompleteLaunch() {
+    if (!_showWhiteSplash || _isFirstLaunch == null || _whiteTimer != null) {
+      return;
+    }
+
+    _whiteTimer = Timer(_whiteSplashDuration, () {
+      if (!mounted) return;
+
+      final firstLaunch = _isFirstLaunch ?? false;
+      if (firstLaunch) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => OnboardingScreen(
+              onDone: () async {
+                await _completeTour();
+                if (!mounted) return;
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const AuthScreen()),
+                );
+              },
+            ),
+          ),
+        );
+      } else {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const AuthScreen()),
+        );
+      }
+    });
   }
 
   Future<void> _completeTour() async {
@@ -33,43 +84,56 @@ class _LaunchGateState extends State<LaunchGate> {
   }
 
   @override
+  void dispose() {
+    _greenTimer?.cancel();
+    _whiteTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: _future,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const SplashScreen();
-        }
-        if (snapshot.data == true) {
-          return OnboardingScreen(
-            onDone: () async {
-              await _completeTour();
-              if (!mounted) return;
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const AuthScreen()),
-              );
-            },
-          );
-        }
-        return const AuthScreen();
-      },
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 350),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
+      child: _showWhiteSplash
+          ? const _WhiteSplash(key: ValueKey('white'))
+          : const _GreenSplash(key: ValueKey('green')),
     );
   }
 }
 
-class SplashScreen extends StatelessWidget {
-  const SplashScreen({super.key});
+class _GreenSplash extends StatelessWidget {
+  const _GreenSplash({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return const Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Center(
+        child: SizedBox.expand(
+          child: Image(
+            image: AssetImage('assets/design/page-0001.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WhiteSplash extends StatelessWidget {
+  const _WhiteSplash({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
       backgroundColor: Colors.white,
       body: Center(
-        child: SizedBox(
-          width: 180,
-          child: Image.asset(
-            'assets/design/page-0001.png',
-            fit: BoxFit.contain,
+        child: SizedBox.expand(
+          child: Image(
+            image: AssetImage('assets/design/page-0002.png'),
+            fit: BoxFit.cover,
           ),
         ),
       ),
