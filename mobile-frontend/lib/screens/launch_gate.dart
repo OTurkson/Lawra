@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'auth_flow_screens.dart';
 import 'onboarding_screen.dart';
+import 'intro_sequence.dart';
 
 class LaunchGate extends StatefulWidget {
   const LaunchGate({super.key});
@@ -59,12 +60,21 @@ class _LaunchGateState extends State<LaunchGate> {
       if (firstLaunch) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => OnboardingScreen(
-              onDone: () async {
-                await _completeTour();
-                if (!mounted) return;
+            builder: (_) => IntroSequence(
+              onComplete: () {
+                // After the short intro sequence, show regular onboarding
                 Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const AuthScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => OnboardingScreen(
+                      onDone: () async {
+                        await _completeTour();
+                        if (!mounted) return;
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(builder: (_) => const AuthScreen()),
+                        );
+                      },
+                    ),
+                  ),
                 );
               },
             ),

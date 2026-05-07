@@ -15,23 +15,28 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
   final List<_TourPageData> _pages = const [
+    // For first time users show pages 3..6 as the onboarding tour
     _TourPageData(
-      title: 'Secure and Reliable',
-      description:
-          'Access your loans and investments quickly with a secure and reliable experience.',
-      imagePage: '0025',
+      title: 'Welcome',
+      description: 'Fast and flexible — get started with Lawra.',
+      imagePage: '0003',
+    ),
+    _TourPageData(
+      title: 'Fast and Flexible',
+      description: 'Apply for loans quickly and manage repayments with ease.',
+      imagePage: '0004',
     ),
     _TourPageData(
       title: 'Stress Free Application',
       description:
           'Apply in simple guided steps with a clean and stress-free application process.',
-      imagePage: '0026',
+      imagePage: '0005',
     ),
     _TourPageData(
       title: 'Moderate Interest Rates',
       description:
           'Track and manage offers with transparent terms and moderate interest rates.',
-      imagePage: '0027',
+      imagePage: '0006',
     ),
   ];
   int _index = 0;
