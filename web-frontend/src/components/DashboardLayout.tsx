@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { HelpCircle, User, LogOut, Settings, Landmark, HandCoins, Banknote, CircleDollarSign, Eye, EyeOff } from "lucide-react";
 import avatarDog from "@/assets/avatar-dog.jpg";
-import { getAuth } from "@/lib/auth";
+import { clearAuth, getAuth, isAuthTokenExpired } from "@/lib/auth";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { topUpCurrentUserBalance } from "@/lib/api";
@@ -56,6 +56,7 @@ const DashboardLayout = () => {
   const { toast } = useToast();
 
   const auth = getAuth();
+  const isSessionExpired = isAuthTokenExpired(auth?.token);
   
   // Decode JWT to get role and tenant info
   let decodedJwt: any = null;
@@ -68,6 +69,42 @@ const DashboardLayout = () => {
   }
 
   const roleDisplayName = decodedJwt?.role ? getRoleDisplayName(decodedJwt.role) : auth?.role || "User";
+
+  useEffect(() => {
+    if (!auth?.token || isSessionExpired) {
+      return;
+    }
+
+    const decodedToken = jwtDecode<{ exp?: number }>(auth.token);
+    if (typeof decodedToken.exp !== "number") {
+      clearAuth();
+      navigate("/", { replace: true });
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      clearAuth();
+      navigate("/", { replace: true });
+    }, Math.max(decodedToken.exp * 1000 - Date.now(), 0));
+
+    return () => window.clearTimeout(timeoutId);
+  }, [auth?.token, isSessionExpired, navigate]);
+
+  const redirectToLogin = () => {
+    clearAuth();
+    navigate("/", { replace: true });
+  };
+
+  const handleProtectedInteraction = () => {
+    if (isAuthTokenExpired(auth?.token)) {
+      redirectToLogin();
+    }
+  };
+
+  if (!auth?.token || isSessionExpired) {
+    clearAuth();
+    return <Navigate to="/" replace />;
+  }
 
   const depositMutation = useMutation({
     mutationFn: async (amount: number) => {
@@ -109,7 +146,13 @@ const DashboardLayout = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div
+      className="flex min-h-screen bg-background"
+      onClickCapture={handleProtectedInteraction}
+      onKeyDownCapture={handleProtectedInteraction}
+      onSubmitCapture={handleProtectedInteraction}
+      onPointerDownCapture={handleProtectedInteraction}
+    >
       {/* Sidebar */}
       <aside className="w-64 sidebar-gradient flex flex-col items-center py-6 text-primary-foreground shrink-0">
         {/* Logo */}

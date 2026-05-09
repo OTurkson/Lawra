@@ -12,6 +12,7 @@ import com.lawra.backend.model.User;
 import com.lawra.backend.repository.TenantRepository;
 import com.lawra.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -41,16 +42,20 @@ public class UserService {
 
     // create a user (for self-signup or admin creation with explicit password)
     public UserResponseDTO createUser(SignupUserRequestDTO userRequestDTO) {
+        String email = requireText(userRequestDTO.getEmail(), "Email is required");
+        String fullName = requireText(userRequestDTO.getFullName(), "Full name is required");
+        String phoneNumber = requireText(userRequestDTO.getPhoneNumber(), "Phone number is required");
+
         User user = new User();
-        user.setEmail(userRequestDTO.getEmail());
-        user.setFullName(userRequestDTO.getFullName());
-        user.setPhoneNumber(userRequestDTO.getPhoneNumber());
+        user.setEmail(email);
+        user.setFullName(fullName);
+        user.setPhoneNumber(phoneNumber);
         if (userRequestDTO.getPassword() == null || userRequestDTO.getPassword().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password is required for self-signup");
         }
 
         user.setPassword(passwordEncoder.encode(userRequestDTO.getPassword()));
-    user.setRole(userRequestDTO.getRole() != null ? userRequestDTO.getRole() : UserRole.BORROWER);
+        user.setRole(userRequestDTO.getRole() != null ? userRequestDTO.getRole() : UserRole.BORROWER);
         user.setPasswordResetRequired(false); // User provided their own password
 
         UUID tenantId = userRequestDTO.getTenantId();
@@ -62,8 +67,9 @@ public class UserService {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tenant with id " + tenantId + " not found"));
         user.setTenant(tenant);
 
-        User savedUser = userRepository.save(user);
-        return userMapper.map(savedUser);
+        ensureEmailIsAvailable(email, tenantId, null);
+
+        return userMapper.map(saveUserEntity(user));
     }
 
     /**
@@ -73,11 +79,20 @@ public class UserService {
      */
     public UserResponseDTO provisionUser(UserRequestDTO request) {
         Tenant tenant = authenticatedUserContextService.getCurrentTenant();
+        String email = requireText(request.getEmail(), "Email is required");
+        String fullName = requireText(request.getFullName(), "Full name is required");
+        String phoneNumber = requireText(request.getPhoneNumber(), "Phone number is required");
+
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password is not accepted when provisioning users");
+        }
+
+        ensureEmailIsAvailable(email, tenant.getId(), null);
 
         User user = new User();
-        user.setEmail(request.getEmail());
-        user.setFullName(request.getFullName());
-        user.setPhoneNumber(request.getPhoneNumber());
+        user.setEmail(email);
+        user.setFullName(fullName);
+        user.setPhoneNumber(phoneNumber);
 
         // Generate a temporary random password
         String temporaryPassword = UUID.randomUUID().toString();
@@ -91,7 +106,7 @@ public class UserService {
         
         user.setTenant(tenant);
 
-        User savedUser = userRepository.save(user);
+        User savedUser = saveUserEntity(user);
 
         // Send password reset email so user can set their own password
         passwordResetService.createAndSendResetToken(savedUser);
@@ -101,10 +116,14 @@ public class UserService {
 
     // Invite a user created from the admin portal and email them a reset link
     public UserResponseDTO inviteUser(InviteUserRequestDTO request) {
+        String email = requireText(request.getEmail(), "Email is required");
+        String fullName = requireText(request.getFullName(), "Full name is required");
+        String phoneNumber = requireText(request.getPhoneNumber(), "Phone number is required");
+
         User user = new User();
-        user.setEmail(request.getEmail());
-        user.setFullName(request.getFullName());
-        user.setPhoneNumber(request.getPhoneNumber());
+        user.setEmail(email);
+        user.setFullName(fullName);
+        user.setPhoneNumber(phoneNumber);
 
         // Generate a random temporary password
         String temporaryPassword = UUID.randomUUID().toString();
@@ -116,7 +135,9 @@ public class UserService {
         Tenant tenant = authenticatedUserContextService.getCurrentTenant();
         user.setTenant(tenant);
 
-        User savedUser = userRepository.save(user);
+        ensureEmailIsAvailable(email, tenant.getId(), null);
+
+        User savedUser = saveUserEntity(user);
 
         // Create a one-time reset token and send email so the user sets their own password
         passwordResetService.createAndSendResetToken(savedUser);
@@ -142,17 +163,26 @@ public class UserService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not allowed to update this account");
         }
 
+        boolean hasChanges = false;
+
         if (isTenantAdmin) {
-            if (userRequestDTO.getEmail() != null && !userRequestDTO.getEmail().isBlank()) {
-                user.setEmail(userRequestDTO.getEmail());
+            String email = trimmedValue(userRequestDTO.getEmail());
+            if (email != null && !email.equals(user.getEmail())) {
+                ensureEmailIsAvailable(email, user.getTenant().getId(), user.getId());
+                user.setEmail(email);
+                hasChanges = true;
             }
-            if (userRequestDTO.getFullName() != null && !userRequestDTO.getFullName().isBlank()) {
-                user.setFullName(userRequestDTO.getFullName());
+            String fullName = trimmedValue(userRequestDTO.getFullName());
+            if (fullName != null && !fullName.equals(user.getFullName())) {
+                user.setFullName(fullName);
+                hasChanges = true;
             }
         }
 
-        if (userRequestDTO.getPhoneNumber() != null && !userRequestDTO.getPhoneNumber().isBlank()) {
-            user.setPhoneNumber(userRequestDTO.getPhoneNumber());
+        String phoneNumber = trimmedValue(userRequestDTO.getPhoneNumber());
+        if (phoneNumber != null && !phoneNumber.equals(user.getPhoneNumber())) {
+            user.setPhoneNumber(phoneNumber);
+            hasChanges = true;
         }
 
         // Optional: update password if provided
@@ -162,10 +192,14 @@ public class UserService {
             }
             user.setPassword(passwordEncoder.encode(userRequestDTO.getPassword()));
             user.setPasswordResetRequired(false);
+            hasChanges = true;
         }
 
-        User saved = userRepository.save(user);
-        return userMapper.map(saved);
+        if (!hasChanges) {
+            return userMapper.map(user);
+        }
+
+        return userMapper.map(saveUserEntity(user));
     }
 
     @Transactional
@@ -203,6 +237,38 @@ public class UserService {
         }
 
         return amount;
+    }
+
+    private void ensureEmailIsAvailable(String email, UUID tenantId, UUID currentUserId) {
+        userRepository.findByEmailAndTenantId(email, tenantId).ifPresent(existing -> {
+            if (currentUserId == null || !existing.getId().equals(currentUserId)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "A user with this email already exists in this tenant");
+            }
+        });
+    }
+
+    private String requireText(String value, String message) {
+        if (value == null || value.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+        }
+        return value.trim();
+    }
+
+    private String trimmedValue(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private User saveUserEntity(User user) {
+        try {
+            return userRepository.save(user);
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A user with this email already exists in this tenant");
+        }
     }
 
 }

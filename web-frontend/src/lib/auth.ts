@@ -1,8 +1,14 @@
+import { jwtDecode } from "jwt-decode";
+
 export type AuthData = {
   token: string;
   userId: string;
   tenantId: string;
   role: string;
+};
+
+type DecodedJwt = {
+  exp?: number;
 };
 
 const AUTH_STORAGE_KEY = "lawra_auth";
@@ -32,5 +38,23 @@ export function clearAuth() {
     localStorage.removeItem(AUTH_STORAGE_KEY);
   } catch (error) {
     console.error("Failed to clear auth data", error);
+  }
+}
+
+export function isAuthTokenExpired(token: string | null | undefined, now = Date.now()) {
+  if (!token) {
+    return true;
+  }
+
+  try {
+    const decodedToken = jwtDecode<DecodedJwt>(token);
+    if (typeof decodedToken.exp !== "number") {
+      return true;
+    }
+
+    return decodedToken.exp * 1000 <= now;
+  } catch (error) {
+    console.error("Failed to inspect auth token", error);
+    return true;
   }
 }

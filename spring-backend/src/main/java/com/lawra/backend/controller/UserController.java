@@ -38,7 +38,7 @@ public class UserController {
     // PAYMASTER: Provision a user within their tenant
     // User receives email with password reset link and MUST reset password before login
     @PostMapping("/provision")
-    @PreAuthorize("hasRole('PAYMASTER')")
+    @PreAuthorize("hasRole('PAYMASTER') or hasRole('ADMIN')")
     public ResponseEntity<UserResponseDTO> provisionUser(@RequestBody UserRequestDTO request) {
         UserResponseDTO userResponseDTO = userService.provisionUser(request);
         return ResponseEntity.ok(userResponseDTO);

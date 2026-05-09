@@ -4,12 +4,13 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createTenant,
-  createUser,
   deleteTenant,
   deleteUser,
   fetchTenantById,
   fetchTenants,
   fetchUsers,
+  formatApiError,
+  provisionUser,
   updateTenant,
   updateUser,
 } from "@/lib/api";
@@ -30,6 +31,10 @@ const SettingsPage = () => {
 
   const [tenantId, setTenantId] = useState("");
   const [tenantName, setTenantName] = useState("");
+
+  const [provisionEmail, setProvisionEmail] = useState("");
+  const [provisionFullName, setProvisionFullName] = useState("");
+  const [provisionPhoneNumber, setProvisionPhoneNumber] = useState("");
 
   const [userId, setUserId] = useState("");
   const [userEmail, setUserEmail] = useState("");
@@ -108,44 +113,64 @@ const SettingsPage = () => {
     onError: (error: any) => toast({ title: "Tenant delete failed", description: error?.message }),
   });
 
-  const createUserMutation = useMutation({
+  const provisionUserMutation = useMutation({
     mutationFn: () => {
-      if (!tenantId) {
-        throw new Error("Select a tenant before creating a user.");
+      const email = provisionEmail.trim();
+      const fullName = provisionFullName.trim();
+      const phoneNumber = provisionPhoneNumber.trim();
+
+      if (!email || !fullName || !phoneNumber) {
+        throw new Error("Fill out the provisioning fields before continuing.");
       }
 
-      return createUser({
-        email: userEmail,
-        fullName: userFullName,
-        phoneNumber: userPhone,
-        password: userPassword,
-        tenantId,
+      return provisionUser({
+        email,
+        fullName,
+        phoneNumber,
       });
     },
     onSuccess: () => {
-      setUserEmail("");
-      setUserFullName("");
-      setUserPhone("");
-      setUserPassword("");
+      setProvisionEmail("");
+      setProvisionFullName("");
+      setProvisionPhoneNumber("");
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      toast({ title: "User created" });
+      toast({
+        title: "User provisioned",
+        description: "The user was created in the current tenant and a reset link was sent.",
+      });
     },
-    onError: (error: any) => toast({ title: "User create failed", description: error?.message }),
+    onError: (error: any) => toast({ title: "Provision failed", description: formatApiError(error, "Unable to provision user.") }),
   });
 
   const updateUserMutation = useMutation({
-    mutationFn: () =>
-      updateUser(userId, {
-        email: userEmail,
-        fullName: userFullName,
-        phoneNumber: userPhone,
-        password: userPassword,
-      }),
+    mutationFn: () => {
+      const selectedUser = (users ?? []).find((managedUser) => String(managedUser.id) === userId);
+
+      if (!selectedUser) {
+        throw new Error("Select a user before updating.");
+      }
+
+      const hasEmailChange = userEmail.trim() !== (selectedUser.email ?? "").trim();
+      const hasNameChange = userFullName.trim() !== (selectedUser.fullName ?? "").trim();
+      const hasPhoneChange = userPhone.trim() !== (selectedUser.phoneNumber ?? "").trim();
+
+      if (!hasEmailChange && !hasNameChange && !hasPhoneChange && !userPassword.trim()) {
+        throw new Error("No changes detected.");
+      }
+
+      return updateUser(userId, {
+        email: userEmail.trim(),
+        fullName: userFullName.trim(),
+        phoneNumber: userPhone.trim(),
+        password: userPassword || undefined,
+      });
+    },
     onSuccess: () => {
+      setUserPassword("");
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast({ title: "User updated" });
     },
-    onError: (error: any) => toast({ title: "User update failed", description: error?.message }),
+    onError: (error: any) => toast({ title: "User update failed", description: formatApiError(error, "Unable to update user.") }),
   });
 
   const deleteUserMutation = useMutation({
@@ -160,6 +185,14 @@ const SettingsPage = () => {
 
   const hasPasswordChange = !!newPassword || !!confirmPassword;
   const hasProfileChanges = hasPasswordChange;
+  const selectedUser = (users ?? []).find((managedUser) => String(managedUser.id) === userId);
+  const hasUserChanges = !!selectedUser && (
+    userEmail.trim() !== (selectedUser.email ?? "").trim() ||
+    userFullName.trim() !== (selectedUser.fullName ?? "").trim() ||
+    userPhone.trim() !== (selectedUser.phoneNumber ?? "").trim() ||
+    !!userPassword.trim()
+  );
+  const canProvisionUser = !!provisionEmail.trim() && !!provisionFullName.trim() && !!provisionPhoneNumber.trim();
 
   const handleSaveProfile = () => {
     if (!hasProfileChanges) {
@@ -197,15 +230,18 @@ const SettingsPage = () => {
   }, [selectedTenant]);
 
   useEffect(() => {
-    const selectedUser = (users ?? []).find((managedUser) => String(managedUser.id) === userId);
     if (!selectedUser) {
+      setUserEmail("");
+      setUserFullName("");
+      setUserPhone("");
+      setUserPassword("");
       return;
     }
     setUserEmail(selectedUser.email ?? "");
     setUserFullName(selectedUser.fullName ?? "");
     setUserPhone(selectedUser.phoneNumber ?? "");
     setUserPassword("");
-  }, [userId, users]);
+  }, [selectedUser, userId, users]);
 
   return (
     <div className="space-y-6">
@@ -457,91 +493,146 @@ const SettingsPage = () => {
 
           <div className="bg-card rounded-lg shadow-sm p-6 space-y-4">
             <h3 className="text-primary font-semibold text-sm">User Management</h3>
-            <select
-              value={userId}
-              onChange={(e) => setUserId(e.target.value)}
-              className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
-            >
-              <option value="">Select User ID</option>
-              {(users ?? []).map((managedUser) => (
-                <option key={managedUser.id} value={managedUser.id}>
-                  {managedUser.id} - {managedUser.fullName}
-                </option>
-              ))}
-            </select>
 
-            <input
-              value={userEmail}
-              onChange={(e) => setUserEmail(e.target.value)}
-              placeholder="User email"
-              className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
-            />
+            <div className="space-y-4 rounded-2xl border border-primary/10 bg-muted/20 p-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Provision new user</p>
+                <p className="text-sm text-muted-foreground">Creates a user inside the current tenant and sends a reset link.</p>
+              </div>
 
-            <input
-              value={userFullName}
-              onChange={(e) => setUserFullName(e.target.value)}
-              placeholder="Full name"
-              className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
-            />
+              <input
+                value={provisionEmail}
+                onChange={(e) => setProvisionEmail(e.target.value)}
+                placeholder="User email"
+                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
+              />
 
-            <input
-              value={userPhone}
-              onChange={(e) => setUserPhone(e.target.value)}
-              placeholder="Phone number"
-              className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
-            />
+              <input
+                value={provisionFullName}
+                onChange={(e) => setProvisionFullName(e.target.value)}
+                placeholder="Full name"
+                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
+              />
 
-            <input
-              type="password"
-              value={userPassword}
-              onChange={(e) => setUserPassword(e.target.value)}
-              placeholder="Password"
-              className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
-            />
+              <input
+                value={provisionPhoneNumber}
+                onChange={(e) => setProvisionPhoneNumber(e.target.value)}
+                placeholder="Phone number"
+                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
+              />
 
-            <div className="flex gap-3">
               <button
-                onClick={() => createUserMutation.mutate()}
-                disabled={createUserMutation.isPending}
+                onClick={() => {
+                  if (!canProvisionUser) {
+                    toast({
+                      title: "Missing details",
+                      description: "Fill out the provisioning fields before continuing.",
+                    });
+                    return;
+                  }
+                  provisionUserMutation.mutate();
+                }}
+                disabled={provisionUserMutation.isPending || !canProvisionUser}
                 className="px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {createUserMutation.isPending ? (
+                {provisionUserMutation.isPending ? (
                   <>
                     <Spinner size="sm" />
-                    Creating...
+                    Provisioning...
                   </>
                 ) : (
-                  "Create"
+                  "Provision"
                 )}
               </button>
-              <button
-                onClick={() => updateUserMutation.mutate()}
-                disabled={!userId || updateUserMutation.isPending}
-                className="px-6 py-2 rounded-full bg-approve text-approve-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            </div>
+
+            <div className="space-y-4 rounded-2xl border border-primary/10 bg-muted/10 p-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Update existing user</p>
+                <p className="text-sm text-muted-foreground">Select a user, change only what is needed, and save.</p>
+              </div>
+
+              <select
+                value={userId}
+                onChange={(e) => setUserId(e.target.value)}
+                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
               >
-                {updateUserMutation.isPending ? (
-                  <>
-                    <Spinner size="sm" />
-                    Updating...
-                  </>
-                ) : (
-                  "Update"
-                )}
-              </button>
-              <button
-                onClick={() => deleteUserMutation.mutate()}
-                disabled={!userId || deleteUserMutation.isPending}
-                className="px-6 py-2 rounded-full bg-destructive text-destructive-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {deleteUserMutation.isPending ? (
-                  <>
-                    <Spinner size="sm" />
-                    Deleting...
-                  </>
-                ) : (
-                  "Delete"
-                )}
-              </button>
+                <option value="">Select User ID</option>
+                {(users ?? []).map((managedUser) => (
+                  <option key={managedUser.id} value={managedUser.id}>
+                    {managedUser.id} - {managedUser.fullName}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                value={userEmail}
+                onChange={(e) => setUserEmail(e.target.value)}
+                placeholder="User email"
+                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
+              />
+
+              <input
+                value={userFullName}
+                onChange={(e) => setUserFullName(e.target.value)}
+                placeholder="Full name"
+                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
+              />
+
+              <input
+                value={userPhone}
+                onChange={(e) => setUserPhone(e.target.value)}
+                placeholder="Phone number"
+                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
+              />
+
+              <input
+                type="password"
+                value={userPassword}
+                onChange={(e) => setUserPassword(e.target.value)}
+                placeholder="New password"
+                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
+              />
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    if (!hasUserChanges) {
+                      toast({
+                        title: "No changes detected",
+                        description: "Update at least one field before saving.",
+                      });
+                      return;
+                    }
+                    updateUserMutation.mutate();
+                  }}
+                  disabled={!userId || updateUserMutation.isPending || !hasUserChanges}
+                  className="px-6 py-2 rounded-full bg-approve text-approve-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {updateUserMutation.isPending ? (
+                    <>
+                      <Spinner size="sm" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update"
+                  )}
+                </button>
+                <button
+                  onClick={() => deleteUserMutation.mutate()}
+                  disabled={!userId || deleteUserMutation.isPending}
+                  className="px-6 py-2 rounded-full bg-destructive text-destructive-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {deleteUserMutation.isPending ? (
+                    <>
+                      <Spinner size="sm" />
+                      Deleting...
+                    </>
+                  ) : (
+                    "Delete"
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

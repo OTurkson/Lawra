@@ -14,6 +14,19 @@ export class ApiError extends Error {
   }
 }
 
+export function formatApiError(error: unknown, fallbackMessage: string) {
+  if (error instanceof ApiError) {
+    const responseMessage = (error.data as any)?.message || (error.data as any)?.error || error.message;
+    return `HTTP ${error.status}: ${typeof responseMessage === "string" ? responseMessage : fallbackMessage}`;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return fallbackMessage;
+}
+
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
   const pathname = path.startsWith("http") ? new URL(path).pathname : path;
@@ -125,6 +138,12 @@ export type UserRequest = {
   password: string;
   tenantId: string;
   role?: "BORROWER" | "PAYMASTER";
+};
+
+export type UserProvisionRequest = {
+  email: string;
+  fullName: string;
+  phoneNumber: string;
 };
 
 export type UserUpdateRequest = {
@@ -244,6 +263,13 @@ export function fetchUsers() {
 
 export function createUser(request: UserRequest) {
   return apiFetch<UserResponse>("/users", {
+    method: "POST",
+    body: JSON.stringify(request),
+  });
+}
+
+export function provisionUser(request: UserProvisionRequest) {
+  return apiFetch<UserResponse>("/users/provision", {
     method: "POST",
     body: JSON.stringify(request),
   });
