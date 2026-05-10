@@ -145,7 +145,7 @@ const SignupPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen h-lvh">
+    <div className="flex min-h-screen">
       <div className="hidden lg:flex lg:w-1/2 relative">
         <img src={signupHero} alt="Woman using phone" className="w-full h-full object-cover" />
         <div className="absolute top-8 left-8">

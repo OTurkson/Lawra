@@ -46,7 +46,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/tenants").permitAll()
                 .requestMatchers("/actuator/health", "/error").permitAll()
                 .anyRequest().authenticated()
-            )
+                                                                                                                                                          )
                 // Add JWT filter before UsernamePasswordAuthenticationFilter
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 // Add Tenant validation filter after JWT filter

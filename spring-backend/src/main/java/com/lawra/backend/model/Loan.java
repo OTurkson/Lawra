@@ -52,12 +52,12 @@ public class Loan {
 
 //    user and time created/updated
     @ManyToOne(optional = false)
-    @JoinColumn(name = "borrower_id", nullable = false)
+    @JoinColumn(name = "borrower_id", nullable = false, columnDefinition = "CHAR(36)")
     private User borrower;
 
     // User (ADMIN/PAYMASTER) who approved this loan. Null until approved.
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "approved_by_id")
+    @JoinColumn(name = "approved_by_id", columnDefinition = "CHAR(36)")
     private User approvedBy;
 
 //    loan status

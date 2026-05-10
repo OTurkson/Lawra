@@ -32,8 +32,8 @@
 
     --radius: 0.5rem;
 
-    --sidebar-start: 162 62% 55%;
-    --sidebar-end: 162 42% 42%;
+    --sidebar-start: 145 62% 42%;
+    --sidebar-end: 195 70% 45%;
 
     --table-header: 162 30% 30%;
     --table-header-foreground: 0 0% 100%;
@@ -41,8 +41,8 @@
     --approve: 162 52% 48%;
     --approve-foreground: 0 0% 100%;
 
-    --signup-gradient-start: 162 52% 48%;
-    --signup-gradient-end: 180 40% 40%;
+    --signup-gradient-start: 145 62% 39%;
+    --signup-gradient-end: 195 70% 45%;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;

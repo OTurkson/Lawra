@@ -32,13 +32,13 @@ public class VirtualBank {
 
     //    User who created Virtual Bank
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by_id", nullable = false)
+    @JoinColumn(name = "created_by_id", nullable = false, columnDefinition = "CHAR(36)")
     @JsonIgnore
     private User createdBy;
 
     //    Tenant associated with a particular bank which is in turn associated with a user
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tenant_id", nullable = false)
+    @JoinColumn(name = "tenant_id", nullable = false, columnDefinition = "CHAR(36)")
     @JsonIgnore
     private Tenant tenant;
 

@@ -91,7 +91,7 @@ const ForgotPasswordPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen h-lvh">
       <div className="hidden lg:flex lg:w-1/2 relative">
         <img src={signupHero} alt="Lawra forgot password" className="w-full h-full object-cover" />
         <div className="absolute top-8 left-8">
