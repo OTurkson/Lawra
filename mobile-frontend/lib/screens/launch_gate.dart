@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'auth_flow_screens.dart';
+import 'dashboard_shell.dart';
 import 'onboarding_screen.dart';
 import 'intro_sequence.dart';
+import '../data/session_store.dart';
 
 class LaunchGate extends StatefulWidget {
   const LaunchGate({super.key});
@@ -81,9 +83,24 @@ class _LaunchGateState extends State<LaunchGate> {
           ),
         );
       } else {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const AuthScreen()),
-        );
+        SessionStore.readAuth().then((session) {
+          if (!mounted) return;
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => session == null
+                  ? const AuthScreen()
+                  : DashboardShell(
+                      session: session,
+                      onSignedOut: () {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (_) => const AuthScreen()),
+                          (_) => false,
+                        );
+                      },
+                    ),
+            ),
+          );
+        });
       }
     });
   }

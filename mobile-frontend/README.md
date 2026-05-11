@@ -1,17 +1,19 @@
 # Lawra Mobile Frontend (Flutter)
 
-This repository contains the **frontend-only Flutter implementation** of the provided Lawra design PDF/screens.
+This repository contains the Flutter mobile client for Lawra.
 
 ## Implemented
 
 - One-time onboarding tour flow (`SKIP`) shown only on first app launch
-- Auth entry flow (sign up/log in visual state)
-- Screen hub to navigate all mocked frontend pages for integration/testing
-- Consistent theme setup and assets wiring
+- Backend-connected sign in, sign up, forgot password, and reset password screens
+- Auth persistence with shared preferences so returning users land directly in the dashboard
+- Borrower, lender, loans, virtual banks, settings, notifications, and about screens aligned with the web app flows
+- Consistent theme setup and assets wiring using the design pages in `assets/design/`
 
-## Current Constraint
+## Backend Configuration
 
-Flutter SDK is not installed/configured on this machine yet (`flutter` command not found), so the app could not be executed locally in this session.
+By default the app targets `http://localhost:8080` on desktop platforms and `http://10.0.2.2:8080` on Android emulators.
+Override this with `--dart-define=LAWRA_API_BASE_URL=http://your-server:8080` when running the app.
 
 ## To Run
 
@@ -23,7 +25,7 @@ flutter pub get
 flutter run
 ```
 
-## Notes for Backend Integration
+## Notes
 
-- All current screens are frontend stubs using static design assets.
-- You can progressively replace each image-backed screen with real widgets/API wiring while preserving route names and flow behavior.
+- The mobile screens now call the same backend endpoints used by the web frontend.
+- The dashboard uses a mobile-friendly shell with drawer access to settings, notifications, about, and logout.
