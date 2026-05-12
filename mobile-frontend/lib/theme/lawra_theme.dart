@@ -20,9 +20,9 @@ ThemeData buildLawraTheme() {
       secondary: LawraColors.cyan,
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: Colors.transparent,
+      backgroundColor: LawraColors.green,
       foregroundColor: Colors.white,
-      elevation: 0,
+      elevation: 1,
     ),
   );
 }

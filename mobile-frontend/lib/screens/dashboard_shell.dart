@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../data/lawra_api.dart';
 import '../data/session_store.dart';
 
+typedef NoticeCallback = void Function(String message, {String type});
+
 class DashboardShell extends StatefulWidget {
   const DashboardShell({
     super.key,
@@ -221,7 +223,7 @@ class BorrowerTab extends StatefulWidget {
   final LawraApi api;
   final AuthSession session;
   final UserProfile? currentUser;
-  final ValueChanged<String> addNotice;
+  final NoticeCallback addNotice;
 
   @override
   State<BorrowerTab> createState() => _BorrowerTabState();
@@ -435,7 +437,7 @@ class LenderTab extends StatefulWidget {
   final LawraApi api;
   final AuthSession session;
   final UserProfile? currentUser;
-  final ValueChanged<String> addNotice;
+  final NoticeCallback addNotice;
 
   @override
   State<LenderTab> createState() => _LenderTabState();
@@ -623,7 +625,7 @@ class LoansTab extends StatefulWidget {
 
   final LawraApi api;
   final UserProfile? currentUser;
-  final ValueChanged<String> addNotice;
+  final NoticeCallback addNotice;
 
   @override
   State<LoansTab> createState() => _LoansTabState();
@@ -797,7 +799,7 @@ class BanksTab extends StatefulWidget {
   final LawraApi api;
   final AuthSession session;
   final UserProfile? currentUser;
-  final ValueChanged<String> addNotice;
+  final NoticeCallback addNotice;
 
   @override
   State<BanksTab> createState() => _BanksTabState();
@@ -1055,7 +1057,7 @@ class SettingsScreen extends StatefulWidget {
   final LawraApi api;
   final UserProfile? currentUser;
   final AuthSession session;
-  final ValueChanged<String> addNotice;
+  final NoticeCallback addNotice;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
