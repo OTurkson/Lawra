@@ -1,5 +1,7 @@
 package com.lawra.backend.service;
 
+import com.lawra.backend.dto.LoanPackageDTO;
+import com.lawra.backend.mapper.LoanPackageMapper;
 import com.lawra.backend.model.LoanPackage;
 import com.lawra.backend.model.VirtualBank;
 import com.lawra.backend.repository.LoanPackageRepository;
@@ -18,15 +20,26 @@ public class LoanPackageService {
 
 	private final LoanPackageRepository loanPackageRepository;
 	private final VirtualBankRepository virtualBankRepository;
+	private final LoanPackageMapper loanPackageMapper;
 	private final AuthenticatedUserContextService authenticatedUserContextService;
 
 //	list all loan packages from the virtual banks available
-	public List<LoanPackage> getAll() {
+	public List<LoanPackageDTO> getAll() {
 		UUID tenantId = authenticatedUserContextService.getCurrentTenantId();
-		return loanPackageRepository.findByVirtualBank_Tenant_Id(tenantId);
+		return loanPackageRepository.findByVirtualBank_Tenant_Id(tenantId)
+				.stream()
+				.map(loanPackageMapper::map)
+				.toList();
 	}
 
-	public LoanPackage getById(Long id) {
+	public LoanPackageDTO getById(Long id) {
+		UUID tenantId = authenticatedUserContextService.getCurrentTenantId();
+		LoanPackage loanPackage = loanPackageRepository.findByIdAndVirtualBank_Tenant_Id(id, tenantId)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Loan package not found"));
+		return loanPackageMapper.map(loanPackage);
+	}
+
+	private LoanPackage getByIdEntity(Long id) {
 		UUID tenantId = authenticatedUserContextService.getCurrentTenantId();
 		return loanPackageRepository.findByIdAndVirtualBank_Tenant_Id(id, tenantId)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Loan package not found"));
@@ -50,7 +63,7 @@ public class LoanPackageService {
 	}
 
 	public LoanPackage update(Long id, LoanPackage updated) {
-		LoanPackage existing = getById(id);
+		LoanPackage existing = getByIdEntity(id);
 		VirtualBank bank = resolveTenantScopedBank(updated.getVirtualBank());
 		
 		// Calculate the balance difference
@@ -77,7 +90,7 @@ public class LoanPackageService {
 	}
 
 	public void delete(Long id) {
-		LoanPackage existing = getById(id);
+		LoanPackage existing = getByIdEntity(id);
 		VirtualBank bank = existing.getVirtualBank();
 		
 		// Refund loan package balance back to virtual bank

@@ -25,7 +25,7 @@ public class Loan {
     private Long id;
 
     //    Loan Package the loan comes from
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(nullable = false)
     private LoanPackage loanPackage;
 
@@ -51,7 +51,7 @@ public class Loan {
     private LocalDate dueDate;
 
 //    user and time created/updated
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false, fetch = FetchType.EAGER)
     @JoinColumn(name = "borrower_id", nullable = false, columnDefinition = "CHAR(36)")
     private User borrower;
 

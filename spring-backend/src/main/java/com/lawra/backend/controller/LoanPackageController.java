@@ -1,5 +1,6 @@
 package com.lawra.backend.controller;
 
+import com.lawra.backend.dto.LoanPackageDTO;
 import com.lawra.backend.model.LoanPackage;
 import com.lawra.backend.service.LoanPackageService;
 import lombok.RequiredArgsConstructor;
@@ -19,20 +20,26 @@ public class LoanPackageController {
 	// display, create, update and delete loan packages (within VB)
 	@GetMapping
 	@PreAuthorize("hasRole('PAYMASTER') or hasRole('ADMIN') or hasRole('BORROWER')")
-	public ResponseEntity<List<LoanPackage>> getLoanPackages() {
+	public ResponseEntity<List<LoanPackageDTO>> getLoanPackages() {
 		return ResponseEntity.ok(loanPackageService.getAll());
 	}
 
 	@GetMapping("/{id}")
 	@PreAuthorize("hasRole('PAYMASTER') or hasRole('ADMIN') or hasRole('BORROWER')")
-	public ResponseEntity<LoanPackage> getLoanPackage(@PathVariable Long id) {
+	public ResponseEntity<LoanPackageDTO> getLoanPackage(@PathVariable Long id) {
 		return ResponseEntity.ok(loanPackageService.getById(id));
 	}
 
 	@PostMapping
-	@PreAuthorize("hasRole('PAYMASTER') or hasRole('ADMIN')")
-	public ResponseEntity<LoanPackage> createLoanPackage(@RequestBody LoanPackage loanPackage) {
-		return ResponseEntity.ok(loanPackageService.create(loanPackage));
+	@PreAuthorize("hasRole('PAYMASTER') or hasRole('ADMIN') or hasRole('BORROWER')")
+	public ResponseEntity<?> createLoanPackage(@RequestBody LoanPackage loanPackage) {
+		if (loanPackage == null || loanPackage.getVirtualBank() == null || loanPackage.getVirtualBank().getId() == null) {
+			return ResponseEntity.badRequest().body("virtualBank.id is required");
+		}
+
+		// Delegate to service and allow service to throw meaningful ResponseStatusException
+		LoanPackage created = loanPackageService.create(loanPackage);
+		return ResponseEntity.ok(created);
 	}
 
 	@PutMapping("/{id}")

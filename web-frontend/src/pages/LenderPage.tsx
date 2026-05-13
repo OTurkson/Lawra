@@ -101,7 +101,14 @@ const LenderPage = () => {
   });
 
   const lenderData = (loanPackages ?? [])
-    .filter((pkg) => pkg.virtualBank?.createdById === auth?.userId)
+    .filter((pkg) => {
+      const role = auth?.role;
+      // Admins and paymasters should see all packages. Borrowers should also see packages
+      // so they can request loans. Otherwise show packages created by the current user.
+      if (!role) return false;
+      if (role === "PAYMASTER" || role === "ADMIN" || role === "BORROWER") return true;
+      return pkg.virtualBank?.createdById === auth?.userId;
+    })
     .map((pkg) => ({
       id: pkg.id,
       loanPackage: pkg.virtualBank?.name ?? "-",

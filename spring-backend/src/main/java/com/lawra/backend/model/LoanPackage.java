@@ -14,7 +14,8 @@ public class LoanPackage {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(nullable = false)
     private VirtualBank virtualBank;
 
     @Column(nullable = false, precision = 12, scale = 2)

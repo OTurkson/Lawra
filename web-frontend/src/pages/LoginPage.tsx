@@ -88,6 +88,9 @@ const LoginPage = () => {
 
     try {
       setIsSubmitting(true);
+
+      queryClient.clear();
+
       const authResponse = await login({ email, password, tenantId: tenantUuid });
       
       // Check if user requires password reset
@@ -103,7 +106,6 @@ const LoginPage = () => {
         return;
       }
 
-      queryClient.clear();
       saveAuth({
         token: authResponse.token,
         userId: authResponse.userId,
