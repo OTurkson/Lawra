@@ -95,9 +95,10 @@ class VirtualBank {
 }
 
 class LoanPackage {
-  LoanPackage({required this.id, required this.balance, required this.interestRate, this.virtualBank});
+  LoanPackage({required this.id, required this.name, required this.balance, required this.interestRate, this.virtualBank});
 
   final int id;
+  final String name;
   final num balance;
   final num interestRate;
   final VirtualBank? virtualBank;
@@ -105,6 +106,7 @@ class LoanPackage {
   factory LoanPackage.fromJson(Map<String, dynamic> json) {
     return LoanPackage(
       id: int.tryParse(json['id']?.toString() ?? '') ?? 0,
+      name: json['name']?.toString() ?? '',
       balance: (json['balance'] as num?) ?? 0,
       interestRate: (json['interestRate'] as num?) ?? 0,
       virtualBank: json['virtualBank'] is Map<String, dynamic>
@@ -403,11 +405,12 @@ class LawraApi {
     return LoanPackage.fromJson(data);
   }
 
-  Future<LoanPackage> createLoanPackage({required int virtualBankId, required num balance, required num interestRate}) async {
+  Future<LoanPackage> createLoanPackage({required String name, required int virtualBankId, required num balance, required num interestRate}) async {
     final data = await _send(
       '/loan-packages',
       method: 'POST',
       body: {
+        'name': name,
         'balance': balance,
         'interestRate': interestRate,
         'virtualBank': {'id': virtualBankId},
@@ -416,11 +419,12 @@ class LawraApi {
     return LoanPackage.fromJson(data);
   }
 
-  Future<LoanPackage> updateLoanPackage(int id, {required int virtualBankId, required num balance, required num interestRate}) async {
+  Future<LoanPackage> updateLoanPackage(int id, {required String name, required int virtualBankId, required num balance, required num interestRate}) async {
     final data = await _send(
       '/loan-packages/$id',
       method: 'PUT',
       body: {
+        'name': name,
         'balance': balance,
         'interestRate': interestRate,
         'virtualBank': {'id': virtualBankId},

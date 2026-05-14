@@ -18,6 +18,9 @@ public class LoanPackage {
     @JoinColumn(nullable = false)
     private VirtualBank virtualBank;
 
+    @Column(length = 120)
+    private String name;
+
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal balance;
 

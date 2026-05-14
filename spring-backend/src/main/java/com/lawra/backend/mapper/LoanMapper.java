@@ -41,6 +41,7 @@ public class LoanMapper {
 
         LoanPackage loanPackage = loan.getLoanPackage();
         if (loanPackage != null) {
+            dto.setLoanPackage(loanPackage.getName());
             VirtualBank bank = loanPackage.getVirtualBank();
             if (bank != null) {
                 dto.setVirtualBank(bank.getName());

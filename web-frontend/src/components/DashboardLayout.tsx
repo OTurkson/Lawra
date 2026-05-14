@@ -78,13 +78,13 @@ const DashboardLayout = () => {
     const decodedToken = jwtDecode<{ exp?: number }>(auth.token);
     if (typeof decodedToken.exp !== "number") {
       clearAuth();
-      navigate("/", { replace: true });
+      navigate("/auth/login", { replace: true });
       return;
     }
 
     const timeoutId = window.setTimeout(() => {
       clearAuth();
-      navigate("/", { replace: true });
+      navigate("/auth/login", { replace: true });
     }, Math.max(decodedToken.exp * 1000 - Date.now(), 0));
 
     return () => window.clearTimeout(timeoutId);
@@ -92,7 +92,7 @@ const DashboardLayout = () => {
 
   const redirectToLogin = () => {
     clearAuth();
-    navigate("/", { replace: true });
+    navigate("/auth/login", { replace: true });
   };
 
   const handleProtectedInteraction = () => {
@@ -103,7 +103,7 @@ const DashboardLayout = () => {
 
   if (!auth?.token || isSessionExpired) {
     clearAuth();
-    return <Navigate to="/" replace />;
+    return <Navigate to="/auth/login" replace />;
   }
 
   const depositMutation = useMutation({

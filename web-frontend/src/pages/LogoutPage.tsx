@@ -16,7 +16,7 @@ const LogoutPage = () => {
     setTimeout(() => {
       queryClient.clear();
       clearAuth();
-      navigate("/", { replace: true });
+        navigate("/auth/login", { replace: true });
     }, 500);
   };
 

@@ -19,6 +19,7 @@ public class LoanPackageMapper {
 
         return new LoanPackageDTO(
                 loanPackage.getId(),
+            loanPackage.getName(),
                 loanPackage.getBalance(),
                 loanPackage.getInterestRate(),
                 loanPackage.getVirtualBank() != null 

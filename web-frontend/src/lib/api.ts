@@ -54,7 +54,7 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 
     if (response.status === 401 && !isPublicAuthRoute) {
       clearAuth();
-      window.location.replace("/");
+      window.location.replace("/auth/login");
     }
 
     throw new ApiError(typeof message === "string" ? message : "Request failed", response.status, body);
@@ -101,12 +101,14 @@ export type VirtualBankTopUpRequest = {
 
 export type LoanPackage = {
   id: number;
+  name?: string;
   balance: number;
   interestRate: number;
   virtualBank?: VirtualBank;
 };
 
 export type LoanPackageRequest = {
+  name: string;
   balance: number;
   interestRate: number;
   virtualBankId: number;
@@ -175,14 +177,15 @@ export type LoanSummary = {
   approvedBy?: string;
   amount?: number;
   interest?: string;
+  loanPackage?: string;
   virtualBank?: string;
   tenure?: string;
   repaymentAmount?: number;
-  installment?: number;
-  bank?: string;
+  // installment?: number;
+  // bank?: string;
   dueDate?: string;
-  accountName?: string;
-  accountNumber?: string;
+  // accountName?: string;
+  // accountNumber?: string;
   status: LoanStatus;
 };
 
@@ -332,6 +335,7 @@ export async function createLoanPackage(request: LoanPackageRequest) {
     return await apiFetch<LoanPackage>("/loan-packages", {
       method: "POST",
       body: JSON.stringify({
+        name: request.name,
         balance: request.balance,
         interestRate: request.interestRate,
         virtualBank: { id: request.virtualBankId },
@@ -356,6 +360,7 @@ export async function updateLoanPackage(id: number, request: LoanPackageRequest)
     return await apiFetch<LoanPackage>(`/loan-packages/${id}`, {
       method: "PUT",
       body: JSON.stringify({
+        name: request.name,
         balance: request.balance,
         interestRate: request.interestRate,
         virtualBank: { id: request.virtualBankId },

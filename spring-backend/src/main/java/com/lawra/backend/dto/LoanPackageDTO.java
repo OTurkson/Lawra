@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class LoanPackageDTO {
     private Long id;
+    private String name;
     private BigDecimal balance;
     private BigDecimal interestRate;
     private VirtualBankDTO virtualBank;

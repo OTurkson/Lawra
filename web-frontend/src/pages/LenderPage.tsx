@@ -27,9 +27,11 @@ const LenderPage = () => {
   const auth = getAuth();
 
   const [selectedId, setSelectedId] = useState("");
+  const [name, setName] = useState("");
   const [virtualBankId, setVirtualBankId] = useState("");
   const [balance, setBalance] = useState("");
   const [interestRate, setInterestRate] = useState("");
+  const [topupAmount, setTopupAmount] = useState("");
   const [isPackageDialogOpen, setIsPackageDialogOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
@@ -50,13 +52,31 @@ const LenderPage = () => {
   });
 
   const createMutation = useMutation({
-    mutationFn: () =>
-      createLoanPackage({
+    mutationFn: () => {
+      if (!name.trim()) {
+        throw new Error("Package name is required.");
+      }
+
+      const packageBalance = Number(balance);
+      const selectedBank = (virtualBanks ?? []).find((bank) => String(bank.id) === virtualBankId);
+
+      if (!Number.isFinite(packageBalance) || packageBalance <= 0) {
+        throw new Error("Please enter a valid balance amount greater than zero.");
+      }
+
+      if (selectedBank && Number.isFinite(Number(selectedBank.balance)) && packageBalance > Number(selectedBank.balance)) {
+        throw new Error("Loan package balance cannot exceed virtual bank balance. Available: " + selectedBank.balance);
+      }
+
+      return createLoanPackage({
+        name: name.trim(),
         virtualBankId: Number(virtualBankId),
         balance: Number(balance),
         interestRate: Number(interestRate),
-      }),
+      });
+    },
     onSuccess: () => {
+      setName("");
       setVirtualBankId("");
       setBalance("");
       setInterestRate("");
@@ -72,17 +92,36 @@ const LenderPage = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: () =>
-      updateLoanPackage(Number(selectedId), {
+    mutationFn: () => {
+      if (!name.trim()) {
+        throw new Error("Package name is required.");
+      }
+
+      const topup = Number(topupAmount);
+      const currentBalance = selectedLoanPackage?.balance ?? 0;
+      const newBalance = currentBalance + topup;
+      const selectedBank = (virtualBanks ?? []).find((bank) => String(bank.id) === virtualBankId);
+
+      if (!Number.isFinite(topup) || topup <= 0) {
+        throw new Error("Please enter a valid topup amount greater than zero.");
+      }
+
+      if (selectedBank && Number.isFinite(Number(selectedBank.balance)) && newBalance > Number(selectedBank.balance)) {
+        throw new Error("Top up amount exceeds virtual bank balance. Available balance: " + (selectedBank.balance));
+      }
+
+      return updateLoanPackage(Number(selectedId), {
+        name: name.trim(),
         virtualBankId: Number(virtualBankId),
-        balance: Number(balance),
+        balance: newBalance,
         interestRate: Number(interestRate),
-      }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["loan-packages"] });
       queryClient.invalidateQueries({ queryKey: ["current-user", auth?.userId] });
-      toast({ title: "Loan package updated" });
-      pushNotification(queryClient, auth?.userId, { type: 'loan-update', message: `Updated loan package #${selectedId}` });
+      toast({ title: "Loan package topped up" });
+      pushNotification(queryClient, auth?.userId, { type: 'loan-update', message: `Topped up loan package #${selectedId}` });
     },
     onError: (error: any) => toast({ title: "Update failed", description: error?.message }),
   });
@@ -111,7 +150,7 @@ const LenderPage = () => {
     })
     .map((pkg) => ({
       id: pkg.id,
-      loanPackage: pkg.virtualBank?.name ?? "-",
+      loanPackage: pkg.name ?? `Package #${pkg.id}`,
       lending: pkg.balance,
       interest: `${pkg.interestRate}%`,
     }));
@@ -119,16 +158,71 @@ const LenderPage = () => {
   useEffect(() => {
     if (!selectedLoanPackage) return;
 
+    setName(selectedLoanPackage.name ?? "");
     setVirtualBankId(String(selectedLoanPackage.virtualBank?.id ?? ""));
-    setBalance(String(selectedLoanPackage.balance ?? ""));
     setInterestRate(String(selectedLoanPackage.interestRate ?? ""));
+    setTopupAmount("");
   }, [selectedLoanPackage]);
 
   return (
     <div className="space-y-6">
+      <div className="bg-card rounded-lg shadow-sm p-6 text-center space-y-4">
+        <p className="text-muted-foreground text-lg tracking-widest">CREATE LOAN PACKAGE</p>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-left">
+          <select
+            value={virtualBankId}
+            onChange={(e) => setVirtualBankId(e.target.value)}
+            className="px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+          >
+            <option value="">Virtual Bank</option>
+            {isVirtualBanksLoading && <option value="">Loading virtual banks...</option>}
+            {(virtualBanks ?? [])
+              .filter((bank) => bank.createdById === auth?.userId)
+              .map((bank) => (
+                <option key={bank.id} value={bank.id}>
+                  {bank.name}
+                </option>
+              ))}
+          </select>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Package Name"
+            className="px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+          />
+          <input
+            value={balance}
+            onChange={(e) => setBalance(e.target.value)}
+            placeholder="Balance"
+            className="px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+          />
+          <input
+            value={interestRate}
+            onChange={(e) => setInterestRate(e.target.value)}
+            placeholder="Interest Rate"
+            className="px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+          />
+        </div>
+        <div className="flex items-center justify-center gap-12">
+          <button
+            className="px-10 py-2 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            onClick={() => createMutation.mutate()}
+            disabled={createMutation.isPending}
+          >
+            {createMutation.isPending ? (
+              <>
+                <Spinner size="sm" />
+                Creating...
+              </>
+            ) : (
+              "Create"
+            )}
+          </button>
+        </div>
+      </div>
       <div className="bg-card rounded-lg shadow-sm overflow-hidden">
         <div className="p-4 pb-2 border-b border-border">
-          <h2 className="text-lg font-light text-muted-foreground">Main Dashboard</h2>
+          <h2 className="text-lg font-light text-muted-foreground">Loan Packages</h2>
           <p className="text-xs text-muted-foreground mt-1">Click a loan package to edit it.</p>
         </div>
         <table className="w-full text-sm">
@@ -184,8 +278,9 @@ const LenderPage = () => {
         onOpenChange={(open) => {
           setIsPackageDialogOpen(open);
           if (!open && selectedLoanPackage) {
+            setName(selectedLoanPackage.name ?? "");
             setVirtualBankId(String(selectedLoanPackage.virtualBank?.id ?? ""));
-            setBalance(String(selectedLoanPackage.balance ?? ""));
+            setTopupAmount("");
             setInterestRate(String(selectedLoanPackage.interestRate ?? ""));
           }
         }}
@@ -199,7 +294,7 @@ const LenderPage = () => {
           {selectedId ? (
             <div className="space-y-4">
               <div className="space-y-2 rounded-lg border border-border p-4 bg-muted/20">
-                <p className="text-sm font-semibold text-foreground">Loan package #{selectedId}</p>
+                <p className="text-sm font-semibold text-foreground">{selectedLoanPackage?.name ?? `Loan package #${selectedId}`}</p>
                 <p className="text-xs text-muted-foreground">
                   Virtual bank: {selectedLoanPackage?.virtualBank?.name ?? "-"}
                 </p>
@@ -207,39 +302,58 @@ const LenderPage = () => {
                 <p className="text-xs text-muted-foreground">Interest: {selectedLoanPackage?.interestRate ?? "-"}%</p>
               </div>
 
-              <div className="space-y-3">
-                <label className="text-xs text-muted-foreground">Virtual bank</label>
-                <select
-                  value={virtualBankId}
-                  onChange={(e) => setVirtualBankId(e.target.value)}
-                  className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
-                >
-                  <option value="">Virtual Bank</option>
-                  {isVirtualBanksLoading && <option value="">Loading virtual banks...</option>}
-                  {(virtualBanks ?? [])
-                    .filter((bank) => bank.createdById === auth?.userId)
-                    .map((bank) => (
-                      <option key={bank.id} value={bank.id}>
-                        {bank.name}
-                      </option>
-                    ))}
-                </select>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs text-muted-foreground">Package name</label>
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Package name"
+                    className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+                  />
+                </div>
 
-                <label className="text-xs text-muted-foreground">Balance</label>
-                <input
-                  value={balance}
-                  onChange={(e) => setBalance(e.target.value)}
-                  placeholder="Balance"
-                  className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
-                />
+                <div className="space-y-1.5">
+                  <label className="block text-xs text-muted-foreground">Virtual bank</label>
+                  <select
+                    value={virtualBankId}
+                    onChange={(e) => setVirtualBankId(e.target.value)}
+                    className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+                  >
+                    <option value="">Virtual Bank</option>
+                    {isVirtualBanksLoading && <option value="">Loading virtual banks...</option>}
+                    {(virtualBanks ?? [])
+                      .filter((bank) => bank.createdById === auth?.userId)
+                      .map((bank) => (
+                        <option key={bank.id} value={bank.id}>
+                          {bank.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
 
-                <label className="text-xs text-muted-foreground">Interest rate</label>
-                <input
-                  value={interestRate}
-                  onChange={(e) => setInterestRate(e.target.value)}
-                  placeholder="Interest Rate"
-                  className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
-                />
+                <div className="space-y-1.5">
+                  <label className="block text-xs text-muted-foreground">Topup Amount</label>
+                  <input
+                    value={topupAmount}
+                    onChange={(e) => setTopupAmount(e.target.value)}
+                    placeholder="Amount to add"
+                    className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                  &nbsp; Current balance: Gh¢ {selectedLoanPackage?.balance?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? "-"}
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs text-muted-foreground">Interest rate</label>
+                  <input
+                    value={interestRate}
+                    onChange={(e) => setInterestRate(e.target.value)}
+                    placeholder="Interest Rate"
+                    className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+                  />
+                </div>
               </div>
 
               <div className="flex flex-col gap-3">
@@ -310,54 +424,6 @@ const LenderPage = () => {
         </DialogContent>
       </Dialog>
 
-      <div className="bg-card rounded-lg shadow-sm p-6 text-center space-y-4">
-        <p className="text-muted-foreground text-lg tracking-widest">CREATE LOAN PACKAGE</p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-left">
-          <select
-            value={virtualBankId}
-            onChange={(e) => setVirtualBankId(e.target.value)}
-            className="px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
-          >
-            <option value="">Virtual Bank</option>
-            {isVirtualBanksLoading && <option value="">Loading virtual banks...</option>}
-            {(virtualBanks ?? [])
-              .filter((bank) => bank.createdById === auth?.userId)
-              .map((bank) => (
-                <option key={bank.id} value={bank.id}>
-                  {bank.name}
-                </option>
-              ))}
-          </select>
-          <input
-            value={balance}
-            onChange={(e) => setBalance(e.target.value)}
-            placeholder="Balance"
-            className="px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
-          />
-          <input
-            value={interestRate}
-            onChange={(e) => setInterestRate(e.target.value)}
-            placeholder="Interest Rate"
-            className="px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
-          />
-        </div>
-        <div className="flex items-center justify-center gap-12">
-          <button
-            className="px-10 py-2 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            onClick={() => createMutation.mutate()}
-            disabled={createMutation.isPending}
-          >
-            {createMutation.isPending ? (
-              <>
-                <Spinner size="sm" />
-                Creating...
-              </>
-            ) : (
-              "Create"
-            )}
-          </button>
-        </div>
-      </div>
     </div>
   );
 };

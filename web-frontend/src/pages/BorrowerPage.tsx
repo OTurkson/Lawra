@@ -136,7 +136,7 @@ const BorrowerPage = () => {
     <div className="space-y-6">
       {/* Request Loan */}
       <div className="bg-card rounded-lg shadow-sm p-6 text-center space-y-4">
-        <p className="text-muted-foreground text-lg tracking-widest">LOAN</p>
+        <p className="text-muted-foreground text-lg tracking-widest">REQUEST A LOAN</p>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-left">
           <select
             value={selectedPackageId}
@@ -155,7 +155,7 @@ const BorrowerPage = () => {
             <option value="">Select Package</option>
             {availablePackages.map((pkg) => (
               <option key={pkg.id} value={pkg.id}>
-                #{pkg.id} - {pkg.virtualBank?.name ?? "Loan Package"}
+                {pkg.name ?? `Package #${pkg.id}`} - {pkg.virtualBank?.name ?? "Loan Package"}
               </option>
             ))}
           </select>
@@ -212,7 +212,7 @@ const BorrowerPage = () => {
               <th className="px-4 py-3 text-center">Amount (Gh¢)</th>
               <th className="px-4 py-3 text-center">Interest</th>
               <th className="px-4 py-3 text-center">Tenure</th>
-              <th className="px-4 py-3 text-center">Bank</th>
+              <th className="px-4 py-3 text-center">Loan Package</th>
               <th className="px-4 py-3 text-center">Status</th>
             </tr>
           </thead>
@@ -237,7 +237,7 @@ const BorrowerPage = () => {
                 <td className="px-4 py-3 text-center text-muted-foreground">{row.amount ?? "-"}</td>
                 <td className="px-4 py-3 text-center text-muted-foreground">{row.interest ?? "-"}</td>
                 <td className="px-4 py-3 text-center text-muted-foreground">{row.tenure ?? "-"}</td>
-                <td className="px-4 py-3 text-center text-muted-foreground">{row.bank ?? "-"}</td>
+                <td className="px-4 py-3 text-center text-muted-foreground">{row.loanPackage ?? row.virtualBank ?? "-"}</td>
                 <td className="px-4 py-3 text-center text-muted-foreground">{row.status ?? "-"}</td>
               </tr>
             ))}

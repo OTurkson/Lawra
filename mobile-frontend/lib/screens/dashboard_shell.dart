@@ -370,7 +370,7 @@ class _BorrowerTabState extends State<BorrowerTab> {
                       .map(
                         (item) => DropdownMenuItem(
                           value: item.id.toString(),
-                          child: Text('#${item.id} - ${item.virtualBank?.name ?? 'Loan Package'}'),
+                          child: Text('${item.name.isNotEmpty ? item.name : 'Package #${item.id}'} - ${item.virtualBank?.name ?? 'Loan Package'}'),
                         ),
                       )
                       .toList(),
@@ -449,6 +449,7 @@ class _LenderTabState extends State<LenderTab> {
   List<VirtualBank> _banks = [];
   List<LoanPackage> _packages = [];
   String? _selectedBankId;
+  String _name = '';
   String _balance = '';
   String _interestRate = '';
   bool _isSaving = false;
@@ -508,14 +509,15 @@ class _LenderTabState extends State<LenderTab> {
     final balance = num.tryParse(_balance);
     final interestRate = num.tryParse(_interestRate);
 
-    if (bankId == null || balance == null || interestRate == null) {
-      _showMessage('Select a bank and fill out balance and interest.');
+    if (_name.trim().isEmpty || bankId == null || balance == null || interestRate == null) {
+      _showMessage('Enter a package name and fill out bank, balance, and interest.');
       return;
     }
 
     setState(() => _isSaving = true);
     try {
       await widget.api.createLoanPackage(
+        name: _name.trim(),
         virtualBankId: bankId,
         balance: balance,
         interestRate: interestRate,
@@ -526,6 +528,7 @@ class _LenderTabState extends State<LenderTab> {
       }
       setState(() {
         _selectedBankId = null;
+        _name = '';
         _balance = '';
         _interestRate = '';
       });
@@ -568,6 +571,11 @@ class _LenderTabState extends State<LenderTab> {
             title: 'Create loan package',
             child: Column(
               children: [
+                TextFormField(
+                  decoration: const InputDecoration(labelText: 'Package name'),
+                  onChanged: (value) => _name = value,
+                ),
+                const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: _selectedBankId,
                   isExpanded: true,
@@ -1573,7 +1581,7 @@ class _PackageTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        title: Text('Package #${package.id}'),
+        title: Text(package.name.isNotEmpty ? package.name : 'Package #${package.id}'),
         subtitle: Text('${package.virtualBank?.name ?? '-'}\nInterest: ${package.interestRate}%'),
         isThreeLine: true,
         trailing: Text(_money(package.balance)),

@@ -16,6 +16,7 @@ public class LoanSummaryDTO {
     private String borrowerName;
     private BigDecimal amount;
     private String interest;
+    private String loanPackage;
     private String virtualBank;
     private String tenure;
     private BigDecimal repaymentAmount;

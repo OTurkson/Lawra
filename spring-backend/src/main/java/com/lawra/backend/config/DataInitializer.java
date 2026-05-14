@@ -78,6 +78,7 @@ public class DataInitializer {
             // Loan package linked to virtual bank
             LoanPackage loanPackage = new LoanPackage();
             loanPackage.setVirtualBank(bank);
+            loanPackage.setName("Abusia Starter");
             loanPackage.setBalance(new BigDecimal("20000.00"));
             loanPackage.setInterestRate(new BigDecimal("12.50"));
             loanPackage = loanPackageRepository.save(loanPackage);

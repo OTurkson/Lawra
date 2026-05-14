@@ -244,7 +244,7 @@ const SettingsPage = () => {
   }, [selectedUser, userId, users]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <h2 className="text-lg font-light text-foreground">Edit Profile</h2>
 
       {isTenantAdmin && (
@@ -264,84 +264,84 @@ const SettingsPage = () => {
               </div>
             </div>
 
-            {/* Change Password */}
             <div>
-              <h3 className="text-primary font-semibold text-sm mb-4">Change Password</h3>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-muted-foreground text-sm mb-2">Old Password</label>
-                  <input
-                    type="password"
-                    placeholder="Old Password"
-                    value={oldPassword}
-                    onChange={(e) => setOldPassword(e.target.value)}
-                    className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-muted-foreground text-sm mb-2">New Password</label>
-                  <input
-                    type="password"
-                    placeholder="New Password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-muted-foreground text-sm mb-2">Confirm New Password</label>
-                  <input
-                    type="password"
-                    placeholder="Confirm New Password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                  />
-                </div>
-
-                <button
-                  onClick={handleSaveProfile}
-                  disabled={profileMutation.isPending || !hasProfileChanges}
-                  className="px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {profileMutation.isPending ? (
-                    <>
-                      <Spinner size="sm" />
-                      Saving...
-                    </>
-                  ) : (
-                    "Save Profile"
-                  )}
-                </button>
+              {/* Change Name */}
+              <div>
+                <label className="block text-primary font-semibold text-sm mb-2">Change Name</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground focus:outline-none focus:border-primary transition-colors"
+                />
               </div>
+
+              {/* Phone Number */}
+              <div>
+                <label className="block text-primary font-semibold text-sm mb-2">Phone Number</label>
+                <input
+                  type="text"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                />
+              </div>
+
             </div>
           </div>
 
           {/* Right column - Profile fields */}
           <div className="bg-card rounded-lg shadow-sm p-6 space-y-6">
-            {/* Change Name */}
-            <div>
-              <label className="block text-primary font-semibold text-sm mb-2">Change Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground focus:outline-none focus:border-primary transition-colors"
-              />
-            </div>
+            <div className="space-y-4">
+              <div>
+                  {/* Change Password */}
+                  <h3 className="text-primary font-semibold text-sm mb-4">Change Password</h3>
+                <label className="block text-muted-foreground text-sm mb-2">Old Password</label>
+                <input
+                  type="password"
+                  placeholder="Old Password"
+                  value={oldPassword}
+                  onChange={(e) => setOldPassword(e.target.value)}
+                  className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                />
+              </div>
 
-            {/* Phone Number */}
-            <div>
-              <label className="block text-primary font-semibold text-sm mb-2">Phone Number</label>
-              <input
-                type="text"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-              />
+              <div>
+                <label className="block text-muted-foreground text-sm mb-2">New Password</label>
+                <input
+                  type="password"
+                  placeholder="New Password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-muted-foreground text-sm mb-2">Confirm New Password</label>
+                <input
+                  type="password"
+                  placeholder="Confirm New Password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                />
+              </div>
+
+              <button
+                onClick={handleSaveProfile}
+                disabled={profileMutation.isPending || !hasProfileChanges}
+                className="px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {profileMutation.isPending ? (
+                  <>
+                    <Spinner size="sm" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Profile"
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -416,84 +416,6 @@ const SettingsPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="bg-card rounded-lg shadow-sm p-6 space-y-4">
             <h3 className="text-primary font-semibold text-sm">Tenant Management</h3>
-            <select
-              value={tenantId}
-              onChange={(e) => setTenantId(e.target.value)}
-              className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
-            >
-              <option value="">Select Tenant ID</option>
-              {(tenants ?? []).map((tenant) => (
-                <option key={tenant.id} value={tenant.id}>
-                  {tenant.id} - {tenant.name}
-                </option>
-              ))}
-            </select>
-
-            <input
-              value={tenantName}
-              onChange={(e) => setTenantName(e.target.value)}
-              placeholder="Tenant name"
-              className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
-            />
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  if (!tenantName.trim()) {
-                    toast({
-                      title: "Missing details",
-                      description: "Fill out all fields before continuing.",
-                    });
-                    return;
-                  }
-                  createTenantMutation.mutate();
-                }}
-                disabled={createTenantMutation.isPending}
-                className="px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {createTenantMutation.isPending ? (
-                  <>
-                    <Spinner size="sm" />
-                    Creating...
-                  </>
-                ) : (
-                  "Create"
-                )}
-              </button>
-              <button
-                onClick={() => updateTenantMutation.mutate()}
-                disabled={!tenantId || updateTenantMutation.isPending}
-                className="px-6 py-2 rounded-full bg-approve text-approve-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {updateTenantMutation.isPending ? (
-                  <>
-                    <Spinner size="sm" />
-                    Updating...
-                  </>
-                ) : (
-                  "Update"
-                )}
-              </button>
-              <button
-                onClick={() => deleteTenantMutation.mutate()}
-                disabled={!tenantId || deleteTenantMutation.isPending}
-                className="px-6 py-2 rounded-full bg-destructive text-destructive-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {deleteTenantMutation.isPending ? (
-                  <>
-                    <Spinner size="sm" />
-                    Deleting...
-                  </>
-                ) : (
-                  "Delete"
-                )}
-              </button>
-            </div>
-          </div>
-
-          <div className="bg-card rounded-lg shadow-sm p-6 space-y-4">
-            <h3 className="text-primary font-semibold text-sm">User Management</h3>
-
             <div className="space-y-4 rounded-2xl border border-primary/10 bg-muted/20 p-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Provision new user</p>
@@ -545,6 +467,12 @@ const SettingsPage = () => {
                 )}
               </button>
             </div>
+          </div>
+
+          <div className="bg-card rounded-lg shadow-sm p-6 space-y-4">
+            <h3 className="text-primary font-semibold text-sm">User Management</h3>
+
+
 
             <div className="space-y-4 rounded-2xl border border-primary/10 bg-muted/10 p-4">
               <div>
@@ -583,14 +511,6 @@ const SettingsPage = () => {
                 value={userPhone}
                 onChange={(e) => setUserPhone(e.target.value)}
                 placeholder="Phone number"
-                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
-              />
-
-              <input
-                type="password"
-                value={userPassword}
-                onChange={(e) => setUserPassword(e.target.value)}
-                placeholder="New password"
                 className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
               />
 

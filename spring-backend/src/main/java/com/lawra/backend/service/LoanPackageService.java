@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -46,6 +47,7 @@ public class LoanPackageService {
 	}
 
 	public LoanPackage create(LoanPackage loanPackage) {
+		validateLoanPackageName(loanPackage);
 		VirtualBank bank = resolveTenantScopedBank(loanPackage.getVirtualBank());
 		
 		// Validate that loan package balance doesn't exceed virtual bank balance
@@ -63,26 +65,28 @@ public class LoanPackageService {
 	}
 
 	public LoanPackage update(Long id, LoanPackage updated) {
+		validateLoanPackageName(updated);
 		LoanPackage existing = getByIdEntity(id);
 		VirtualBank bank = resolveTenantScopedBank(updated.getVirtualBank());
 		
 		// Calculate the balance difference
-		java.math.BigDecimal balanceDifference = updated.getBalance().subtract(existing.getBalance());
+		BigDecimal balanceDifference = updated.getBalance().subtract(existing.getBalance());
 		
 		// If balance is increasing, check if virtual bank has enough funds
-		if (balanceDifference.compareTo(java.math.BigDecimal.ZERO) > 0) {
+		if (balanceDifference.compareTo(BigDecimal.ZERO) > 0) {
 			if (balanceDifference.compareTo(bank.getBalance()) > 0) {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, 
 					"Insufficient virtual bank balance. Available: " + bank.getBalance());
 			}
 			// Deduct the difference from virtual bank
 			bank.setBalance(bank.getBalance().subtract(balanceDifference));
-		} else if (balanceDifference.compareTo(java.math.BigDecimal.ZERO) < 0) {
+		} else if (balanceDifference.compareTo(BigDecimal.ZERO) < 0) {
 			// If balance is decreasing, refund the difference back to virtual bank
 			bank.setBalance(bank.getBalance().add(balanceDifference.negate()));
 		}
 		
 		virtualBankRepository.save(bank);
+		existing.setName(updated.getName());
 		existing.setBalance(updated.getBalance());
 		existing.setInterestRate(updated.getInterestRate());
 		existing.setVirtualBank(bank);
@@ -113,6 +117,12 @@ public class LoanPackageService {
 		}
 
 		return resolved;
+	}
+
+	private void validateLoanPackageName(LoanPackage loanPackage) {
+		if (loanPackage.getName() == null || loanPackage.getName().isBlank()) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Loan package name is required");
+		}
 	}
 }
 

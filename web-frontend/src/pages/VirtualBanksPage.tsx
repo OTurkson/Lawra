@@ -132,6 +132,41 @@ const VirtualBanksPage = () => {
 
   return (
     <div className="space-y-6">
+      <div className="bg-card rounded-lg shadow-sm p-6 space-y-4">
+        <div>
+          <h2 className="text-lg font-light text-foreground">Create Virtual Bank</h2>
+          {/* <p className="text-xs text-muted-foreground mt-1">Create a new bank without leaving the page.</p> */}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Virtual bank name"
+            className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+          />
+          <input
+            value={balance}
+            onChange={(e) => setBalance(e.target.value)}
+            placeholder="Initial deposit"
+            className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+          />
+        </div>
+        <div className="flex items-center justify-center gap-12">
+          <button onClick={() => createMutation.mutate()}
+          disabled={createMutation.isPending}
+          className="w-50 px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+            {createMutation.isPending ? (
+              <>
+                <Spinner size="sm" />
+                Creating...
+              </>
+            ) : (
+              "Create Virtual Bank"
+            )}
+          </button>
+        </div>
+      </div>
       <div className="bg-card rounded-lg shadow-sm overflow-hidden">
         <div className="p-4 pb-2 border-b border-border">
           <h2 className="text-lg font-light text-foreground">Virtual Banks</h2>
@@ -139,11 +174,10 @@ const VirtualBanksPage = () => {
         </div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border">
-              <th className="px-4 py-2 text-center text-muted-foreground font-normal">ID</th>
-              <th className="px-4 py-2 text-left text-muted-foreground font-normal">Name</th>
-              <th className="px-4 py-2 text-center text-muted-foreground font-normal">Balance</th>
-              <th className="px-4 py-2 text-center text-muted-foreground font-normal">Created By</th>
+            <tr className="bg-table-header text-table-header-foreground">
+              <th className="px-4 py-2 text-left font-normal">Name</th>
+              <th className="px-4 py-2 text-center font-normal">Balance</th>
+              <th className="px-4 py-2 text-center font-normal">Created By</th>
             </tr>
           </thead>
           <tbody>
@@ -175,7 +209,6 @@ const VirtualBanksPage = () => {
                     setIsBankDialogOpen(true);
                   }}
                 >
-                  <td className="px-4 py-2 text-center text-muted-foreground">{bank.id}</td>
                   <td className="px-4 py-2 text-muted-foreground">{bank.name ?? "-"}</td>
                   <td className="px-4 py-2 text-center text-muted-foreground">{bank.balance ?? "-"}</td>
                   <td className="px-4 py-2 text-center text-muted-foreground">{bank.createdBy ?? "-"}</td>
@@ -318,42 +351,7 @@ const VirtualBanksPage = () => {
         </DialogContent>
       </Dialog>
 
-      <div className="bg-card rounded-lg shadow-sm p-6 space-y-4">
-        <div>
-          <h2 className="text-lg font-light text-foreground">Create Virtual Bank</h2>
-          <p className="text-xs text-muted-foreground mt-1">Create a new bank without leaving the page.</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Virtual bank name"
-            className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
-          />
-          <input
-            value={balance}
-            onChange={(e) => setBalance(e.target.value)}
-            placeholder="Initial deposit"
-            className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
-          />
-        </div>
-
-        <button
-          onClick={() => createMutation.mutate()}
-          disabled={createMutation.isPending}
-          className="w-full px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-        >
-          {createMutation.isPending ? (
-            <>
-              <Spinner size="sm" />
-              Creating...
-            </>
-          ) : (
-            "Create Virtual Bank"
-          )}
-        </button>
-      </div>
+      
     </div>
   );
 };
