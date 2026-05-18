@@ -25,7 +25,6 @@ const SettingsPage = () => {
 
   const [name, setName] = useState("Mama One");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -70,11 +69,12 @@ const SettingsPage = () => {
       }
 
       return updateUser(user.id, {
+        fullName: isTenantAdmin ? name.trim() : undefined,
+        phoneNumber: phoneNumber.trim(),
         password: newPassword || undefined,
       });
     },
     onSuccess: () => {
-      setOldPassword("");
       setNewPassword("");
       setConfirmPassword("");
       queryClient.invalidateQueries({ queryKey: ["current-user"] });
@@ -184,8 +184,11 @@ const SettingsPage = () => {
   });
 
   const hasPasswordChange = !!newPassword || !!confirmPassword;
-  const hasProfileChanges = hasPasswordChange;
   const selectedUser = (users ?? []).find((managedUser) => String(managedUser.id) === userId);
+  const hasNamePhoneChanges = isTenantAdmin && (
+    name.trim() !== (user?.fullName ?? "").trim() ||
+    phoneNumber.trim() !== (user?.phoneNumber ?? "").trim()
+  );
   const hasUserChanges = !!selectedUser && (
     userEmail.trim() !== (selectedUser.email ?? "").trim() ||
     userFullName.trim() !== (selectedUser.fullName ?? "").trim() ||
@@ -193,9 +196,10 @@ const SettingsPage = () => {
     !!userPassword.trim()
   );
   const canProvisionUser = !!provisionEmail.trim() && !!provisionFullName.trim() && !!provisionPhoneNumber.trim();
+  const canSaveProfile = hasNamePhoneChanges || !!newPassword || !!confirmPassword;
 
   const handleSaveProfile = () => {
-    if (!hasProfileChanges) {
+    if (!canSaveProfile) {
       toast({ title: "No changes detected", description: "Update at least one field before saving." });
       return;
     }
@@ -248,89 +252,78 @@ const SettingsPage = () => {
       <h2 className="text-lg font-light text-foreground">Edit Profile</h2>
 
       {isTenantAdmin && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left column - Profile info (Admin only) */}
-          <div className="bg-card rounded-lg shadow-sm p-6 space-y-6">
-            {/* Avatar & Change Picture */}
-            <div>
-              <h3 className="text-primary font-semibold text-sm mb-4">Change Picture</h3>
-              <div className="flex items-center gap-6">
-                <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-primary/30 shrink-0">
-                  <img src={avatarDog} alt="Profile" className="w-full h-full object-cover" />
-                </div>
-                <button className="px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity">
-                  Change Picture
-                </button>
-              </div>
-            </div>
-
-            <div>
-              {/* Change Name */}
-              <div>
-                <label className="block text-primary font-semibold text-sm mb-2">Change Name</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground focus:outline-none focus:border-primary transition-colors"
-                />
-              </div>
-
-              {/* Phone Number */}
-              <div>
-                <label className="block text-primary font-semibold text-sm mb-2">Phone Number</label>
-                <input
-                  type="text"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                />
-              </div>
-
-            </div>
+        <div className="bg-card rounded-2xl shadow-sm border border-border/60 p-6 space-y-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="text-primary font-semibold text-sm uppercase tracking-[0.2em]">Profile Settings</h3>
+            <p className="text-sm text-muted-foreground">
+              Update the account details and password.
+            </p>
           </div>
 
-          {/* Right column - Profile fields */}
-          <div className="bg-card rounded-lg shadow-sm p-6 space-y-6">
-            <div className="space-y-4">
+          <div className="gap-6">
+            <div className="rounded-2xl border border-primary/10 bg-muted/10 p-5 space-y-5">
               <div>
-                  {/* Change Password */}
-                  <h3 className="text-primary font-semibold text-sm mb-4">Change Password</h3>
-                <label className="block text-muted-foreground text-sm mb-2">Old Password</label>
-                <input
-                  type="password"
-                  placeholder="Old Password"
-                  value={oldPassword}
-                  onChange={(e) => setOldPassword(e.target.value)}
-                  className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                />
+                <h4 className="text-primary font-semibold text-sm mb-4">Picture & Contact</h4>
+                <div className="flex items-center gap-5">
+                  <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-primary/20 shrink-0">
+                    <img src={avatarDog} alt="Profile" className="w-full h-full object-cover" />
+                  </div>
+                  <button className="px-5 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity">
+                    Change Picture
+                  </button>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-muted-foreground text-sm mb-2">New Password</label>
-                <input
-                  type="password"
-                  placeholder="New Password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                />
-              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-primary font-semibold text-sm mb-2">Change Name</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-1/3 px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground focus:outline-none focus:border-primary transition-colors"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-muted-foreground text-sm mb-2">Confirm New Password</label>
-                <input
-                  type="password"
-                  placeholder="Confirm New Password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                />
+                <div>
+                  <label className="block text-primary font-semibold text-sm mb-2">Phone Number</label>
+                  <input
+                    type="text"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    className="w-1/3 px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                  />
+                </div>
+                <div>
+                  <h4 className="text-primary font-semibold text-sm mt-5">Change Password</h4>
+                </div>
+
+                <div className="my-5">
+                  <label className="block text-muted-foreground text-sm mb-2">New Password</label>
+                  <input
+                    type="password"
+                    placeholder="New Password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-1/3 px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                  />
+                </div>
+
+                <div className="my-5">
+                  <label className="block text-muted-foreground text-sm mb-2">Confirm New Password</label>
+                  <input
+                    type="password"
+                    placeholder="Confirm New Password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-1/3 px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                  />
+                </div>
               </div>
 
               <button
                 onClick={handleSaveProfile}
-                disabled={profileMutation.isPending || !hasProfileChanges}
+                disabled={profileMutation.isPending || !canSaveProfile}
                 className="px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {profileMutation.isPending ? (
@@ -339,7 +332,7 @@ const SettingsPage = () => {
                     Saving...
                   </>
                 ) : (
-                  "Save Profile"
+                  "Save Changes"
                 )}
               </button>
             </div>
@@ -389,20 +382,22 @@ const SettingsPage = () => {
                 />
               </div>
 
-              <button
-                onClick={handleSaveProfile}
-                disabled={profileMutation.isPending || !hasProfileChanges}
-                className="px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {profileMutation.isPending ? (
-                  <>
-                    <Spinner size="sm" />
-                    Saving...
-                  </>
-                ) : (
-                  "Save Profile"
-                )}
-              </button>
+              <div className="flex justify-center">
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={profileMutation.isPending || !canSaveProfile}
+                  className="px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {profileMutation.isPending ? (
+                    <>
+                      <Spinner size="sm" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -415,7 +410,7 @@ const SettingsPage = () => {
       {isTenantAdmin && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="bg-card rounded-lg shadow-sm p-6 space-y-4">
-            <h3 className="text-primary font-semibold text-sm">Tenant Management</h3>
+            <h3 className="text-primary font-semibold text-sm">User Provisioning</h3>
             <div className="space-y-4 rounded-2xl border border-primary/10 bg-muted/20 p-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Provision new user</p>
