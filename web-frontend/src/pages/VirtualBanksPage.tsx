@@ -99,6 +99,7 @@ const VirtualBanksPage = () => {
     },
     onSuccess: () => {
       setTopUpAmount("");
+      setIsBankDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["virtual-banks"] });
       queryClient.invalidateQueries({ queryKey: ["current-user", user?.id] });
       toast({ title: "Top-up successful" });

@@ -81,6 +81,7 @@ const LenderPage = () => {
       setBalance("");
       setInterestRate("");
       queryClient.invalidateQueries({ queryKey: ["loan-packages"] });
+      queryClient.invalidateQueries({ queryKey: ["virtual-banks"] });
       queryClient.invalidateQueries({ queryKey: ["current-user", auth?.userId] });
       toast({ title: "Loan package created" });
       pushNotification(queryClient, auth?.userId, {
@@ -93,12 +94,16 @@ const LenderPage = () => {
 
   const updateMutation = useMutation({
     mutationFn: () => {
+      if (!selectedLoanPackage) {
+        throw new Error("Select a loan package to top up.");
+      }
+
       if (!name.trim()) {
         throw new Error("Package name is required.");
       }
 
       const topup = Number(topupAmount);
-      const currentBalance = selectedLoanPackage?.balance ?? 0;
+      const currentBalance = Number(selectedLoanPackage.balance ?? 0);
       const newBalance = currentBalance + topup;
       const selectedBank = (virtualBanks ?? []).find((bank) => String(bank.id) === virtualBankId);
 
@@ -106,7 +111,7 @@ const LenderPage = () => {
         throw new Error("Please enter a valid topup amount greater than zero.");
       }
 
-      if (selectedBank && Number.isFinite(Number(selectedBank.balance)) && newBalance > Number(selectedBank.balance)) {
+      if (selectedBank && Number.isFinite(Number(selectedBank.balance)) && topup > Number(selectedBank.balance)) {
         throw new Error("Top up amount exceeds virtual bank balance. Available balance: " + (selectedBank.balance));
       }
 
@@ -118,7 +123,11 @@ const LenderPage = () => {
       });
     },
     onSuccess: () => {
+      setTopupAmount("");
+      setIsPackageDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["loan-packages"] });
+      queryClient.invalidateQueries({ queryKey: ["loan-packages", selectedId] });
+      queryClient.invalidateQueries({ queryKey: ["virtual-banks"] });
       queryClient.invalidateQueries({ queryKey: ["current-user", auth?.userId] });
       toast({ title: "Loan package topped up" });
       pushNotification(queryClient, auth?.userId, { type: 'loan-update', message: `Topped up loan package #${selectedId}` });
@@ -132,6 +141,7 @@ const LenderPage = () => {
       setSelectedId("");
       setIsPackageDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["loan-packages"] });
+      queryClient.invalidateQueries({ queryKey: ["virtual-banks"] });
       queryClient.invalidateQueries({ queryKey: ["current-user", auth?.userId] });
       toast({ title: "Loan package deleted" });
       pushNotification(queryClient, auth?.userId, { type: 'loan-delete', message: `Deleted loan package #${selectedId}` });

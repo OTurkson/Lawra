@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { HelpCircle, User, LogOut, Settings, Landmark, HandCoins, Banknote, CircleDollarSign, Eye, EyeOff } from "lucide-react";
-import avatarDog from "@/assets/avatar-dog.jpg";
 import { clearAuth, getAuth, isAuthTokenExpired } from "@/lib/auth";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,6 +8,7 @@ import { topUpCurrentUserBalance } from "@/lib/api";
 import { Spinner } from "@/components/Spinner";
 import { useToast } from "@/hooks/use-toast";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
+import ProfileAvatar from "@/components/ProfileAvatar";
 import { pushNotification } from "@/lib/notifications";
 import {
   Dialog,
@@ -162,7 +162,7 @@ const DashboardLayout = () => {
 
         {/* Avatar */}
         <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-primary-foreground/30 mb-3">
-          <img src={avatarDog} alt="Profile" className="w-full h-full object-cover" />
+          <ProfileAvatar userId={user?.id ?? auth?.userId} alt="Profile" />
         </div>
         <p className="font-semibold text-sm">{user?.fullName ?? auth?.userId ?? "Mama One"}</p>
         <p className="text-xs opacity-80">{user?.email ?? auth?.role ?? "Unilever Ghana"}</p>

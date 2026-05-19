@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import avatarDog from "@/assets/avatar-dog.jpg";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,11 +16,13 @@ import {
 } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/Spinner";
+import { createProfileImageLabel, loadProfileImage, removeProfileImage, saveProfileImage } from "@/lib/profile-image";
 
 const SettingsPage = () => {
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const profileImageInputRef = useRef<HTMLInputElement | null>(null);
   const isTenantAdmin = user?.role === "PAYMASTER" || user?.role === "ADMIN";
 
   const [name, setName] = useState("Mama One");
@@ -40,6 +42,8 @@ const SettingsPage = () => {
   const [userFullName, setUserFullName] = useState("");
   const [userPhone, setUserPhone] = useState("");
   const [userPassword, setUserPassword] = useState("");
+  const [profileImage, setProfileImage] = useState(avatarDog);
+  const [profileImageLabel, setProfileImageLabel] = useState("Default profile photo");
 
   const { data: tenants } = useQuery({
     queryKey: ["tenants"],
@@ -212,6 +216,65 @@ const SettingsPage = () => {
     profileMutation.mutate();
   };
 
+  const handleProfileImageClick = () => {
+    profileImageInputRef.current?.click();
+  };
+
+  const handleProfileImageChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!selectedFile) {
+      return;
+    }
+
+    if (!user?.id) {
+      toast({ title: "Unable to update picture", description: "Sign in again and try once more." });
+      return;
+    }
+
+    if (!selectedFile.type.startsWith("image/")) {
+      toast({ title: "Unsupported file", description: "Choose a JPG, PNG, GIF, or WebP image." });
+      return;
+    }
+
+    if (selectedFile.size > 5 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Use an image smaller than 5MB." });
+      return;
+    }
+
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(new Error("Failed to read the selected image."));
+      reader.readAsDataURL(selectedFile);
+    });
+
+    const label = createProfileImageLabel(user.fullName ?? name);
+    const record = {
+      dataUrl,
+      label,
+      originalName: selectedFile.name,
+      updatedAt: new Date().toISOString(),
+    };
+
+    saveProfileImage(user.id, record);
+    setProfileImage(dataUrl);
+    setProfileImageLabel(label);
+    toast({ title: "Profile picture updated", description: `Stored locally as ${label}.` });
+  };
+
+  const handleResetProfileImage = () => {
+    if (!user?.id) {
+      return;
+    }
+
+    removeProfileImage(user.id);
+    setProfileImage(avatarDog);
+    setProfileImageLabel("Default profile photo");
+    toast({ title: "Profile picture reset", description: "Reverted to the default image." });
+  };
+
   useEffect(() => {
     if (user?.fullName) {
       setName(user.fullName);
@@ -220,6 +283,12 @@ const SettingsPage = () => {
       setPhoneNumber(user.phoneNumber);
     }
   }, [user]);
+
+  useEffect(() => {
+    const storedImage = loadProfileImage(user?.id);
+    setProfileImage(storedImage?.dataUrl ?? avatarDog);
+    setProfileImageLabel(storedImage?.label ?? "Default profile photo");
+  }, [user?.id]);
 
   useEffect(() => {
     if (!isTenantAdmin && user?.id) {
@@ -264,13 +333,39 @@ const SettingsPage = () => {
             <div className="rounded-2xl border border-primary/10 bg-muted/10 p-5 space-y-5">
               <div>
                 <h4 className="text-primary font-semibold text-sm mb-4">Picture & Contact</h4>
-                <div className="flex items-center gap-5">
+                <input
+                  ref={profileImageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleProfileImageChange}
+                />
+                <div className="flex items-center gap-5 flex-wrap">
                   <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-primary/20 shrink-0">
-                    <img src={avatarDog} alt="Profile" className="w-full h-full object-cover" />
+                    <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
                   </div>
-                  <button className="px-5 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity">
-                    Change Picture
-                  </button>
+                  <div className="space-y-2">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{profileImageLabel}</p>
+                      <p className="text-xs text-muted-foreground">Upload a new image to replace the current one.</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={handleProfileImageClick}
+                        className="px-5 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
+                      >
+                        Change Picture
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleResetProfileImage}
+                        className="px-5 py-2 rounded-full border border-primary/20 text-sm font-semibold text-primary hover:bg-primary/5 transition-colors"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -345,13 +440,39 @@ const SettingsPage = () => {
           {/* Avatar & Change Picture */}
           <div>
             <h3 className="text-primary font-semibold text-sm mb-4">Change Picture</h3>
-            <div className="flex items-center gap-6">
+            <input
+              ref={profileImageInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleProfileImageChange}
+            />
+            <div className="flex items-center gap-6 flex-wrap">
               <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-primary/30 shrink-0">
-                <img src={avatarDog} alt="Profile" className="w-full h-full object-cover" />
+                <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
               </div>
-              <button className="px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity">
-                Change Picture
-              </button>
+              <div className="space-y-2">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{profileImageLabel}</p>
+                  <p className="text-xs text-muted-foreground">Stored locally until a backend upload endpoint is available.</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleProfileImageClick}
+                    className="px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
+                  >
+                    Change Picture
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetProfileImage}
+                    className="px-6 py-2 rounded-full border border-primary/20 text-sm font-semibold text-primary hover:bg-primary/5 transition-colors"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
