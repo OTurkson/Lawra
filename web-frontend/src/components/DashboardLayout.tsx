@@ -57,6 +57,15 @@ const DashboardLayout = () => {
 
   const auth = getAuth();
   const isSessionExpired = isAuthTokenExpired(auth?.token);
+  const isTenantAdmin = user?.role === "PAYMASTER" || user?.role === "ADMIN";
+  const canViewVirtualBanks = isTenantAdmin || user?.role === "BORROWER";
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.path !== "/dashboard/virtual-banks") {
+      return true;
+    }
+
+    return canViewVirtualBanks;
+  });
   
   // Decode JWT to get role and tenant info
   let decodedJwt: any = null;
@@ -202,7 +211,7 @@ const DashboardLayout = () => {
 
         {/* Nav */}
         <nav className="w-full px-4 space-y-1">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <Link

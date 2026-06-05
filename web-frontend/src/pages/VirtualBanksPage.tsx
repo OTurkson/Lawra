@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createVirtualBank,
@@ -25,6 +25,7 @@ const VirtualBanksPage = () => {
   const { toast } = useToast();
   const { user } = useCurrentUser();
   const isTenantAdmin = user?.role === "PAYMASTER" || user?.role === "ADMIN";
+  const isBorrower = user?.role === "BORROWER";
 
   const [name, setName] = useState("");
   const [balance, setBalance] = useState("");
@@ -44,8 +45,92 @@ const VirtualBanksPage = () => {
     queryFn: fetchVirtualBanks,
   });
 
-  const selectedBank = (banks ?? []).find((bank) => String(bank.id) === selectedBankId);
-  const canManageSelectedBank = !!selectedBank && (isTenantAdmin || selectedBank.createdById === user?.id);
+  const visibleBanks = useMemo(() => {
+    if (isBorrower) {
+      return (banks ?? []).filter((bank) => bank.createdById === user?.id);
+    }
+
+    if (isTenantAdmin) {
+      return banks ?? [];
+    }
+
+    return [];
+  }, [banks, isBorrower, isTenantAdmin, user?.id]);
+
+  const selectedBank = visibleBanks.find((bank) => String(bank.id) === selectedBankId);
+  const isSelectedBankOwner = !!selectedBank && selectedBank.createdById === user?.id;
+  const canManageSelectedBank = isSelectedBankOwner;
+
+  const formatDateTime = (value?: string) => {
+    if (!value) {
+      return "-";
+    }
+
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
+  };
+
+  const renderBanksTable = (options: { showCreatedBy: boolean; emptyMessage: string }) => (
+    <div className="bg-card rounded-lg shadow-sm overflow-hidden">
+      <div className="p-4 pb-2 border-b border-border">
+        <h2 className="text-lg font-light text-foreground">Virtual Banks</h2>
+        <p className="text-xs text-muted-foreground mt-1">
+          {options.showCreatedBy ? "Click a bank to manage it." : "Only banks created by you are shown here. Click one to see its balance and edit details."}
+        </p>
+      </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-table-header text-table-header-foreground">
+            <th className="px-4 py-2 text-left font-normal">Name</th>
+            <th className="px-4 py-2 text-center font-normal">Balance</th>
+            {options.showCreatedBy && <th className="px-4 py-2 text-center font-normal">Created By</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {isBanksLoading && (
+            <tr className="border-b border-border">
+              <td className="px-4 py-2 text-muted-foreground" colSpan={options.showCreatedBy ? 3 : 2}>
+                Loading virtual banks...
+              </td>
+            </tr>
+          )}
+
+          {!isBanksLoading && isBanksError && (
+            <tr className="border-b border-border">
+              <td className="px-4 py-2 text-destructive text-center" colSpan={options.showCreatedBy ? 3 : 2}>
+                {(banksError as Error)?.message ?? "Unable to load virtual banks."}
+              </td>
+            </tr>
+          )}
+
+          {!isBanksLoading && !isBanksError && visibleBanks.map((bank) => (
+            <tr
+              key={bank.id}
+              className={`border-b border-border cursor-pointer transition-colors hover:bg-muted/30 ${String(bank.id) === selectedBankId ? "bg-muted/40" : ""}`}
+              onClick={() => {
+                setSelectedBankId(String(bank.id));
+                setRenameName(bank.name ?? "");
+                setTopUpAmount("");
+                setIsBankDialogOpen(true);
+              }}
+            >
+              <td className="px-4 py-2 text-muted-foreground">{bank.name ?? "-"}</td>
+              <td className="px-4 py-2 text-center text-muted-foreground">{bank.balance ?? "-"}</td>
+              {options.showCreatedBy && <td className="px-4 py-2 text-center text-muted-foreground">{bank.createdBy ?? "-"}</td>}
+            </tr>
+          ))}
+
+          {!isBanksLoading && !isBanksError && visibleBanks.length === 0 && (
+            <tr className="border-b border-border">
+              <td className="px-4 py-2 text-muted-foreground text-center" colSpan={options.showCreatedBy ? 3 : 2}>
+                {options.emptyMessage}
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
 
   const createMutation = useMutation({
     mutationFn: () => {
@@ -131,101 +216,61 @@ const VirtualBanksPage = () => {
     },
   });
 
+  if (!isTenantAdmin && !isBorrower) {
+    return (
+      <div className="bg-card rounded-lg shadow-sm p-6 space-y-3">
+        <h2 className="text-lg font-light text-foreground">Virtual Banks</h2>
+        <p className="text-sm text-muted-foreground">
+          This section is available to paymaster and admin accounts only.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="bg-card rounded-lg shadow-sm p-6 space-y-4">
-        <div>
-          <h2 className="text-lg font-light text-foreground">Create Virtual Bank</h2>
-          {/* <p className="text-xs text-muted-foreground mt-1">Create a new bank without leaving the page.</p> */}
-        </div>
+      {isBorrower ? (
+        renderBanksTable({ showCreatedBy: false, emptyMessage: "No virtual banks created by you yet." })
+      ) : (
+        <>
+          <div className="bg-card rounded-lg shadow-sm p-6 space-y-4">
+            <div>
+              <h2 className="text-lg font-light text-foreground">Create Virtual Bank</h2>
+              {/* <p className="text-xs text-muted-foreground mt-1">Create a new bank without leaving the page.</p> */}
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Virtual bank name"
-            className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
-          />
-          <input
-            value={balance}
-            onChange={(e) => setBalance(e.target.value)}
-            placeholder="Initial deposit"
-            className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
-          />
-        </div>
-        <div className="flex items-center justify-center gap-12">
-          <button onClick={() => createMutation.mutate()}
-          disabled={createMutation.isPending}
-          className="w-50 px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-            {createMutation.isPending ? (
-              <>
-                <Spinner size="sm" />
-                Creating...
-              </>
-            ) : (
-              "Create Virtual Bank"
-            )}
-          </button>
-        </div>
-      </div>
-      <div className="bg-card rounded-lg shadow-sm overflow-hidden">
-        <div className="p-4 pb-2 border-b border-border">
-          <h2 className="text-lg font-light text-foreground">Virtual Banks</h2>
-          <p className="text-xs text-muted-foreground mt-1">Click a bank to manage it.</p>
-        </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-table-header text-table-header-foreground">
-              <th className="px-4 py-2 text-left font-normal">Name</th>
-              <th className="px-4 py-2 text-center font-normal">Balance</th>
-              <th className="px-4 py-2 text-center font-normal">Created By</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isBanksLoading && (
-              <tr className="border-b border-border">
-                <td className="px-4 py-2 text-muted-foreground" colSpan={4}>
-                  Loading virtual banks...
-                </td>
-              </tr>
-            )}
-
-            {!isBanksLoading && isBanksError && (
-              <tr className="border-b border-border">
-                <td className="px-4 py-2 text-destructive text-center" colSpan={4}>
-                  {(banksError as Error)?.message ?? "Unable to load virtual banks."}
-                </td>
-              </tr>
-            )}
-
-            {!isBanksLoading && !isBanksError &&
-              (banks ?? []).map((bank) => (
-                <tr
-                  key={bank.id}
-                  className={`border-b border-border cursor-pointer transition-colors hover:bg-muted/30 ${String(bank.id) === selectedBankId ? "bg-muted/40" : ""}`}
-                  onClick={() => {
-                    setSelectedBankId(String(bank.id));
-                    setRenameName(bank.name ?? "");
-                    setTopUpAmount("");
-                    setIsBankDialogOpen(true);
-                  }}
-                >
-                  <td className="px-4 py-2 text-muted-foreground">{bank.name ?? "-"}</td>
-                  <td className="px-4 py-2 text-center text-muted-foreground">{bank.balance ?? "-"}</td>
-                  <td className="px-4 py-2 text-center text-muted-foreground">{bank.createdBy ?? "-"}</td>
-                </tr>
-              ))}
-
-            {!isBanksLoading && !isBanksError && (banks ?? []).length === 0 && (
-              <tr className="border-b border-border">
-                <td className="px-4 py-2 text-muted-foreground text-center" colSpan={4}>
-                  No virtual banks found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Virtual bank name"
+                className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+              />
+              <input
+                value={balance}
+                onChange={(e) => setBalance(e.target.value)}
+                placeholder="Initial deposit"
+                className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+              />
+            </div>
+            <div className="flex items-center justify-center gap-12">
+              <button onClick={() => createMutation.mutate()}
+              disabled={createMutation.isPending}
+              className="w-50 px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                {createMutation.isPending ? (
+                  <>
+                    <Spinner size="sm" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Virtual Bank"
+                )}
+              </button>
+            </div>
+          </div>
+          {renderBanksTable({ showCreatedBy: true, emptyMessage: "No virtual banks found." })}
+        </>
+      )}
 
       <Dialog
         open={isBankDialogOpen}
@@ -250,67 +295,77 @@ const VirtualBanksPage = () => {
                 <p className="text-xs text-muted-foreground">ID: {selectedBank.id}</p>
                 <p className="text-xs text-muted-foreground">Balance: {selectedBank.balance ?? "-"}</p>
                 <p className="text-xs text-muted-foreground">Created by: {selectedBank.createdBy ?? "-"}</p>
+                <p className="text-xs text-muted-foreground">Created at: {formatDateTime(selectedBank.createdAt)}</p>
+                <p className="text-xs text-muted-foreground">Date modified: {formatDateTime(selectedBank.updatedAt)}</p>
               </div>
 
-              <div className="space-y-3">
-                <label className="text-xs text-muted-foreground">Rename bank</label>
-                <input
-                  value={renameName}
-                  onChange={(e) => setRenameName(e.target.value)}
-                  placeholder="Rename bank"
-                  className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
-                />
-                <button
-                  onClick={() => updateMutation.mutate()}
-                  disabled={updateMutation.isPending || !canManageSelectedBank}
-                  className="w-full px-6 py-2 rounded-full bg-approve text-approve-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {updateMutation.isPending ? (
-                    <>
-                      <Spinner size="sm" />
-                      Renaming...
-                    </>
-                  ) : (
-                    "Rename"
-                  )}
-                </button>
-              </div>
+              {isSelectedBankOwner ? (
+                <>
+                  <div className="space-y-3">
+                    <label className="text-xs text-muted-foreground">Rename bank</label>
+                    <input
+                      value={renameName}
+                      onChange={(e) => setRenameName(e.target.value)}
+                      placeholder="Rename bank"
+                      className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+                    />
+                    <button
+                      onClick={() => updateMutation.mutate()}
+                      disabled={updateMutation.isPending || !canManageSelectedBank}
+                      className="w-full px-6 py-2 rounded-full bg-approve text-approve-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {updateMutation.isPending ? (
+                        <>
+                          <Spinner size="sm" />
+                          Renaming...
+                        </>
+                      ) : (
+                        "Rename"
+                      )}
+                    </button>
+                  </div>
 
-              <div className="space-y-3">
-                <label className="text-xs text-muted-foreground">Top-up amount</label>
-                <input
-                  value={topUpAmount}
-                  onChange={(e) => setTopUpAmount(e.target.value)}
-                  placeholder="Top-up amount"
-                  className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
-                />
-                <button
-                  onClick={() => topUpMutation.mutate()}
-                  disabled={topUpMutation.isPending || !canManageSelectedBank}
-                  className="w-full px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {topUpMutation.isPending ? (
-                    <>
-                      <Spinner size="sm" />
-                      Topping Up...
-                    </>
-                  ) : (
-                    "Top Up"
-                  )}
-                </button>
-              </div>
+                  <div className="space-y-3">
+                    <label className="text-xs text-muted-foreground">Top-up amount</label>
+                    <input
+                      value={topUpAmount}
+                      onChange={(e) => setTopUpAmount(e.target.value)}
+                      placeholder="Top-up amount"
+                      className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
+                    />
+                    <button
+                      onClick={() => topUpMutation.mutate()}
+                      disabled={topUpMutation.isPending || !canManageSelectedBank}
+                      className="w-full px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {topUpMutation.isPending ? (
+                        <>
+                          <Spinner size="sm" />
+                          Topping Up...
+                        </>
+                      ) : (
+                        "Top Up"
+                      )}
+                    </button>
+                  </div>
 
-              <button
-                onClick={() => setIsDeleteConfirmOpen(true)}
-                disabled={!canManageSelectedBank}
-                className="w-full px-6 py-2 rounded-full bg-destructive text-destructive-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                Delete
-              </button>
+                  <button
+                    onClick={() => setIsDeleteConfirmOpen(true)}
+                    disabled={!canManageSelectedBank}
+                    className="w-full px-6 py-2 rounded-full bg-destructive text-destructive-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    Delete
+                  </button>
+                </>
+              ) : (
+                <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                  You can view this bank's details, but only its owner can rename, top up, or delete it.
+                </div>
+              )}
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-              Select a bank from the table to rename, top up, or delete it.
+              Select a bank from the table to see its balance and manage it if you own it.
             </div>
           )}
         </DialogContent>

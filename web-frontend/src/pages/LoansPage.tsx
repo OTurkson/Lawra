@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchBorrowerLoans, fetchLoans, LoanSummary, LoanStatus, updateLoanStatus } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import TablePaginator from "@/components/ui/TablePaginator";
 import { useToast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/Spinner";
 import { getAuth } from "@/lib/auth";
@@ -89,92 +90,103 @@ const LoansPage = () => {
     isError: boolean,
     error: unknown,
     emptyMessage: string,
-    withActions = false
-  ) => (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-table-header text-table-header-foreground">
-            <th className="px-3 py-3 text-left">Borrower</th>
-            <th className="px-3 py-3 text-center">Loan Amount</th>
-            <th className="px-3 py-3 text-center">Interest Rate</th>
-            <th className="px-3 py-3 text-center">Tenure</th>
-            <th className="px-3 py-3 text-center">Repayment Amount</th>
-            <th className="px-3 py-3 text-center">Bank</th>
-            <th className="px-3 py-3 text-center">Approved By</th>
-            <th className="px-3 py-3 text-center">Status</th>
-            {withActions && <th className="px-3 py-3 text-center">Actions</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {isLoading && (
-            <tr className="border-b border-border">
-              <td colSpan={withActions ? 9 : 8} className="px-3 py-3 text-center text-muted-foreground">
-                Loading loans...
-              </td>
+    allowActions = true,
+    showInternalFields = false
+  , paginate = false) => {
+    const renderTable = (pageRows: LoanSummary[]) => (
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-table-header text-table-header-foreground">
+              <th className="px-3 py-3 text-left">Borrower</th>
+              <th className="px-3 py-3 text-center">Loan Amount</th>
+              <th className="px-3 py-3 text-center">Interest Rate</th>
+              <th className="px-3 py-3 text-center">Tenure</th>
+              <th className="px-3 py-3 text-center">Repayment Amount</th>
+              {showInternalFields && <th className="px-3 py-3 text-center">Bank</th>}
+              {showInternalFields && <th className="px-3 py-3 text-center">Changed By</th>}
+              <th className="px-3 py-3 text-center">Status</th>
             </tr>
-          )}
+          </thead>
+          <tbody>
+            {isLoading && (
+              <tr className="border-b border-border">
+                <td colSpan={showInternalFields ? 8 : 6} className="px-3 py-3 text-center text-muted-foreground">
+                  Loading loans...
+                </td>
+              </tr>
+            )}
 
-          {!isLoading && isError && (
-            <tr className="border-b border-border">
-              <td colSpan={withActions ? 9 : 8} className="px-3 py-3 text-center text-destructive">
-                {(error as Error)?.message ?? "Unable to load loans."}
-              </td>
-            </tr>
-          )}
+            {!isLoading && isError && (
+              <tr className="border-b border-border">
+                <td colSpan={showInternalFields ? 8 : 6} className="px-3 py-3 text-center text-destructive">
+                  {(error as Error)?.message ?? "Unable to load loans."}
+                </td>
+              </tr>
+            )}
 
-          {!isLoading && !isError && rows.map((row) => (
-            <tr key={row.id} className="border-b border-border">
-              <td className="px-3 py-3 text-muted-foreground">{row.borrowerName}</td>
-              <td className="px-3 py-3 text-center text-muted-foreground">{row.amount}</td>
-              <td className="px-3 py-3 text-center text-muted-foreground">{row.interest}</td>
-              <td className="px-3 py-3 text-center text-muted-foreground">{row.tenure}</td>
-              <td className="px-3 py-3 text-center text-muted-foreground">{row.repaymentAmount ?? ""}</td>
-              <td className="px-3 py-3 text-center text-muted-foreground">{row.bank}</td>
-              <td className="px-3 py-3 text-center text-muted-foreground">{row.approvedBy ?? "-"}</td>
-              <td className="px-3 py-3 text-center text-muted-foreground">{row.status}</td>
-              {withActions && (
-                <td className="px-3 py-3 text-center">
-                  {row.status === "PENDING" ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <button
-                        className="w-8 h-8 rounded-full bg-approve text-approve-foreground text-sm font-semibold disabled:opacity-60"
-                        disabled={updateStatusMutation.isPending}
-                        onClick={() => setPendingDecision({ id: row.id, status: "APPROVED", borrowerName: row.borrowerName })}
-                        aria-label="Approve loan"
-                        title="Approve"
-                      >
-                        ✓
-                      </button>
-                      <button
-                        className="w-8 h-8 rounded-full bg-destructive text-destructive-foreground text-sm font-semibold disabled:opacity-60"
-                        disabled={updateStatusMutation.isPending}
-                        onClick={() => setPendingDecision({ id: row.id, status: "REJECTED", borrowerName: row.borrowerName })}
-                        aria-label="Reject loan"
-                        title="Reject"
-                      >
-                        X
-                      </button>
-                    </div>
+            {!isLoading && !isError && pageRows.map((row) => (
+              <tr key={row.id} className="border-b border-border">
+                <td className="px-3 py-3 text-muted-foreground">{row.borrowerName}</td>
+                <td className="px-3 py-3 text-center text-muted-foreground">{row.amount}</td>
+                <td className="px-3 py-3 text-center text-muted-foreground">{row.interest}</td>
+                <td className="px-3 py-3 text-center text-muted-foreground">{row.tenure}</td>
+                <td className="px-3 py-3 text-center text-muted-foreground">{row.repaymentAmount ?? ""}</td>
+                {showInternalFields && <td className="px-3 py-3 text-center text-muted-foreground">{row.virtualBank}</td>}
+                {showInternalFields && <td className="px-3 py-3 text-center text-muted-foreground">{row.approvedBy ?? "-"}</td>}
+                <td className="px-3 py-3 text-center text-muted-foreground">
+                  {row.status === "PENDING" || !row.status ? (
+                    allowActions ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          className="w-8 h-8 rounded-full bg-approve text-approve-foreground text-sm font-semibold disabled:opacity-60"
+                          disabled={updateStatusMutation.isPending}
+                          onClick={() => setPendingDecision({ id: row.id, status: "APPROVED", borrowerName: row.borrowerName })}
+                          aria-label="Approve loan"
+                          title="Approve"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          className="w-8 h-8 rounded-full bg-destructive text-destructive-foreground text-sm font-semibold disabled:opacity-60"
+                          disabled={updateStatusMutation.isPending}
+                          onClick={() => setPendingDecision({ id: row.id, status: "REJECTED", borrowerName: row.borrowerName })}
+                          aria-label="Reject loan"
+                          title="Reject"
+                        >
+                          X
+                        </button>
+                      </div>
+                    ) : (
+                      "PENDING"
+                    )
                   ) : (
-                    <span className="text-muted-foreground text-xs">No action</span>
+                    row.status ?? "-"
                   )}
                 </td>
-              )}
-            </tr>
-          ))}
+              </tr>
+            ))}
 
-          {!isLoading && !isError && rows.length === 0 && (
-            <tr className="border-b border-border">
-              <td colSpan={withActions ? 9 : 8} className="px-3 py-3 text-center text-muted-foreground">
-                {emptyMessage}
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
+            {!isLoading && !isError && pageRows.length === 0 && (
+              <tr className="border-b border-border">
+                <td colSpan={showInternalFields ? 8 : 6} className="px-3 py-3 text-center text-muted-foreground">
+                  {emptyMessage}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    );
+
+    if (paginate) {
+      return (
+        <TablePaginator items={rows} pageSize={10} renderPage={(pageItems) => renderTable(pageItems)} />
+      );
+    }
+
+    return renderTable(rows);
+  };
 
   return (
     <>
@@ -190,7 +202,8 @@ const LoansPage = () => {
                 isPersonalLoading,
                 isPersonalError,
                 personalError,
-                "No personal loans found."
+                "No personal loans found.",
+                false
               )}
             </div>
 
@@ -204,6 +217,8 @@ const LoansPage = () => {
                 isTenantError,
                 tenantError,
                 "No employee loans found.",
+                true,
+                true,
                 true
               )}
             </div>
@@ -218,7 +233,8 @@ const LoansPage = () => {
               isPersonalLoading,
               isPersonalError,
               personalError,
-              "No loans found."
+              "No loans found.",
+              false
             )}
           </div>
         )}

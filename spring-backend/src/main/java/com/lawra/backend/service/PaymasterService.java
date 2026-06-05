@@ -60,7 +60,8 @@ public class PaymasterService {
 		}
 
 		loan.setStatus(newStatus);
-		if (LoanStatus.APPROVED.equals(newStatus)) {
+		// Record who changed the loan status for approvals and rejections
+		if (LoanStatus.APPROVED.equals(newStatus) || LoanStatus.REJECTED.equals(newStatus)) {
 			loan.setApprovedBy(authenticatedUserContextService.getCurrentUser());
 		} else {
 			loan.setApprovedBy(null);

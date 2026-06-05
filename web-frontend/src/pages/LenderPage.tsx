@@ -6,11 +6,12 @@ import {
   fetchLoanPackageById,
   fetchLoanPackages,
   fetchVirtualBanks,
+  formatApiError,
   LoanPackage,
   updateLoanPackage,
 } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { getAuth } from "@/lib/auth";
+import { getAuth, normalizeRole } from "@/lib/auth";
 import { Spinner } from "@/components/Spinner";
 import { pushNotification } from "@/lib/notifications";
 import {
@@ -123,16 +124,20 @@ const LenderPage = () => {
       });
     },
     onSuccess: () => {
+      const toppedUpAmount = Number(topupAmount);
       setTopupAmount("");
       setIsPackageDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["loan-packages"] });
       queryClient.invalidateQueries({ queryKey: ["loan-packages", selectedId] });
       queryClient.invalidateQueries({ queryKey: ["virtual-banks"] });
       queryClient.invalidateQueries({ queryKey: ["current-user", auth?.userId] });
-      toast({ title: "Loan package topped up" });
+      toast({
+        title: "Loan package topped up",
+        description: `Added Gh¢ ${toppedUpAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} to package #${selectedId}.`,
+      });
       pushNotification(queryClient, auth?.userId, { type: 'loan-update', message: `Topped up loan package #${selectedId}` });
     },
-    onError: (error: any) => toast({ title: "Update failed", description: error?.message }),
+    onError: (error: any) => toast({ title: "Top-up failed", description: formatApiError(error, "Unable to top up loan package.") }),
   });
 
   const deleteMutation = useMutation({
@@ -151,7 +156,7 @@ const LenderPage = () => {
 
   const lenderData = (loanPackages ?? [])
     .filter((pkg) => {
-      const role = auth?.role;
+      const role = normalizeRole(auth?.role);
       // Admins and paymasters should see all packages. Borrowers should also see packages
       // so they can request loans. Otherwise show packages created by the current user.
       if (!role) return false;

@@ -43,7 +43,7 @@ const SettingsPage = () => {
   const [userPhone, setUserPhone] = useState("");
   const [userPassword, setUserPassword] = useState("");
   const [profileImage, setProfileImage] = useState(avatarDog);
-  const [profileImageLabel, setProfileImageLabel] = useState("Default profile photo");
+  const [profileImageLabel, setProfileImageLabel] = useState("Profile photo");
 
   const { data: tenants } = useQuery({
     queryKey: ["tenants"],
@@ -271,7 +271,7 @@ const SettingsPage = () => {
 
     removeProfileImage(user.id);
     setProfileImage(avatarDog);
-    setProfileImageLabel("Default profile photo");
+    setProfileImageLabel("Profile photo");
     toast({ title: "Profile picture reset", description: "Reverted to the default image." });
   };
 
@@ -287,7 +287,7 @@ const SettingsPage = () => {
   useEffect(() => {
     const storedImage = loadProfileImage(user?.id);
     setProfileImage(storedImage?.dataUrl ?? avatarDog);
-    setProfileImageLabel(storedImage?.label ?? "Default profile photo");
+    setProfileImageLabel(storedImage?.label ?? "Profile photo");
   }, [user?.id]);
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 package com.lawra.backend.controller;
 
+import com.lawra.backend.dto.BorrowerLoanPackageDTO;
 import com.lawra.backend.dto.LoanRequestDTO;
 import com.lawra.backend.dto.LoanSummaryDTO;
 import com.lawra.backend.service.BorrowerService;
@@ -32,6 +33,12 @@ public class BorrowerController {
     public ResponseEntity<List<LoanSummaryDTO>> getLoansPerBorrower(@PathVariable UUID borrowerId) {
         List<LoanSummaryDTO> loansPerBorrower = borrowerService.getLoansPerBorrower(borrowerId);
         return ResponseEntity.ok(loansPerBorrower);
+    }
+
+    @GetMapping("/borrower/loan-packages")
+    @PreAuthorize("hasRole('BORROWER') or hasRole('PAYMASTER')")
+    public ResponseEntity<List<BorrowerLoanPackageDTO>> getBorrowerLoanPackages() {
+        return ResponseEntity.ok(borrowerService.getBorrowerLoanPackages());
     }
 
 //    Corresponding list of ALL loans -> Paymaster Controller

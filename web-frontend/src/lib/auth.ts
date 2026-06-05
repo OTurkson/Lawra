@@ -13,6 +13,14 @@ type DecodedJwt = {
 
 const AUTH_STORAGE_KEY = "lawra_auth";
 
+export function normalizeRole(role?: string | null) {
+  if (!role) {
+    return null;
+  }
+
+  return role.startsWith("ROLE_") ? role.slice(5) : role;
+}
+
 export function saveAuth(data: AuthData) {
   try {
     sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data));

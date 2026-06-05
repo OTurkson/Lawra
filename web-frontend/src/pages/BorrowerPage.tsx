@@ -108,6 +108,15 @@ const BorrowerPage = () => {
     });
   };
 
+  const formatCurrency = (amount?: number) => {
+    if (amount == null) return "Gh¢ -";
+
+    return `Gh¢ ${amount.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
+
   const getDueBadge = (dueDate?: string) => {
     if (!dueDate) return { label: "Date pending", className: "bg-muted text-muted-foreground" };
 
@@ -155,7 +164,7 @@ const BorrowerPage = () => {
             <option value="">Select Package</option>
             {availablePackages.map((pkg) => (
               <option key={pkg.id} value={pkg.id}>
-                {pkg.name ?? `Package #${pkg.id}`} - {pkg.virtualBank?.name ?? "Loan Package"}
+                {pkg.name ?? `Package #${pkg.id}`} - {formatCurrency(pkg.balance)}
               </option>
             ))}
           </select>
@@ -208,8 +217,7 @@ const BorrowerPage = () => {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-table-header text-table-header-foreground">
-              <th className="px-4 py-3 text-left">Name<br/>of Borrower</th>
-              <th className="px-4 py-3 text-center">Amount (Gh¢)</th>
+              <th className="px-4 py-3 text-left">Principal (Gh¢)</th>
               <th className="px-4 py-3 text-center">Interest</th>
               <th className="px-4 py-3 text-center">Tenure</th>
               <th className="px-4 py-3 text-center">Loan Package</th>
@@ -219,22 +227,21 @@ const BorrowerPage = () => {
           <tbody>
             {isBorrowerLoansLoading && (
               <tr className="border-b border-border">
-                <td colSpan={6} className="px-4 py-3 text-muted-foreground text-center">
+                <td colSpan={5} className="px-4 py-3 text-muted-foreground text-center">
                   Loading your applications...
                 </td>
               </tr>
             )}
             {!isBorrowerLoansLoading && isBorrowerLoansError && (
               <tr className="border-b border-border">
-                <td colSpan={6} className="px-4 py-3 text-destructive text-center">
+                <td colSpan={5} className="px-4 py-3 text-destructive text-center">
                   {(borrowerLoansError as Error | undefined)?.message ?? "Unable to load your applications."}
                 </td>
               </tr>
             )}
             {allLoans.map((row) => (
               <tr key={row.id} className="border-b border-border">
-                <td className="px-4 py-3 text-muted-foreground">{row.borrowerName ?? "-"}</td>
-                <td className="px-4 py-3 text-center text-muted-foreground">{row.amount ?? "-"}</td>
+                <td className="px-4 py-3 text-left text-muted-foreground">{formatCurrency(row.amount)}</td>
                 <td className="px-4 py-3 text-center text-muted-foreground">{row.interest ?? "-"}</td>
                 <td className="px-4 py-3 text-center text-muted-foreground">{row.tenure ?? "-"}</td>
                 <td className="px-4 py-3 text-center text-muted-foreground">{row.loanPackage ?? row.virtualBank ?? "-"}</td>
@@ -243,7 +250,7 @@ const BorrowerPage = () => {
             ))}
             {!isBorrowerLoansLoading && !isBorrowerLoansError && allLoans.length === 0 && (
               <tr className="border-b border-border">
-                <td colSpan={6} className="px-4 py-3 text-muted-foreground text-center">
+                <td colSpan={5} className="px-4 py-3 text-muted-foreground text-center">
                   No loan applications yet.
                 </td>
               </tr>
@@ -259,30 +266,30 @@ const BorrowerPage = () => {
           </div>
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-table-header text-table-header-foreground">
-                <th className="px-4 py-3 text-left">Loan</th>
-                <th className="px-4 py-3 text-center">Repayment (Gh¢)</th>
-                <th className="px-4 py-3 text-center">Due Date</th>
-                <th className="px-4 py-3 text-center">Timeline</th>
-              </tr>
-            </thead>
-            <tbody>
-              {outstandingRepayments.map((loan) => {
-                const dueBadge = getDueBadge(loan.dueDate);
-                return (
-                  <tr key={loan.id} className="border-b border-border">
-                    <td className="px-4 py-3 text-muted-foreground">#{loan.id}</td>
-                    <td className="px-4 py-3 text-center text-muted-foreground">{loan.repaymentAmount ?? "-"}</td>
-                    <td className="px-4 py-3 text-center text-muted-foreground">{formatDueDate(loan.dueDate)}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${dueBadge.className}`}>
-                        {dueBadge.label}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
+                <tr className="bg-table-header text-table-header-foreground">
+                  <th className="px-4 py-3 text-left">Principal (Gh¢)</th>
+                  <th className="px-4 py-3 text-center">Repayment (Gh¢)</th>
+                  <th className="px-4 py-3 text-center">Due Date</th>
+                  <th className="px-4 py-3 text-center">Timeline</th>
+                </tr>
+              </thead>
+              <tbody>
+                {outstandingRepayments.map((loan) => {
+                  const dueBadge = getDueBadge(loan.dueDate);
+                  return (
+                    <tr key={loan.id} className="border-b border-border">
+                      <td className="px-4 py-3 text-muted-foreground">{formatCurrency(loan.amount)}</td>
+                      <td className="px-4 py-3 text-center text-muted-foreground">{loan.repaymentAmount ?? "-"}</td>
+                      <td className="px-4 py-3 text-center text-muted-foreground">{formatDueDate(loan.dueDate)}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${dueBadge.className}`}>
+                          {dueBadge.label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
           </table>
         </div>
       )}

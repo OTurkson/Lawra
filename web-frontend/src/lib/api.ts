@@ -84,6 +84,8 @@ export type VirtualBank = {
   createdById?: string;
   createdBy?: string;
   tenant?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type VirtualBankRequest = {
@@ -105,6 +107,13 @@ export type LoanPackage = {
   balance: number;
   interestRate: number;
   virtualBank?: VirtualBank;
+};
+
+export type BorrowerLoanPackage = {
+  id: number;
+  name?: string;
+  balance: number;
+  interestRate: number;
 };
 
 export type LoanPackageRequest = {
@@ -326,6 +335,10 @@ export function fetchLoanPackages() {
   return apiFetch<LoanPackage[]>("/loan-packages");
 }
 
+export function fetchBorrowerLoanPackages() {
+  return apiFetch<BorrowerLoanPackage[]>('/borrower/loan-packages');
+}
+
 export function fetchLoanPackageById(id: number) {
   return apiFetch<LoanPackage>(`/loan-packages/${id}`);
 }
@@ -355,23 +368,16 @@ export async function createLoanPackage(request: LoanPackageRequest) {
   }
 }
 
-export async function updateLoanPackage(id: number, request: LoanPackageRequest) {
-  try {
-    return await apiFetch<LoanPackage>(`/loan-packages/${id}`, {
-      method: "PUT",
-      body: JSON.stringify({
-        name: request.name,
-        balance: request.balance,
-        interestRate: request.interestRate,
-        virtualBank: { id: request.virtualBankId },
-      }),
-    });
-  } catch (error: any) {
-    if ((error?.message ?? "").toLowerCase().includes("internal server error")) {
-      return fetchLoanPackageById(id);
-    }
-    throw error;
-  }
+export function updateLoanPackage(id: number, request: LoanPackageRequest) {
+  return apiFetch<LoanPackage>(`/loan-packages/${id}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      name: request.name,
+      balance: request.balance,
+      interestRate: request.interestRate,
+      virtualBank: { id: request.virtualBankId },
+    }),
+  });
 }
 
 export function deleteLoanPackage(id: number) {

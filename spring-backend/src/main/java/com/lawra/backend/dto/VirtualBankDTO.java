@@ -3,6 +3,7 @@ package com.lawra.backend.dto;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Getter
@@ -16,5 +17,7 @@ public class VirtualBankDTO {
     private UUID createdById;
     private String createdBy;
     private String tenant;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }
 

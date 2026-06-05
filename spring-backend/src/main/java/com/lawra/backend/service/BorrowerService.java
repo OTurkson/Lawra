@@ -1,5 +1,6 @@
 package com.lawra.backend.service;
 
+import com.lawra.backend.dto.BorrowerLoanPackageDTO;
 import com.lawra.backend.dto.LoanRequestDTO;
 import com.lawra.backend.dto.LoanSummaryDTO;
 import com.lawra.backend.enums.LoanPeriod;
@@ -135,6 +136,20 @@ public class BorrowerService {
             loansPerBorrower.add(loanMapper.toSummary(loan));
         }
         return loansPerBorrower;
+    }
+
+    public List<BorrowerLoanPackageDTO> getBorrowerLoanPackages() {
+        UUID currentTenantId = authenticatedUserContextService.getCurrentTenantId();
+
+        return loanPackageRepository.findByVirtualBank_Tenant_Id(currentTenantId)
+                .stream()
+                .map(loanPackage -> new BorrowerLoanPackageDTO(
+                        loanPackage.getId(),
+                        loanPackage.getName(),
+                        loanPackage.getBalance(),
+                        loanPackage.getInterestRate()
+                ))
+                .toList();
     }
 
     // Corresponding list of ALL loans -> Paymaster Service

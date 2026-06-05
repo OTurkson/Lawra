@@ -12,9 +12,11 @@ public class VirtualBankMapper {
                 bank.getId(),
                 bank.getName(),
                 bank.getBalance(),
-            bank.getCreatedBy().getId(),
+                bank.getCreatedBy().getId(),
                 bank.getCreatedBy().getFullName(),
-                bank.getTenant().getName()
+                bank.getTenant().getName(),
+                bank.getCreatedAt(),
+                bank.getUpdatedAt()
         );
     }
 }

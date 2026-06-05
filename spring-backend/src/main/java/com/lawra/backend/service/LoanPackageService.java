@@ -9,6 +9,7 @@ import com.lawra.backend.repository.VirtualBankRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
@@ -46,6 +47,7 @@ public class LoanPackageService {
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Loan package not found"));
 	}
 
+	@Transactional
 	public LoanPackage create(LoanPackage loanPackage) {
 		validateLoanPackageName(loanPackage);
 		VirtualBank bank = resolveTenantScopedBank(loanPackage.getVirtualBank());
@@ -64,6 +66,7 @@ public class LoanPackageService {
 		return loanPackageRepository.save(loanPackage);
 	}
 
+	@Transactional
 	public LoanPackage update(Long id, LoanPackage updated) {
 		validateLoanPackageName(updated);
 		validateLoanPackageBalance(updated);
@@ -108,6 +111,7 @@ public class LoanPackageService {
 		return loanPackageRepository.save(existing);
 	}
 
+	@Transactional
 	public void delete(Long id) {
 		LoanPackage existing = getByIdEntity(id);
 		VirtualBank bank = existing.getVirtualBank();

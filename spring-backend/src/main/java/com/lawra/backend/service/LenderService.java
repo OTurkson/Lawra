@@ -110,11 +110,10 @@ public class LenderService {
     }
 
     private void ensureCanManageBank(User currentUser, VirtualBank bank) {
-        boolean isTenantAdmin = currentUser.getRole() == UserRole.PAYMASTER || currentUser.getRole() == UserRole.ADMIN;
         boolean isOwner = bank.getCreatedBy().getId().equals(currentUser.getId());
 
-        if (!isTenantAdmin && !isOwner) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only manage virtual banks created by you");
+        if (!isOwner) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only manage your own virtual banks");
         }
     }
 
