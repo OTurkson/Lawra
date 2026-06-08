@@ -5,6 +5,7 @@ import {
   deleteLoanPackage,
   fetchLoanPackageById,
   fetchLoanPackages,
+  fetchLoanPackagesByUserId,
   fetchVirtualBanks,
   formatApiError,
   LoanPackage,
@@ -37,8 +38,8 @@ const LenderPage = () => {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   const { data: loanPackages, isLoading: isLoanPackagesLoading, isError: isLoanPackagesError } = useQuery<LoanPackage[]>({
-    queryKey: ["loan-packages"],
-    queryFn: fetchLoanPackages,
+    queryKey: ["loan-packages", auth?.userId],
+    queryFn: () => fetchLoanPackagesByUserId(auth?.userId),
   });
 
   const { data: selectedLoanPackage } = useQuery({

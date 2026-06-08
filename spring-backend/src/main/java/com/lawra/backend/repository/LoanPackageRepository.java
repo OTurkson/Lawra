@@ -10,5 +10,10 @@ import java.util.UUID;
 public interface LoanPackageRepository extends JpaRepository<LoanPackage, Long> {
 	List<LoanPackage> findByVirtualBank_Tenant_Id(UUID tenantId);
 
+	List<LoanPackage> findByVirtualBank_Tenant_IdAndVirtualBank_CreatedBy_Id(
+			UUID tenantId,
+			UUID userId
+	);
+
 	Optional<LoanPackage> findByIdAndVirtualBank_Tenant_Id(Long id, UUID tenantId);
 }

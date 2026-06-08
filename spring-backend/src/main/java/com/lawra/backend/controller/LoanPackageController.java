@@ -24,6 +24,12 @@ public class LoanPackageController {
 		return ResponseEntity.ok(loanPackageService.getAll());
 	}
 
+	@GetMapping("/user/{id}")
+	@PreAuthorize("hasRole('PAYMASTER') or hasRole('ADMIN') or hasRole('BORROWER')")
+	public ResponseEntity<List<LoanPackageDTO>> getLoanPackagesPerUser() {
+		return ResponseEntity.ok(loanPackageService.getAllLoanPackagesPerUser());
+	}
+
 	@GetMapping("/{id}")
 	@PreAuthorize("hasRole('PAYMASTER') or hasRole('ADMIN') or hasRole('BORROWER')")
 	public ResponseEntity<LoanPackageDTO> getLoanPackage(@PathVariable Long id) {

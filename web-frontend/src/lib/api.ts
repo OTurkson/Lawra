@@ -343,6 +343,10 @@ export function fetchLoanPackageById(id: number) {
   return apiFetch<LoanPackage>(`/loan-packages/${id}`);
 }
 
+export function fetchLoanPackagesByUserId(userId: string) {
+  return apiFetch<LoanPackage[]>(`/loan-packages/user/${userId}`);
+}
+
 export async function createLoanPackage(request: LoanPackageRequest) {
   try {
     return await apiFetch<LoanPackage>("/loan-packages", {

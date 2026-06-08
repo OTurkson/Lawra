@@ -3,7 +3,6 @@ package com.lawra.backend.service;
 import com.lawra.backend.dto.VirtualBankTopUpRequestDTO;
 import com.lawra.backend.dto.VirtualBankUpdateRequestDTO;
 import com.lawra.backend.dto.VirtualBankDTO;
-import com.lawra.backend.enums.UserRole;
 import com.lawra.backend.mapper.VirtualBankMapper;
 import com.lawra.backend.model.User;
 import com.lawra.backend.model.VirtualBank;
@@ -41,6 +40,13 @@ public class LenderService {
     public VirtualBank createVirtualBank(VirtualBank virtualBank) {
         // Always derive tenant/user from authentication context to prevent tenant spoofing.
         User currentUser = authenticatedUserContextService.getCurrentUser();
+        UUID tenantId = authenticatedUserContextService.getCurrentTenantId();
+
+        // If user already has a virtual bank, bad request
+        if (lenderRepository.existsByCreatedBy_IdAndTenant_Id(currentUser.getId(), tenantId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User already owns a virtual bank");
+        }
+
         BigDecimal initialDeposit = normalizeInitialDeposit(virtualBank.getBalance());
 
         ensureSufficientUserBalance(currentUser, initialDeposit);
@@ -103,7 +109,7 @@ public class LenderService {
         lenderRepository.delete(bank);
     }
 
-    private VirtualBank getTenantBank(Long id) {
+    private VirtualBank  getTenantBank(Long id) {
         UUID tenantId = authenticatedUserContextService.getCurrentTenantId();
         return lenderRepository.findByIdAndTenant_Id(id, tenantId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Virtual bank not found"));

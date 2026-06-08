@@ -34,6 +34,17 @@ public class LoanPackageService {
 				.toList();
 	}
 
+//	list all loan packages belonging to a particular user
+	public List<LoanPackageDTO> getAllLoanPackagesPerUser() {
+		UUID tenantId = authenticatedUserContextService.getCurrentTenantId();
+		UUID currentUserId = authenticatedUserContextService.getCurrentUserId();
+
+		return loanPackageRepository.findByVirtualBank_Tenant_IdAndVirtualBank_CreatedBy_Id(tenantId, currentUserId)
+				.stream()
+				.map(loanPackageMapper::map)
+				.toList();
+	}
+
 	public LoanPackageDTO getById(Long id) {
 		UUID tenantId = authenticatedUserContextService.getCurrentTenantId();
 		LoanPackage loanPackage = loanPackageRepository.findByIdAndVirtualBank_Tenant_Id(id, tenantId)

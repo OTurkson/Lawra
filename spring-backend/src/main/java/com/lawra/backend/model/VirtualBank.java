@@ -30,9 +30,9 @@ public class VirtualBank {
     @Column(nullable = false, unique = true, length = 150)
     private String name;
 
-    //    User who created Virtual Bank
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by_id", nullable = false, columnDefinition = "CHAR(36)")
+    //    User who created Virtual Bank (make this OnetoOne)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_id", nullable = false, unique = true, columnDefinition = "CHAR(36)")
     @JsonIgnore
     private User createdBy;
 
