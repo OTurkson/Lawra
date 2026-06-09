@@ -42,4 +42,8 @@ public class EmailService {
 
         mailSender.send(message);
     }
+
+//  send OTP to confirm email while creating account
+//  send "account created" email (both admin and user)
+//  
 }
