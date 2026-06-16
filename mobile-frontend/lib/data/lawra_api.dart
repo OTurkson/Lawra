@@ -195,6 +195,67 @@ class LoanSummary {
   }
 }
 
+class AuditLogSummary {
+  AuditLogSummary({
+    required this.id,
+    required this.timestamp,
+    this.actorId,
+    this.actorEmail,
+    this.actorRole,
+    required this.action,
+    required this.resourceType,
+    this.resourceId,
+    required this.httpMethod,
+    required this.path,
+    this.statusCode,
+    this.ipAddress,
+    this.userAgent,
+    this.beforeStatePreview,
+    this.afterStatePreview,
+  });
+
+  final int id;
+  final String timestamp;
+
+  final String? actorId;
+  final String? actorEmail;
+  final String? actorRole;
+
+  final String action;
+  final String resourceType;
+  final String? resourceId;
+
+  final String httpMethod;
+  final String path;
+  final int? statusCode;
+
+  final String? ipAddress;
+  final String? userAgent;
+
+  final String? beforeStatePreview;
+  final String? afterStatePreview;
+
+  factory AuditLogSummary.fromJson(Map<String, dynamic> json) {
+    return AuditLogSummary(
+      id: int.tryParse(json['id']?.toString() ?? '') ?? 0,
+      timestamp: json['timestamp']?.toString() ?? '',
+      actorId: json['actorId']?.toString(),
+      actorEmail: json['actorEmail']?.toString(),
+      actorRole: json['actorRole']?.toString(),
+      action: json['action']?.toString() ?? '',
+      resourceType: json['resourceType']?.toString() ?? '',
+      resourceId: json['resourceId']?.toString(),
+      httpMethod: json['httpMethod']?.toString() ?? '',
+      path: json['path']?.toString() ?? '',
+      statusCode: (json['statusCode'] as num?)?.toInt(),
+      ipAddress: json['ipAddress']?.toString(),
+      userAgent: json['userAgent']?.toString(),
+      beforeStatePreview: json['beforeStatePreview']?.toString(),
+      afterStatePreview: json['afterStatePreview']?.toString(),
+    );
+  }
+}
+
 class LawraApi {
   LawraApi({String? baseUrl}) : baseUrl = baseUrl ?? const String.fromEnvironment('LAWRA_API_BASE_URL', defaultValue: '') {
     _resolvedBaseUrl = this.baseUrl.isNotEmpty ? this.baseUrl : _defaultBaseUrl();
@@ -471,5 +532,32 @@ class LawraApi {
   Future<LoanSummary> updateLoanStatus(int id, String loanStatus) async {
     final data = await _send('/loans/$id', method: 'PUT', body: {'loanStatus': loanStatus}) as Map<String, dynamic>;
     return LoanSummary.fromJson(data);
+  }
+
+  Future<List<AuditLogSummary>> fetchAuditLogs({
+    int page = 0,
+    int size = 50,
+    DateTime? from,
+    DateTime? to,
+    String? actorEmail,
+    String? action,
+    String? resourceType,
+    String? resourceId,
+  }) async {
+    final query = <String, String>{};
+    query['page'] = page.toString();
+    query['size'] = size.toString();
+    if (from != null) query['from'] = from.toUtc().toIso8601String();
+    if (to != null) query['to'] = to.toUtc().toIso8601String();
+    if (actorEmail != null && actorEmail.isNotEmpty) query['actorEmail'] = actorEmail;
+    if (action != null && action.isNotEmpty) query['action'] = action;
+    if (resourceType != null && resourceType.isNotEmpty) query['resourceType'] = resourceType;
+    if (resourceId != null && resourceId.isNotEmpty) query['resourceId'] = resourceId;
+
+    final path = '/audit-logs?${Uri(queryParameters: query).query}';
+    final data = await _send(path) as Map<String, dynamic>;
+
+    final content = (data['content'] as List<dynamic>? ?? []);
+    return content.cast<Map<String, dynamic>>().map(AuditLogSummary.fromJson).toList();
   }
 }

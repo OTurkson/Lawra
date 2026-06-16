@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/lawra_api.dart';
 import '../data/session_store.dart';
+import 'audit_logs_screen.dart';
 
 typedef NoticeCallback = void Function(String message, {String type});
 
@@ -1456,6 +1457,9 @@ class _AppDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final role = (currentUser?.role ?? "").toUpperCase();
+    final isAdmin = role == 'ADMIN' || role == 'PAYMASTER';
+
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
@@ -1480,6 +1484,16 @@ class _AppDrawer extends StatelessWidget {
             ),
           ),
           ListTile(leading: const Icon(Icons.settings), title: const Text('Settings'), onTap: onOpenSettings),
+          if (isAdmin) ...[
+            ListTile(
+              leading: const Icon(Icons.receipt_long),
+              title: const Text('Audit Logs'),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AuditLogsScreen()));
+              },
+            ),
+          ],
           ListTile(
             leading: const Icon(Icons.notifications_none),
             title: const Text('Notifications'),

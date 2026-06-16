@@ -3,6 +3,7 @@ package com.lawra.backend.service;
 import com.lawra.backend.dto.LoanPackageDTO;
 import com.lawra.backend.mapper.LoanPackageMapper;
 import com.lawra.backend.model.LoanPackage;
+import com.lawra.backend.model.User;
 import com.lawra.backend.model.VirtualBank;
 import com.lawra.backend.repository.LoanPackageRepository;
 import com.lawra.backend.repository.VirtualBankRepository;
@@ -15,6 +16,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
+
+import com.lawra.backend.enums.UserRole;
 
 @Service
 @RequiredArgsConstructor
@@ -37,9 +40,16 @@ public class LoanPackageService {
 //	list all loan packages belonging to a particular user
 	public List<LoanPackageDTO> getAllLoanPackagesPerUser() {
 		UUID tenantId = authenticatedUserContextService.getCurrentTenantId();
-		UUID currentUserId = authenticatedUserContextService.getCurrentUserId();
+		User currentUser = authenticatedUserContextService.getCurrentUser();
 
-		return loanPackageRepository.findByVirtualBank_Tenant_IdAndVirtualBank_CreatedBy_Id(tenantId, currentUserId)
+//		if user role is paymaster, use different view
+		if (currentUser.getRole() == UserRole.PAYMASTER) {
+			return loanPackageRepository.findByVirtualBank_Tenant_Id(tenantId)
+					.stream()
+					.map(loanPackageMapper::map)
+					.toList();
+		}
+		return loanPackageRepository.findByVirtualBank_Tenant_IdAndVirtualBank_CreatedBy_Id(tenantId, currentUser.getId())
 				.stream()
 				.map(loanPackageMapper::map)
 				.toList();

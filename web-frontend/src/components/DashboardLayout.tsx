@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { HelpCircle, User, LogOut, Settings, Landmark, HandCoins, Banknote, CircleDollarSign, Eye, EyeOff } from "lucide-react";
+import { HelpCircle, User, LogOut, Settings, Landmark, HandCoins, Banknote, CircleDollarSign, Eye, EyeOff, ClipboardList } from "lucide-react";
 import { clearAuth, getAuth, isAuthTokenExpired } from "@/lib/auth";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -31,6 +31,7 @@ const navItems = [
   { label: "Lender", icon: CircleDollarSign, path: "/dashboard/lender" },
   { label: "Loans", icon: Banknote, path: "/dashboard/loans" },
   { label: "Virtual Banks", icon: Landmark, path: "/dashboard/virtual-banks" },
+  { label: "Audit Logs", icon: ClipboardList, path: "/dashboard/audit-logs" },
   { label: "System Setting", icon: Settings, path: "/dashboard/settings" },
   { label: "Logout", icon: LogOut, path: "/dashboard/logout" },
 ];
@@ -61,6 +62,7 @@ const DashboardLayout = () => {
   const canViewVirtualBanks = isTenantAdmin || user?.role === "BORROWER";
   const visibleNavItems = navItems.filter((item) => {
     if (item.path !== "/dashboard/virtual-banks") {
+      if (item.path === "/dashboard/audit-logs") return isTenantAdmin;
       return true;
     }
 

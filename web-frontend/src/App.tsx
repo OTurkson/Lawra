@@ -18,6 +18,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import LogoutPage from "./pages/LogoutPage";
 import AboutUsPage from "./pages/AboutUsPage";
 import NotFound from "./pages/NotFound";
+import AuditLogsPage from "./pages/AuditLogsPage";
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="lender" element={<LenderPage />} />
             <Route path="loans" element={<LoansPage />} />
             <Route path="virtual-banks" element={<VirtualBanksPage />} />
+            <Route path="audit-logs" element={<AuditLogsPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="logout" element={<LogoutPage />} />
