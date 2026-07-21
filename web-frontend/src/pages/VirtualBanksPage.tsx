@@ -19,13 +19,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { pushNotification } from "@/lib/notifications";
+import { normalizeRole } from "@/lib/auth";
 
 const VirtualBanksPage = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useCurrentUser();
-  const isTenantAdmin = user?.role === "PAYMASTER" || user?.role === "ADMIN";
-  const isBorrower = user?.role === "BORROWER";
+  const role = normalizeRole(user?.role);
+  const isAdmin = role === "ADMIN";
+  const isTenantAdmin = isAdmin || role === "PAYMASTER";
+  const isBorrower = role === "BORROWER";
 
   const [name, setName] = useState("");
   const [balance, setBalance] = useState("");
@@ -59,7 +62,7 @@ const VirtualBanksPage = () => {
 
   const selectedBank = visibleBanks.find((bank) => String(bank.id) === selectedBankId);
   const isSelectedBankOwner = !!selectedBank && selectedBank.createdById === user?.id;
-  const canManageSelectedBank = isSelectedBankOwner;
+  const canManageSelectedBank = !!selectedBank && (isAdmin || isSelectedBankOwner);
 
   const formatDateTime = (value?: string) => {
     if (!value) {
@@ -299,10 +302,12 @@ const VirtualBanksPage = () => {
                 <p className="text-xs text-muted-foreground">Date modified: {formatDateTime(selectedBank.updatedAt)}</p>
               </div>
 
-              {isSelectedBankOwner ? (
+              {canManageSelectedBank ? (
                 <>
                   <div className="space-y-3">
-                    <label className="text-xs text-muted-foreground">Rename bank</label>
+                    <label className="text-xs text-muted-foreground">
+                      {isSelectedBankOwner ? "Rename bank" : "Rename bank as admin"}
+                    </label>
                     <input
                       value={renameName}
                       onChange={(e) => setRenameName(e.target.value)}
@@ -326,7 +331,9 @@ const VirtualBanksPage = () => {
                   </div>
 
                   <div className="space-y-3">
-                    <label className="text-xs text-muted-foreground">Top-up amount</label>
+                    <label className="text-xs text-muted-foreground">
+                      {isSelectedBankOwner ? "Top-up amount" : "Top-up amount as admin"}
+                    </label>
                     <input
                       value={topUpAmount}
                       onChange={(e) => setTopUpAmount(e.target.value)}
@@ -359,7 +366,7 @@ const VirtualBanksPage = () => {
                 </>
               ) : (
                 <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-                  You can view this bank's details, but only its owner can rename, top up, or delete it.
+                  You can view this bank's details, but only its owner or an admin can rename, top up, or delete it.
                 </div>
               )}
             </div>

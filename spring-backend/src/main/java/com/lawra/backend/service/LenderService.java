@@ -116,9 +116,10 @@ public class LenderService {
     }
 
     private void ensureCanManageBank(User currentUser, VirtualBank bank) {
-        boolean isOwner = bank.getCreatedBy().getId().equals(currentUser.getId());
+        boolean isOwner = bank.getCreatedBy() != null && bank.getCreatedBy().getId().equals(currentUser.getId());
+        boolean isAdmin = currentUser.getRole() == com.lawra.backend.enums.UserRole.ADMIN;
 
-        if (!isOwner) {
+        if (!isOwner && !isAdmin) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only manage your own virtual banks");
         }
     }

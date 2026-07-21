@@ -30,6 +30,11 @@ public class PasswordResetService {
     private long tokenExpiryHours;
 
     public void createAndSendResetToken(User user) {
+        String tokenValue = createResetToken(user);
+        emailService.sendPasswordResetEmail(user, tokenValue);
+    }
+
+    public String createResetToken(User user) {
         // Remove any existing tokens for this user to keep only the latest one valid
         tokenRepository.deleteByUser(user);
 
@@ -43,7 +48,7 @@ public class PasswordResetService {
 
         tokenRepository.save(token);
 
-        emailService.sendPasswordResetEmail(user, tokenValue);
+        return tokenValue;
     }
 
     public void resetPassword(String tokenValue, String newPassword) {

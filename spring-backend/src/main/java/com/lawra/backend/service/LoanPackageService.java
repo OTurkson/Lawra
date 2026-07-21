@@ -42,8 +42,7 @@ public class LoanPackageService {
 		UUID tenantId = authenticatedUserContextService.getCurrentTenantId();
 		User currentUser = authenticatedUserContextService.getCurrentUser();
 
-//		if user role is paymaster, use different view
-		if (currentUser.getRole() == UserRole.PAYMASTER) {
+		if (currentUser.getRole() == UserRole.PAYMASTER || currentUser.getRole() == UserRole.ADMIN) {
 			return loanPackageRepository.findByVirtualBank_Tenant_Id(tenantId)
 					.stream()
 					.map(loanPackageMapper::map)
@@ -72,6 +71,7 @@ public class LoanPackageService {
 	public LoanPackage create(LoanPackage loanPackage) {
 		validateLoanPackageName(loanPackage);
 		VirtualBank bank = resolveTenantScopedBank(loanPackage.getVirtualBank());
+		ensureCanManageBank(bank);
 		
 		// Validate that loan package balance doesn't exceed virtual bank balance
 		if (loanPackage.getBalance().compareTo(bank.getBalance()) > 0) {
@@ -92,6 +92,7 @@ public class LoanPackageService {
 		validateLoanPackageName(updated);
 		validateLoanPackageBalance(updated);
 		LoanPackage existing = getByIdEntity(id);
+		ensureCanManageLoanPackage(existing);
 		VirtualBank existingBank = existing.getVirtualBank();
 		VirtualBank updatedBank = resolveTenantScopedBank(updated.getVirtualBank());
 		BigDecimal existingBalance = nonNullBalance(existing.getBalance());
@@ -135,6 +136,7 @@ public class LoanPackageService {
 	@Transactional
 	public void delete(Long id) {
 		LoanPackage existing = getByIdEntity(id);
+		ensureCanManageLoanPackage(existing);
 		VirtualBank bank = existing.getVirtualBank();
 		
 		// Refund loan package balance back to virtual bank
@@ -157,6 +159,27 @@ public class LoanPackageService {
 		}
 
 		return resolved;
+	}
+
+	private void ensureCanManageBank(VirtualBank bank) {
+		User currentUser = authenticatedUserContextService.getCurrentUser();
+		boolean isOwner = bank.getCreatedBy() != null && bank.getCreatedBy().getId().equals(currentUser.getId());
+		boolean isAdmin = currentUser.getRole() == UserRole.ADMIN;
+
+		if (!isOwner && !isAdmin) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only manage loan packages on your own virtual banks");
+		}
+	}
+
+	private void ensureCanManageLoanPackage(LoanPackage loanPackage) {
+		User currentUser = authenticatedUserContextService.getCurrentUser();
+		VirtualBank bank = loanPackage.getVirtualBank();
+		boolean isOwner = bank != null && bank.getCreatedBy() != null && bank.getCreatedBy().getId().equals(currentUser.getId());
+		boolean isAdmin = currentUser.getRole() == UserRole.ADMIN;
+
+		if (!isOwner && !isAdmin) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only manage your own loan packages");
+		}
 	}
 
 	private void validateLoanPackageName(LoanPackage loanPackage) {

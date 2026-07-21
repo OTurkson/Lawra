@@ -24,6 +24,7 @@ public class PaymasterService {
 
 	private final LoanRepository loanRepository;
 	private final LoanMapper loanMapper;
+	private final EmailService emailService;
 	private final AuthenticatedUserContextService authenticatedUserContextService;
 	private final UserRepository userRepository;
 	private final LoanPackageRepository loanPackageRepository;
@@ -79,6 +80,11 @@ public class PaymasterService {
 		}
 
 		Loan saved = loanRepository.save(loan);
+		if (LoanStatus.APPROVED.equals(newStatus)) {
+			emailService.sendLoanApprovalEmail(saved.getBorrower(), authenticatedUserContextService.getCurrentUser(), saved);
+		} else if (LoanStatus.REJECTED.equals(newStatus)) {
+			emailService.sendLoanDecisionEmail(saved.getBorrower(), saved);
+		}
 		return loanMapper.toSummary(saved);
 	}
 

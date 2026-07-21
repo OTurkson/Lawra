@@ -499,10 +499,179 @@ class _LenderTabState extends State<LenderTab> {
     }
   }
 
-  List<VirtualBank> get _ownedBanks {
+  bool get _isAdmin {
+    final role = _normalizedRole(widget.currentUser?.role);
+    return role == 'ADMIN';
+  }
+
+  bool get _canViewAllPackages {
+    final role = _normalizedRole(widget.currentUser?.role);
+    return role == 'ADMIN' || role == 'PAYMASTER';
+  }
+
+  List<VirtualBank> get _manageableBanks {
     final userId = widget.session.userId;
-    final isAdmin = widget.currentUser?.role.toUpperCase() == 'ADMIN' || widget.currentUser?.role.toUpperCase() == 'PAYMASTER';
-    return _banks.where((bank) => isAdmin || bank.createdById == userId).toList();
+    return _isAdmin ? _banks : _banks.where((bank) => bank.createdById == userId).toList();
+  }
+
+  bool _canManagePackage(LoanPackage package) {
+    return _isAdmin || package.virtualBank?.createdById == widget.session.userId;
+  }
+
+  Future<void> _openPackageActions(LoanPackage package) async {
+    if (!_canManagePackage(package)) {
+      await showModalBottomSheet<void>(
+        context: context,
+        builder: (context) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Loan package #${package.id}', style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 12),
+                  Text('Package name: ${package.name}'),
+                  Text('Virtual bank: ${package.virtualBank?.name ?? '-'}'),
+                  Text('Current balance: ${_money(package.balance)}'),
+                  Text('Interest rate: ${package.interestRate}%'),
+                  const SizedBox(height: 12),
+                  const Text('You can view this package, but only its owner or an admin can update or delete it.'),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+      return;
+    }
+
+    final nameController = TextEditingController(text: package.name);
+    final topUpController = TextEditingController();
+    final interestController = TextEditingController(text: package.interestRate.toString());
+    String selectedBankId = package.virtualBank?.id.toString() ?? '';
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Loan package #${package.id}', style: Theme.of(context).textTheme.titleLarge),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: nameController,
+                          decoration: const InputDecoration(labelText: 'Package name'),
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          value: selectedBankId.isEmpty ? null : selectedBankId,
+                          isExpanded: true,
+                          decoration: const InputDecoration(labelText: 'Virtual bank'),
+                          items: _manageableBanks
+                              .map(
+                                (bank) => DropdownMenuItem(
+                                  value: bank.id.toString(),
+                                  child: Text('${bank.name} (#${bank.id})'),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            setSheetState(() {
+                              selectedBankId = value ?? '';
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: topUpController,
+                          decoration: const InputDecoration(labelText: 'Top-up amount'),
+                          keyboardType: TextInputType.number,
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: interestController,
+                          decoration: const InputDecoration(labelText: 'Interest rate'),
+                          keyboardType: TextInputType.number,
+                        ),
+                        const SizedBox(height: 16),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            FilledButton(
+                              onPressed: () async {
+                                final bankId = int.tryParse(selectedBankId);
+                                final topUpAmount = num.tryParse(topUpController.text);
+                                final interestRate = num.tryParse(interestController.text);
+                                final name = nameController.text.trim();
+
+                                if (name.isEmpty || bankId == null || topUpAmount == null || topUpAmount <= 0 || interestRate == null) {
+                                  _showMessage('Fill out the package name, bank, top-up amount, and interest rate.');
+                                  return;
+                                }
+
+                                final currentBalance = package.balance ?? 0;
+
+                                Navigator.of(context).pop();
+                                try {
+                                  await widget.api.updateLoanPackage(
+                                    package.id,
+                                    name: name,
+                                    virtualBankId: bankId,
+                                    balance: currentBalance + topUpAmount,
+                                    interestRate: interestRate,
+                                  );
+                                  widget.addNotice('Loan package updated: $name', type: 'package');
+                                  await _refresh();
+                                  _showMessage('Loan package updated.');
+                                } on LawraApiException catch (error) {
+                                  _showMessage(error.message);
+                                } catch (error) {
+                                  _showMessage(error.toString());
+                                }
+                              },
+                              child: const Text('Update'),
+                            ),
+                            OutlinedButton(
+                              onPressed: () async {
+                                Navigator.of(context).pop();
+                                try {
+                                  await widget.api.deleteLoanPackage(package.id);
+                                  widget.addNotice('Deleted loan package #${package.id}', type: 'package');
+                                  await _refresh();
+                                  _showMessage('Loan package deleted.');
+                                } on LawraApiException catch (error) {
+                                  _showMessage(error.message);
+                                } catch (error) {
+                                  _showMessage(error.toString());
+                                }
+                              },
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _createPackage() async {
@@ -560,8 +729,10 @@ class _LenderTabState extends State<LenderTab> {
       return _ErrorState(message: _error!, onRetry: _refresh);
     }
 
-    final ownedBanks = _ownedBanks;
-    final ownedPackages = _packages.where((item) => item.virtualBank?.createdById == widget.session.userId).toList();
+    final ownedBanks = _manageableBanks;
+    final ownedPackages = _canViewAllPackages
+      ? _packages
+      : _packages.where((item) => item.virtualBank?.createdById == widget.session.userId).toList();
 
     return RefreshIndicator(
       onRefresh: _refresh,
@@ -620,7 +791,7 @@ class _LenderTabState extends State<LenderTab> {
             child: ownedPackages.isEmpty
                 ? const Text('No loan packages yet.')
                 : Column(
-                    children: ownedPackages.map((item) => _PackageTile(package: item)).toList(),
+                    children: ownedPackages.map((item) => _PackageTile(package: item, onTap: () => _openPackageActions(item))).toList(),
                   ),
           ),
         ],
@@ -701,7 +872,7 @@ class _LoansTabState extends State<LoansTab> {
   }
 
   bool get _isAdmin {
-    final role = widget.currentUser?.role.toUpperCase();
+    final role = _normalizedRole(widget.currentUser?.role);
     return role == 'ADMIN' || role == 'PAYMASTER';
   }
 
@@ -895,7 +1066,53 @@ class _BanksTabState extends State<BanksTab> {
     }
   }
 
+  bool get _isAdmin {
+    final role = _normalizedRole(widget.currentUser?.role);
+    return role == 'ADMIN';
+  }
+
+  bool get _canViewAllBanks {
+    final role = _normalizedRole(widget.currentUser?.role);
+    return role == 'ADMIN' || role == 'PAYMASTER';
+  }
+
+  List<VirtualBank> get _visibleBanks {
+    final userId = widget.session.userId;
+    return _canViewAllBanks ? _banks : _banks.where((bank) => bank.createdById == userId).toList();
+  }
+
+  bool _canManageBank(VirtualBank bank) {
+    return _isAdmin || bank.createdById == widget.session.userId;
+  }
+
   Future<void> _openBankActions(VirtualBank bank) async {
+    if (!_canManageBank(bank)) {
+      await showModalBottomSheet<void>(
+        context: context,
+        builder: (context) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Bank #${bank.id}', style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 12),
+                  Text('Name: ${bank.name}'),
+                  Text('Balance: ${_money(bank.balance)}'),
+                  Text('Created by: ${bank.createdBy ?? '-'}'),
+                  const SizedBox(height: 12),
+                  const Text('You can view this bank, but only its owner or an admin can rename, top up, or delete it.'),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+      return;
+    }
+
     final renameController = TextEditingController(text: bank.name);
     final topUpController = TextEditingController();
     await showModalBottomSheet<void>(
@@ -999,6 +1216,8 @@ class _BanksTabState extends State<BanksTab> {
       return _ErrorState(message: _error!, onRetry: _refresh);
     }
 
+    final visibleBanks = _visibleBanks;
+
     return RefreshIndicator(
       onRefresh: _refresh,
       child: ListView(
@@ -1032,10 +1251,10 @@ class _BanksTabState extends State<BanksTab> {
           const SizedBox(height: 16),
           _SectionCard(
             title: 'Virtual banks',
-            child: _banks.isEmpty
+            child: visibleBanks.isEmpty
                 ? const Text('No virtual banks found.')
                 : Column(
-                    children: _banks
+                    children: visibleBanks
                         .map(
                           (bank) => ListTile(
                             contentPadding: EdgeInsets.zero,
@@ -1095,7 +1314,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _profileNameController.text = widget.currentUser?.fullName ?? '';
     _profilePhoneController.text = widget.currentUser?.phoneNumber ?? '';
-    final role = widget.currentUser?.role.toUpperCase();
+    final role = _normalizedRole(widget.currentUser?.role);
     _isTenantAdmin = role == 'ADMIN' || role == 'PAYMASTER';
     if (_isTenantAdmin) {
       _loadAdminData();
@@ -1457,8 +1676,8 @@ class _AppDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final role = (currentUser?.role ?? "").toUpperCase();
-    final isAdmin = role == 'ADMIN' || role == 'PAYMASTER';
+    final normalizedRole = _normalizedRole(currentUser?.role);
+    final isAdmin = normalizedRole == 'ADMIN' || normalizedRole == 'PAYMASTER';
 
     return Drawer(
       child: ListView(
@@ -1587,9 +1806,10 @@ class _LoanTile extends StatelessWidget {
 }
 
 class _PackageTile extends StatelessWidget {
-  const _PackageTile({required this.package});
+  const _PackageTile({required this.package, this.onTap});
 
   final LoanPackage package;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1599,6 +1819,7 @@ class _PackageTile extends StatelessWidget {
         subtitle: Text('${package.virtualBank?.name ?? '-'}\nInterest: ${package.interestRate}%'),
         isThreeLine: true,
         trailing: Text(_money(package.balance)),
+        onTap: onTap,
       ),
     );
   }
@@ -1669,4 +1890,12 @@ String _money(num? amount) {
 String _timeLabel(DateTime timestamp) {
   final local = timestamp.toLocal();
   return '${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+}
+
+String _normalizedRole(String? role) {
+  final value = role?.trim() ?? '';
+  if (value.startsWith('ROLE_')) {
+    return value.substring(5).toUpperCase();
+  }
+  return value.toUpperCase();
 }

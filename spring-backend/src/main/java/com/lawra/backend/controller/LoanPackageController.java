@@ -49,13 +49,13 @@ public class LoanPackageController {
 	}
 
 	@PutMapping("/{id}")
-	@PreAuthorize("hasRole('PAYMASTER') or hasRole('ADMIN')")
+	@PreAuthorize("hasRole('PAYMASTER') or hasRole('ADMIN') or hasRole('BORROWER')")
 	public ResponseEntity<LoanPackage> updateLoanPackage(@PathVariable Long id, @RequestBody LoanPackage loanPackage) {
 		return ResponseEntity.ok(loanPackageService.update(id, loanPackage));
 	}
 
 	@DeleteMapping("/{id}")
-	@PreAuthorize("hasRole('PAYMASTER') or hasRole('ADMIN')")
+	@PreAuthorize("hasRole('PAYMASTER') or hasRole('ADMIN') or hasRole('BORROWER')")
 	public ResponseEntity<Void> deleteLoanPackage(@PathVariable Long id) {
 		loanPackageService.delete(id);
 		return ResponseEntity.noContent().build();

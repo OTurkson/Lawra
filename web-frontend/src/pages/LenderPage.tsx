@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createLoanPackage,
@@ -27,6 +27,8 @@ const LenderPage = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const auth = getAuth();
+  const role = normalizeRole(auth?.role);
+  const isAdmin = role === "ADMIN";
 
   const [selectedId, setSelectedId] = useState("");
   const [name, setName] = useState("");
@@ -53,6 +55,16 @@ const LenderPage = () => {
     queryFn: fetchVirtualBanks,
   });
 
+  const manageableBanks = useMemo(() => {
+    if (isAdmin) {
+      return virtualBanks ?? [];
+    }
+
+    return (virtualBanks ?? []).filter((bank) => bank.createdById === auth?.userId);
+  }, [auth?.userId, isAdmin, virtualBanks]);
+
+  const canManageSelectedPackage = !!selectedLoanPackage && (isAdmin || selectedLoanPackage.virtualBank?.createdById === auth?.userId);
+
   const createMutation = useMutation({
     mutationFn: () => {
       if (!name.trim()) {
@@ -60,7 +72,7 @@ const LenderPage = () => {
       }
 
       const packageBalance = Number(balance);
-      const selectedBank = (virtualBanks ?? []).find((bank) => String(bank.id) === virtualBankId);
+      const selectedBank = manageableBanks.find((bank) => String(bank.id) === virtualBankId);
 
       if (!Number.isFinite(packageBalance) || packageBalance <= 0) {
         throw new Error("Please enter a valid balance amount greater than zero.");
@@ -100,6 +112,10 @@ const LenderPage = () => {
         throw new Error("Select a loan package to top up.");
       }
 
+      if (!canManageSelectedPackage) {
+        throw new Error("You can only update loan packages you own, unless you are an admin.");
+      }
+
       if (!name.trim()) {
         throw new Error("Package name is required.");
       }
@@ -107,7 +123,7 @@ const LenderPage = () => {
       const topup = Number(topupAmount);
       const currentBalance = Number(selectedLoanPackage.balance ?? 0);
       const newBalance = currentBalance + topup;
-      const selectedBank = (virtualBanks ?? []).find((bank) => String(bank.id) === virtualBankId);
+      const selectedBank = manageableBanks.find((bank) => String(bank.id) === virtualBankId);
 
       if (!Number.isFinite(topup) || topup <= 0) {
         throw new Error("Please enter a valid topup amount greater than zero.");
@@ -142,7 +158,13 @@ const LenderPage = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteLoanPackage(Number(selectedId)),
+    mutationFn: () => {
+      if (!canManageSelectedPackage) {
+        throw new Error("You can only delete loan packages you own, unless you are an admin.");
+      }
+
+      return deleteLoanPackage(Number(selectedId));
+    },
     onSuccess: () => {
       setSelectedId("");
       setIsPackageDialogOpen(false);
@@ -158,10 +180,8 @@ const LenderPage = () => {
   const lenderData = (loanPackages ?? [])
     .filter((pkg) => {
       const role = normalizeRole(auth?.role);
-      // Admins and paymasters should see all packages. Borrowers should also see packages
-      // so they can request loans. Otherwise show packages created by the current user.
       if (!role) return false;
-      if (role === "PAYMASTER" || role === "ADMIN" || role === "BORROWER") return true;
+      if (role === "PAYMASTER" || role === "ADMIN") return true;
       return pkg.virtualBank?.createdById === auth?.userId;
     })
     .map((pkg) => ({
@@ -192,8 +212,7 @@ const LenderPage = () => {
           >
             <option value="">Virtual Bank</option>
             {isVirtualBanksLoading && <option value="">Loading virtual banks...</option>}
-            {(virtualBanks ?? [])
-              .filter((bank) => bank.createdById === auth?.userId)
+            {manageableBanks
               .map((bank) => (
                 <option key={bank.id} value={bank.id}>
                   {bank.name}
@@ -338,8 +357,7 @@ const LenderPage = () => {
                   >
                     <option value="">Virtual Bank</option>
                     {isVirtualBanksLoading && <option value="">Loading virtual banks...</option>}
-                    {(virtualBanks ?? [])
-                      .filter((bank) => bank.createdById === auth?.userId)
+                    {manageableBanks
                       .map((bank) => (
                         <option key={bank.id} value={bank.id}>
                           {bank.name}
@@ -373,32 +391,40 @@ const LenderPage = () => {
               </div>
 
               <div className="flex flex-col gap-3">
-                <button
-                  className="px-10 py-2 rounded-full bg-approve text-approve-foreground font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  onClick={() => updateMutation.mutate()}
-                  disabled={updateMutation.isPending || !selectedId}
-                >
-                  {updateMutation.isPending ? (
-                    <>
-                      <Spinner size="sm" />
-                      Updating...
-                    </>
-                  ) : (
-                    "Update"
-                  )}
-                </button>
-                <button
-                  className="px-10 py-2 rounded-full bg-destructive text-destructive-foreground font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  onClick={() => setIsDeleteConfirmOpen(true)}
-                  disabled={!selectedId}
-                >
-                  Delete
-                </button>
+                {canManageSelectedPackage ? (
+                  <>
+                    <button
+                      className="px-10 py-2 rounded-full bg-approve text-approve-foreground font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      onClick={() => updateMutation.mutate()}
+                      disabled={updateMutation.isPending || !selectedId}
+                    >
+                      {updateMutation.isPending ? (
+                        <>
+                          <Spinner size="sm" />
+                          Updating...
+                        </>
+                      ) : (
+                        "Update"
+                      )}
+                    </button>
+                    <button
+                      className="px-10 py-2 rounded-full bg-destructive text-destructive-foreground font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      onClick={() => setIsDeleteConfirmOpen(true)}
+                      disabled={!selectedId}
+                    >
+                      Delete
+                    </button>
+                  </>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                    You can view this package, but only its owner or an admin can update or delete it.
+                  </div>
+                )}
               </div>
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-              Select a loan package from the table to edit or delete it.
+              Select a loan package from the table to view it. Owners and admins can also edit or delete it.
             </div>
           )}
         </DialogContent>

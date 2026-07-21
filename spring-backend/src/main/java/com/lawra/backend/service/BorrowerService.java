@@ -30,6 +30,7 @@ public class BorrowerService {
     private final LoanPackageRepository loanPackageRepository;
     private final UserRepository userRepository;
     private final LoanMapper loanMapper;
+    private final EmailService emailService;
     private final AuthenticatedUserContextService authenticatedUserContextService;
 
     // request loan
@@ -111,9 +112,10 @@ public class BorrowerService {
             loan.setDueDate(dueDate);
         }
 
-        loanRepository.save(loan);
+        Loan savedLoan = loanRepository.save(loan);
+        emailService.sendLoanRequestEmail(borrower, savedLoan);
 
-        return loanMapper.toSummary(loan);
+        return loanMapper.toSummary(savedLoan);
     }
 
     // display loan requests per user/borrower.

@@ -32,6 +32,7 @@ public class UserService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final TenantRepository tenantRepository;
+    private final EmailService emailService;
     private final PasswordResetService passwordResetService;
     private final AuthenticatedUserContextService authenticatedUserContextService;
 
@@ -69,7 +70,9 @@ public class UserService {
 
         ensureEmailIsAvailable(email, tenantId, null);
 
-        return userMapper.map(saveUserEntity(user));
+        User savedUser = saveUserEntity(user);
+        emailService.sendAccountCreationEmail(savedUser);
+        return userMapper.map(savedUser);
     }
 
     /**
@@ -108,8 +111,8 @@ public class UserService {
 
         User savedUser = saveUserEntity(user);
 
-        // Send password reset email so user can set their own password
-        passwordResetService.createAndSendResetToken(savedUser);
+        String token = passwordResetService.createResetToken(savedUser);
+        emailService.sendAccountCreationEmail(savedUser, token);
 
         return userMapper.map(savedUser);
     }
@@ -139,8 +142,8 @@ public class UserService {
 
         User savedUser = saveUserEntity(user);
 
-        // Create a one-time reset token and send email so the user sets their own password
-        passwordResetService.createAndSendResetToken(savedUser);
+        String token = passwordResetService.createResetToken(savedUser);
+        emailService.sendAccountCreationEmail(savedUser, token);
 
         return userMapper.map(savedUser);
     }
