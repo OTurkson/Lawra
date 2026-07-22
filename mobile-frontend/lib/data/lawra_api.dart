@@ -7,7 +7,7 @@ import 'session_store.dart';
 
 String _defaultBaseUrl() {
   return defaultTargetPlatform == TargetPlatform.android
-      ? 'http://10.0.2.2:8080'
+      ? 'http://192.11.192.63:8080'
       : 'http://localhost:8080';
 }
 
@@ -283,30 +283,35 @@ class LawraApi {
   }
 
   Future<dynamic> _send(String path, {String method = 'GET', Object? body, bool publicRoute = false}) async {
+
     final response = await http
         .Request(method, _uri(path))
       ..headers.addAll(await _headers(publicRoute: publicRoute))
       ..body = body == null ? '' : jsonEncode(body);
 
     final streamed = await response.send();
+
     final rawBody = await streamed.stream.bytesToString();
-    final isJson = streamed.headers['content-type']?.contains('application/json') ?? false;
+
+    final isJson = streamed.headers['content-type']?.contains(
+        'application/json') ?? false;
+
     final decodedBody = rawBody.isEmpty
         ? null
         : isJson
-            ? jsonDecode(rawBody)
-            : rawBody;
+        ? jsonDecode(rawBody)
+        : rawBody;
 
     if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
-      if (streamed.statusCode == 401 && !publicRoute) {
-        await SessionStore.clearAuth();
-      }
+    if (streamed.statusCode == 401 && !publicRoute) {
+    await SessionStore.clearAuth();
+    }
 
-      final message = decodedBody is Map<String, dynamic>
-          ? (decodedBody['message'] ?? decodedBody['error'] ?? streamed.reasonPhrase ?? 'Request failed')
-          : (rawBody.isNotEmpty ? rawBody : (streamed.reasonPhrase ?? 'Request failed'));
+    final message = decodedBody is Map<String, dynamic>
+    ? (decodedBody['message'] ?? decodedBody['error'] ?? streamed.reasonPhrase ?? 'Request failed')
+        : (rawBody.isNotEmpty ? rawBody : (streamed.reasonPhrase ?? 'Request failed'));
 
-      throw LawraApiException(message.toString(), streamed.statusCode, decodedBody);
+    throw LawraApiException(message.toString(), streamed.statusCode, decodedBody);
     }
 
     return decodedBody;

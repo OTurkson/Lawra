@@ -1,8 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<!--    permissions to access backend-->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="mobile_frontend"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
+<!--        last line to allow http as well-->
         <activity
             android:name=".MainActivity"
             android:exported="true"

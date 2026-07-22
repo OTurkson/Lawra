@@ -71,7 +71,7 @@ class _AuthScreenState extends State<AuthScreen> {
       setState(() {
         _isLoadingTenants = false;
       });
-      _showMessage(error is LawraApiException ? error.message : 'Unable to load tenants.');
+      _showMessage(error is LawraApiException ? error.message : error.toString());
     }
   }
 
