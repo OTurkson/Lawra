@@ -1,12 +1,23 @@
 import 'package:flutter/material.dart';
 
-import '../theme/lawra_theme.dart';
-import '../widgets/lawra_widgets.dart';
+import '../../widgets/onboarding/onboarding_tour_page_layout.dart';
+import '../../widgets/onboarding/tour_illustrations.dart';
+
+class OnboardingTourPage {
+  const OnboardingTourPage({
+    required this.title,
+    required this.illustration,
+  });
+
+  final String title;
+  final Widget illustration;
+}
 
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key, required this.onDone});
+  const OnboardingScreen({super.key, required this.onSignIn});
 
-  final VoidCallback onDone;
+  /// Called when the user taps SKIP or any tour [TourSignInButton].
+  final VoidCallback onSignIn;
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -14,144 +25,73 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
-  final List<_TourPageData> _pages = const [
-    // For first time users show pages 3..6 as the onboarding tour
-    _TourPageData(
-      title: 'Welcome',
-      description: 'Fast and flexible — get started with Lawra.',
-      imagePage: '0003',
+
+  static const _pages = [
+    OnboardingTourPage(
+      title: 'Moderate\nInterest Rates',
+      illustration: ModerateRatesIllustration(),
     ),
-    _TourPageData(
-      title: 'Fast and Flexible',
-      description: 'Apply for loans quickly and manage repayments with ease.',
-      imagePage: '0004',
+    OnboardingTourPage(
+      title: 'Stress Free\nApplication',
+      illustration: StressFreeIllustration(),
     ),
-    _TourPageData(
-      title: 'Stress Free Application',
-      description:
-          'Apply in simple guided steps with a clean and stress-free application process.',
-      imagePage: '0005',
+    OnboardingTourPage(
+      title: 'Fast\nand Flexible',
+      illustration: FastFlexibleIllustration(),
     ),
-    _TourPageData(
-      title: 'Moderate Interest Rates',
-      description:
-          'Track and manage offers with transparent terms and moderate interest rates.',
-      imagePage: '0006',
+    OnboardingTourPage(
+      title: 'Secure and\nReliable',
+      illustration: SecureReliableIllustration(),
     ),
   ];
-  int _index = 0;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          PageView.builder(
-            controller: _controller,
-            onPageChanged: (i) => setState(() => _index = i),
-            itemCount: _pages.length,
-            itemBuilder: (_, i) {
-              final page = _pages[i];
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(28, 86, 28, 18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      page.title,
-                      style: const TextStyle(
-                        fontSize: 58,
-                        fontWeight: FontWeight.w700,
-                        color: LawraColors.textDark,
-                        height: 0.92,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      page.description,
-                      style: const TextStyle(
-                        color: LawraColors.textMuted,
-                        fontSize: 15.5,
-                        height: 1.35,
-                      ),
-                    ),
-                    const SizedBox(height: 26),
-                    GradientButton(label: 'Sign In', onTap: widget.onDone),
-                    const SizedBox(height: 24),
-                    Expanded(
-                      child: Center(
-                        child: Image.asset(
-                          'assets/design/page-${page.imagePage}.png',
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        _pages.length,
-                        (dotIndex) => AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          width: _index == dotIndex ? 18 : 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: _index == dotIndex ? LawraColors.cyan : const Color(0xFFBFE7DD),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-                ),
-              );
-            },
-          ),
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: () {
-                if (_index == _pages.length - 1) {
-                  widget.onDone();
-                } else {
-                  _controller.nextPage(
-                    duration: const Duration(milliseconds: 250),
-                    curve: Curves.easeOut,
-                  );
-                }
-              },
-            ),
-          ),
-          Positioned(
-            top: 50,
-            right: 24,
-            child: GestureDetector(
-              onTap: widget.onDone,
-              child: const Text(
-                'SKIP',
-                style: TextStyle(
-                  color: Color(0xFF44AA80),
-                  fontSize: 34 / 1.2,
-                  fontWeight: FontWeight.w500,
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: widget.onSignIn,
+                child: const Text(
+                  'SKIP',
+                  style: TextStyle(
+                    color: Color(0xFF44AA80),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+            Expanded(
+              child: PageView.builder(
+                controller: _controller,
+                itemCount: _pages.length,
+                itemBuilder: (context, i) {
+                  final page = _pages[i];
+                  return OnboardingTourPageLayout(
+                    title: page.title,
+                    illustration: page.illustration,
+                    pageIndex: i,
+                    pageCount: _pages.length,
+                    onSignIn: widget.onSignIn,
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
-}
-
-class _TourPageData {
-  const _TourPageData({
-    required this.title,
-    required this.description,
-    required this.imagePage,
-  });
-
-  final String title;
-  final String description;
-  final String imagePage;
 }

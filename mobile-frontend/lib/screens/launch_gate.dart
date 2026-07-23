@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'auth_flow_screens.dart';
+import '../data/session_store.dart';
+import 'auth/auth_screen.dart';
 import 'dashboard_shell.dart';
 import 'onboarding_screen.dart';
-import 'intro_sequence.dart';
-import '../data/session_store.dart';
+import 'splash/splash_screens.dart';
 
 class LaunchGate extends StatefulWidget {
   const LaunchGate({super.key});
@@ -39,7 +39,8 @@ class _LaunchGateState extends State<LaunchGate> {
 
   void _primeLaunchFlow() {
     _loadFirstLaunch().then((value) {
-      _isFirstLaunch = value;
+      if (!mounted) return;
+      setState(() => _isFirstLaunch = value);
       _tryCompleteLaunch();
     });
 
@@ -62,20 +63,13 @@ class _LaunchGateState extends State<LaunchGate> {
       if (firstLaunch) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => IntroSequence(
-              onComplete: () {
-                // After the short intro sequence, show regular onboarding
+            builder: (_) => OnboardingScreen(
+              onSignIn: () async {
+                await _completeTour();
+                if (!mounted) return;
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(
-                    builder: (_) => OnboardingScreen(
-                      onDone: () async {
-                        await _completeTour();
-                        if (!mounted) return;
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(builder: (_) => const AuthScreen()),
-                        );
-                      },
-                    ),
+                    builder: (_) => const AuthScreen(initialIsLogin: true),
                   ),
                 );
               },
@@ -124,46 +118,8 @@ class _LaunchGateState extends State<LaunchGate> {
       switchInCurve: Curves.easeOut,
       switchOutCurve: Curves.easeIn,
       child: _showWhiteSplash
-          ? const _WhiteSplash(key: ValueKey('white'))
-          : const _GreenSplash(key: ValueKey('green')),
-    );
-  }
-}
-
-class _GreenSplash extends StatelessWidget {
-  const _GreenSplash({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Center(
-        child: SizedBox.expand(
-          child: Image(
-            image: AssetImage('assets/design/page-0001.png'),
-            fit: BoxFit.cover,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WhiteSplash extends StatelessWidget {
-  const _WhiteSplash({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: SizedBox.expand(
-          child: Image(
-            image: AssetImage('assets/design/page-0002.png'),
-            fit: BoxFit.cover,
-          ),
-        ),
-      ),
+          ? const WhiteSplashScreen(key: ValueKey('white'))
+          : const GreenSplashScreen(key: ValueKey('green')),
     );
   }
 }
