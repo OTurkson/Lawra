@@ -6,9 +6,10 @@ import 'package:http/http.dart' as http;
 import 'session_store.dart';
 
 String _defaultBaseUrl() {
-  return defaultTargetPlatform == TargetPlatform.android
-      ? 'http://192.11.192.63:8080'
-      : 'http://localhost:8080';
+  // return defaultTargetPlatform == TargetPlatform.android
+  //     ? 'http://10.0.2.2:8080'
+  //     : 'http://localhost:8080';
+  return 'http://localhost:8080';
 }
 
 class LawraApiException implements Exception {
@@ -95,7 +96,12 @@ class VirtualBank {
 }
 
 class LoanPackage {
-  LoanPackage({required this.id, required this.name, required this.balance, required this.interestRate, this.virtualBank});
+  LoanPackage(
+      {required this.id,
+      required this.name,
+      required this.balance,
+      required this.interestRate,
+      this.virtualBank});
 
   final int id;
   final String name;
@@ -257,8 +263,12 @@ class AuditLogSummary {
 }
 
 class LawraApi {
-  LawraApi({String? baseUrl}) : baseUrl = baseUrl ?? const String.fromEnvironment('LAWRA_API_BASE_URL', defaultValue: '') {
-    _resolvedBaseUrl = this.baseUrl.isNotEmpty ? this.baseUrl : _defaultBaseUrl();
+  LawraApi({String? baseUrl})
+      : baseUrl = baseUrl ??
+            const String.fromEnvironment('LAWRA_API_BASE_URL',
+                defaultValue: '') {
+    _resolvedBaseUrl =
+        this.baseUrl.isNotEmpty ? this.baseUrl : _defaultBaseUrl();
   }
 
   final String baseUrl;
@@ -282,10 +292,9 @@ class LawraApi {
     return headers;
   }
 
-  Future<dynamic> _send(String path, {String method = 'GET', Object? body, bool publicRoute = false}) async {
-
-    final response = await http
-        .Request(method, _uri(path))
+  Future<dynamic> _send(String path,
+      {String method = 'GET', Object? body, bool publicRoute = false}) async {
+    final response = await http.Request(method, _uri(path))
       ..headers.addAll(await _headers(publicRoute: publicRoute))
       ..body = body == null ? '' : jsonEncode(body);
 
@@ -293,31 +302,40 @@ class LawraApi {
 
     final rawBody = await streamed.stream.bytesToString();
 
-    final isJson = streamed.headers['content-type']?.contains(
-        'application/json') ?? false;
+    final isJson =
+        streamed.headers['content-type']?.contains('application/json') ?? false;
 
     final decodedBody = rawBody.isEmpty
         ? null
         : isJson
-        ? jsonDecode(rawBody)
-        : rawBody;
+            ? jsonDecode(rawBody)
+            : rawBody;
 
     if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
-    if (streamed.statusCode == 401 && !publicRoute) {
-    await SessionStore.clearAuth();
-    }
+      if (streamed.statusCode == 401 && !publicRoute) {
+        await SessionStore.clearAuth();
+      }
 
-    final message = decodedBody is Map<String, dynamic>
-    ? (decodedBody['message'] ?? decodedBody['error'] ?? streamed.reasonPhrase ?? 'Request failed')
-        : (rawBody.isNotEmpty ? rawBody : (streamed.reasonPhrase ?? 'Request failed'));
+      final message = decodedBody is Map<String, dynamic>
+          ? (decodedBody['message'] ??
+              decodedBody['error'] ??
+              streamed.reasonPhrase ??
+              'Request failed')
+          : (rawBody.isNotEmpty
+              ? rawBody
+              : (streamed.reasonPhrase ?? 'Request failed'));
 
-    throw LawraApiException(message.toString(), streamed.statusCode, decodedBody);
+      throw LawraApiException(
+          message.toString(), streamed.statusCode, decodedBody);
     }
 
     return decodedBody;
   }
 
-  Future<AuthSession> login({required String email, required String password, required String tenantId}) async {
+  Future<AuthSession> login(
+      {required String email,
+      required String password,
+      required String tenantId}) async {
     final data = await _send(
       '/auth/login',
       method: 'POST',
@@ -328,7 +346,8 @@ class LawraApi {
     return AuthSession.fromJson(data);
   }
 
-  Future<void> requestPasswordReset({required String email, required String tenantId}) async {
+  Future<void> requestPasswordReset(
+      {required String email, required String tenantId}) async {
     await _send(
       '/auth/request-password-reset',
       method: 'POST',
@@ -337,7 +356,8 @@ class LawraApi {
     );
   }
 
-  Future<void> resetPassword({required String token, required String newPassword}) async {
+  Future<void> resetPassword(
+      {required String token, required String newPassword}) async {
     await _send(
       '/auth/reset-password',
       method: 'POST',
@@ -357,12 +377,15 @@ class LawraApi {
   }
 
   Future<Tenant> createTenant(String name) async {
-    final data = await _send('/tenants', method: 'POST', body: {'name': name}) as Map<String, dynamic>;
+    final data = await _send('/tenants', method: 'POST', body: {'name': name})
+        as Map<String, dynamic>;
     return Tenant.fromJson(data);
   }
 
   Future<Tenant> updateTenant(String id, String name) async {
-    final data = await _send('/tenants/$id', method: 'PUT', body: {'name': name}) as Map<String, dynamic>;
+    final data =
+        await _send('/tenants/$id', method: 'PUT', body: {'name': name})
+            as Map<String, dynamic>;
     return Tenant.fromJson(data);
   }
 
@@ -405,7 +428,10 @@ class LawraApi {
     return UserProfile.fromJson(data);
   }
 
-  Future<UserProfile> provisionUser({required String email, required String fullName, required String phoneNumber}) async {
+  Future<UserProfile> provisionUser(
+      {required String email,
+      required String fullName,
+      required String phoneNumber}) async {
     final data = await _send(
       '/users/provision',
       method: 'POST',
@@ -414,7 +440,11 @@ class LawraApi {
     return UserProfile.fromJson(data);
   }
 
-  Future<UserProfile> updateUser(String id, {String? email, String? fullName, String? phoneNumber, String? password}) async {
+  Future<UserProfile> updateUser(String id,
+      {String? email,
+      String? fullName,
+      String? phoneNumber,
+      String? password}) async {
     final data = await _send(
       '/users/$id',
       method: 'PUT',
@@ -429,7 +459,8 @@ class LawraApi {
   }
 
   Future<UserProfile> topUpCurrentUserBalance(num amount) async {
-    final data = await _send('/users/me/balance/top-up', method: 'POST', body: {'amount': amount}) as Map<String, dynamic>;
+    final data = await _send('/users/me/balance/top-up',
+        method: 'POST', body: {'amount': amount}) as Map<String, dynamic>;
     return UserProfile.fromJson(data);
   }
 
@@ -442,18 +473,23 @@ class LawraApi {
     return data.cast<Map<String, dynamic>>().map(VirtualBank.fromJson).toList();
   }
 
-  Future<VirtualBank> createVirtualBank({required String name, num? balance}) async {
-    final data = await _send('/banks', method: 'POST', body: {'name': name, 'balance': balance}) as Map<String, dynamic>;
+  Future<VirtualBank> createVirtualBank(
+      {required String name, num? balance}) async {
+    final data = await _send('/banks',
+        method: 'POST',
+        body: {'name': name, 'balance': balance}) as Map<String, dynamic>;
     return VirtualBank.fromJson(data);
   }
 
   Future<VirtualBank> updateVirtualBank(int id, {required String name}) async {
-    final data = await _send('/banks/$id', method: 'PUT', body: {'name': name}) as Map<String, dynamic>;
+    final data = await _send('/banks/$id', method: 'PUT', body: {'name': name})
+        as Map<String, dynamic>;
     return VirtualBank.fromJson(data);
   }
 
   Future<VirtualBank> topUpVirtualBank(int id, num amount) async {
-    final data = await _send('/banks/$id/top-up', method: 'PATCH', body: {'amount': amount}) as Map<String, dynamic>;
+    final data = await _send('/banks/$id/top-up',
+        method: 'PATCH', body: {'amount': amount}) as Map<String, dynamic>;
     return VirtualBank.fromJson(data);
   }
 
@@ -471,7 +507,11 @@ class LawraApi {
     return LoanPackage.fromJson(data);
   }
 
-  Future<LoanPackage> createLoanPackage({required String name, required int virtualBankId, required num balance, required num interestRate}) async {
+  Future<LoanPackage> createLoanPackage(
+      {required String name,
+      required int virtualBankId,
+      required num balance,
+      required num interestRate}) async {
     final data = await _send(
       '/loan-packages',
       method: 'POST',
@@ -485,7 +525,11 @@ class LawraApi {
     return LoanPackage.fromJson(data);
   }
 
-  Future<LoanPackage> updateLoanPackage(int id, {required String name, required int virtualBankId, required num balance, required num interestRate}) async {
+  Future<LoanPackage> updateLoanPackage(int id,
+      {required String name,
+      required int virtualBankId,
+      required num balance,
+      required num interestRate}) async {
     final data = await _send(
       '/loan-packages/$id',
       method: 'PUT',
@@ -535,7 +579,9 @@ class LawraApi {
   }
 
   Future<LoanSummary> updateLoanStatus(int id, String loanStatus) async {
-    final data = await _send('/loans/$id', method: 'PUT', body: {'loanStatus': loanStatus}) as Map<String, dynamic>;
+    final data = await _send('/loans/$id',
+        method: 'PUT',
+        body: {'loanStatus': loanStatus}) as Map<String, dynamic>;
     return LoanSummary.fromJson(data);
   }
 
@@ -554,15 +600,21 @@ class LawraApi {
     query['size'] = size.toString();
     if (from != null) query['from'] = from.toUtc().toIso8601String();
     if (to != null) query['to'] = to.toUtc().toIso8601String();
-    if (actorEmail != null && actorEmail.isNotEmpty) query['actorEmail'] = actorEmail;
+    if (actorEmail != null && actorEmail.isNotEmpty)
+      query['actorEmail'] = actorEmail;
     if (action != null && action.isNotEmpty) query['action'] = action;
-    if (resourceType != null && resourceType.isNotEmpty) query['resourceType'] = resourceType;
-    if (resourceId != null && resourceId.isNotEmpty) query['resourceId'] = resourceId;
+    if (resourceType != null && resourceType.isNotEmpty)
+      query['resourceType'] = resourceType;
+    if (resourceId != null && resourceId.isNotEmpty)
+      query['resourceId'] = resourceId;
 
     final path = '/audit-logs?${Uri(queryParameters: query).query}';
     final data = await _send(path) as Map<String, dynamic>;
 
     final content = (data['content'] as List<dynamic>? ?? []);
-    return content.cast<Map<String, dynamic>>().map(AuditLogSummary.fromJson).toList();
+    return content
+        .cast<Map<String, dynamic>>()
+        .map(AuditLogSummary.fromJson)
+        .toList();
   }
 }

@@ -13,14 +13,12 @@ class OnboardingTourPageLayout extends StatelessWidget {
     required this.illustration,
     required this.pageIndex,
     required this.pageCount,
-    required this.onSignIn,
   });
 
   final String title;
   final Widget illustration;
   final int pageIndex;
   final int pageCount;
-  final VoidCallback onSignIn;
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +46,7 @@ class OnboardingTourPageLayout extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 22),
-          TourSignInButton(onSignIn: onSignIn),
+          const TourSignInButton(),
           const SizedBox(height: 16),
           Expanded(child: illustration),
           Row(

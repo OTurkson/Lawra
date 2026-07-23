@@ -8,10 +8,10 @@ class GreenSplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
+    return const AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: DecoratedBox(
-        decoration: const BoxDecoration(gradient: lawraSplashGradient),
+        decoration: BoxDecoration(gradient: lawraSplashGradient),
         child: Scaffold(
           backgroundColor: Colors.transparent,
           body: Center(child: LawraWordmark(fontSize: 56, white: true)),
@@ -26,7 +26,7 @@ class WhiteSplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return const Scaffold(
       backgroundColor: Colors.white,
       body: Center(child: LawraWordmark(fontSize: 56, gradient: true)),
     );

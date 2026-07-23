@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../screens/auth/auth_screen.dart';
 import '../../widgets/onboarding/onboarding_tour_page_layout.dart';
+import '../../widgets/onboarding/onboarding_tour_scope.dart';
 import '../../widgets/onboarding/tour_illustrations.dart';
+import '../../widgets/onboarding/tour_skip_button.dart';
 
 class OnboardingTourPage {
   const OnboardingTourPage({
@@ -14,10 +18,9 @@ class OnboardingTourPage {
 }
 
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key, required this.onSignIn});
+  const OnboardingScreen({super.key});
 
-  /// Called when the user taps SKIP or any tour [TourSignInButton].
-  final VoidCallback onSignIn;
+  static const tourCompletedKey = 'onboarding_tour_completed';
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -51,45 +54,44 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
+  Future<void> _goToSignIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(OnboardingScreen.tourCompletedKey, true);
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => const AuthScreen(initialIsLogin: true),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: widget.onSignIn,
-                child: const Text(
-                  'SKIP',
-                  style: TextStyle(
-                    color: Color(0xFF44AA80),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                  ),
+    return OnboardingTourScope(
+      onSignIn: _goToSignIn,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Column(
+            children: [
+              const TourSkipButton(),
+              Expanded(
+                child: PageView.builder(
+                  controller: _controller,
+                  itemCount: _pages.length,
+                  itemBuilder: (context, i) {
+                    final page = _pages[i];
+                    return OnboardingTourPageLayout(
+                      title: page.title,
+                      illustration: page.illustration,
+                      pageIndex: i,
+                      pageCount: _pages.length,
+                    );
+                  },
                 ),
               ),
-            ),
-            Expanded(
-              child: PageView.builder(
-                controller: _controller,
-                itemCount: _pages.length,
-                itemBuilder: (context, i) {
-                  final page = _pages[i];
-                  return OnboardingTourPageLayout(
-                    title: page.title,
-                    illustration: page.illustration,
-                    pageIndex: i,
-                    pageCount: _pages.length,
-                    onSignIn: widget.onSignIn,
-                  );
-                },
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

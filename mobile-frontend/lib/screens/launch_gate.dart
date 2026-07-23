@@ -17,7 +17,6 @@ class LaunchGate extends StatefulWidget {
 }
 
 class _LaunchGateState extends State<LaunchGate> {
-  static const _firstLaunchKey = 'first_launch_done';
   static const _greenSplashDuration = Duration(milliseconds: 1100);
   static const _whiteSplashDuration = Duration(milliseconds: 850);
 
@@ -34,7 +33,7 @@ class _LaunchGateState extends State<LaunchGate> {
 
   Future<bool> _loadFirstLaunch() async {
     final prefs = await SharedPreferences.getInstance();
-    return !(prefs.getBool(_firstLaunchKey) ?? false);
+    return !(prefs.getBool(OnboardingScreen.tourCompletedKey) ?? false);
   }
 
   void _primeLaunchFlow() {
@@ -63,17 +62,7 @@ class _LaunchGateState extends State<LaunchGate> {
       if (firstLaunch) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => OnboardingScreen(
-              onSignIn: () async {
-                await _completeTour();
-                if (!mounted) return;
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (_) => const AuthScreen(initialIsLogin: true),
-                  ),
-                );
-              },
-            ),
+            builder: (_) => const OnboardingScreen(),
           ),
         );
       } else {
@@ -97,11 +86,6 @@ class _LaunchGateState extends State<LaunchGate> {
         });
       }
     });
-  }
-
-  Future<void> _completeTour() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_firstLaunchKey, true);
   }
 
   @override

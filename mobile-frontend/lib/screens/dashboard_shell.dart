@@ -146,10 +146,22 @@ class _DashboardShellState extends State<DashboardShell> {
     }
 
     final pages = <Widget>[
-      BorrowerTab(api: _api, session: widget.session, currentUser: _currentUser, addNotice: _addNotice),
-      LenderTab(api: _api, session: widget.session, currentUser: _currentUser, addNotice: _addNotice),
+      BorrowerTab(
+          api: _api,
+          session: widget.session,
+          currentUser: _currentUser,
+          addNotice: _addNotice),
+      LenderTab(
+          api: _api,
+          session: widget.session,
+          currentUser: _currentUser,
+          addNotice: _addNotice),
       LoansTab(api: _api, currentUser: _currentUser, addNotice: _addNotice),
-      BanksTab(api: _api, session: widget.session, currentUser: _currentUser, addNotice: _addNotice),
+      BanksTab(
+          api: _api,
+          session: widget.session,
+          currentUser: _currentUser,
+          addNotice: _addNotice),
     ];
 
     return Scaffold(
@@ -160,7 +172,11 @@ class _DashboardShellState extends State<DashboardShell> {
         onOpenSettings: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => SettingsScreen(api: _api, currentUser: _currentUser, session: widget.session, addNotice: _addNotice),
+              builder: (_) => SettingsScreen(
+                  api: _api,
+                  currentUser: _currentUser,
+                  session: widget.session,
+                  addNotice: _addNotice),
             ),
           );
         },
@@ -186,7 +202,8 @@ class _DashboardShellState extends State<DashboardShell> {
             icon: const Icon(Icons.notifications_none),
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => NotificationsScreen(notices: _notices)),
+                MaterialPageRoute(
+                    builder: (_) => NotificationsScreen(notices: _notices)),
               );
             },
           ),
@@ -202,10 +219,14 @@ class _DashboardShellState extends State<DashboardShell> {
         onTap: (value) => setState(() => _index = value),
         type: BottomNavigationBarType.fixed,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.handshake_outlined), label: 'Borrower'),
-          BottomNavigationBarItem(icon: Icon(Icons.currency_exchange), label: 'Lender'),
-          BottomNavigationBarItem(icon: Icon(Icons.receipt_long), label: 'Loans'),
-          BottomNavigationBarItem(icon: Icon(Icons.account_balance), label: 'Banks'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.handshake_outlined), label: 'Borrower'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.currency_exchange), label: 'Lender'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.receipt_long), label: 'Loans'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.account_balance), label: 'Banks'),
         ],
       ),
     );
@@ -287,10 +308,13 @@ class _BorrowerTabState extends State<BorrowerTab> {
   Future<void> _submitLoan() async {
     final packageId = int.tryParse(_selectedPackageId ?? '');
     final amount = num.tryParse(_principal);
-    final selectedPackage = _packages.where((item) => item.id == packageId).cast<LoanPackage?>().firstWhere(
-      (item) => item != null,
-      orElse: () => null,
-    );
+    final selectedPackage = _packages
+        .where((item) => item.id == packageId)
+        .cast<LoanPackage?>()
+        .firstWhere(
+          (item) => item != null,
+          orElse: () => null,
+        );
 
     if (packageId == null || amount == null || amount <= 0) {
       _showMessage('Select a package and enter a valid amount.');
@@ -312,7 +336,9 @@ class _BorrowerTabState extends State<BorrowerTab> {
         interestRate: selected.interestRate,
         period: _period,
       );
-      widget.addNotice('Loan request submitted for Gh¢ ${amount.toStringAsFixed(2)}', type: 'loan');
+      widget.addNotice(
+          'Loan request submitted for Gh¢ ${amount.toStringAsFixed(2)}',
+          type: 'loan');
       if (!mounted) {
         return;
       }
@@ -334,7 +360,8 @@ class _BorrowerTabState extends State<BorrowerTab> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -371,7 +398,8 @@ class _BorrowerTabState extends State<BorrowerTab> {
                       .map(
                         (item) => DropdownMenuItem(
                           value: item.id.toString(),
-                          child: Text('${item.name.isNotEmpty ? item.name : 'Package #${item.id}'} - ${item.virtualBank?.name ?? 'Loan Package'}'),
+                          child: Text(
+                              '${item.name.isNotEmpty ? item.name : 'Package #${item.id}'} - ${item.virtualBank?.name ?? 'Loan Package'}'),
                         ),
                       )
                       .toList(),
@@ -383,7 +411,8 @@ class _BorrowerTabState extends State<BorrowerTab> {
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Principal amount'),
+                  decoration:
+                      const InputDecoration(labelText: 'Principal amount'),
                   keyboardType: TextInputType.number,
                   onChanged: (value) => _principal = value,
                 ),
@@ -392,7 +421,8 @@ class _BorrowerTabState extends State<BorrowerTab> {
                   value: _period,
                   decoration: const InputDecoration(labelText: 'Period'),
                   items: LoanPeriod.values
-                      .map((item) => DropdownMenuItem(value: item, child: Text(item.label)))
+                      .map((item) => DropdownMenuItem(
+                          value: item, child: Text(item.label)))
                       .toList(),
                   onChanged: (value) {
                     if (value != null) {
@@ -405,7 +435,8 @@ class _BorrowerTabState extends State<BorrowerTab> {
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: _isSubmitting ? null : _submitLoan,
-                    child: Text(_isSubmitting ? 'Submitting...' : 'Request Loan'),
+                    child:
+                        Text(_isSubmitting ? 'Submitting...' : 'Request Loan'),
                   ),
                 ),
               ],
@@ -417,7 +448,8 @@ class _BorrowerTabState extends State<BorrowerTab> {
             child: _loans.isEmpty
                 ? const Text('No loan applications yet.')
                 : Column(
-                    children: _loans.map((loan) => _LoanTile(loan: loan)).toList(),
+                    children:
+                        _loans.map((loan) => _LoanTile(loan: loan)).toList(),
                   ),
           ),
         ],
@@ -511,11 +543,14 @@ class _LenderTabState extends State<LenderTab> {
 
   List<VirtualBank> get _manageableBanks {
     final userId = widget.session.userId;
-    return _isAdmin ? _banks : _banks.where((bank) => bank.createdById == userId).toList();
+    return _isAdmin
+        ? _banks
+        : _banks.where((bank) => bank.createdById == userId).toList();
   }
 
   bool _canManagePackage(LoanPackage package) {
-    return _isAdmin || package.virtualBank?.createdById == widget.session.userId;
+    return _isAdmin ||
+        package.virtualBank?.createdById == widget.session.userId;
   }
 
   Future<void> _openPackageActions(LoanPackage package) async {
@@ -530,14 +565,16 @@ class _LenderTabState extends State<LenderTab> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Loan package #${package.id}', style: Theme.of(context).textTheme.titleLarge),
+                  Text('Loan package #${package.id}',
+                      style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 12),
                   Text('Package name: ${package.name}'),
                   Text('Virtual bank: ${package.virtualBank?.name ?? '-'}'),
                   Text('Current balance: ${_money(package.balance)}'),
                   Text('Interest rate: ${package.interestRate}%'),
                   const SizedBox(height: 12),
-                  const Text('You can view this package, but only its owner or an admin can update or delete it.'),
+                  const Text(
+                      'You can view this package, but only its owner or an admin can update or delete it.'),
                 ],
               ),
             ),
@@ -549,7 +586,8 @@ class _LenderTabState extends State<LenderTab> {
 
     final nameController = TextEditingController(text: package.name);
     final topUpController = TextEditingController();
-    final interestController = TextEditingController(text: package.interestRate.toString());
+    final interestController =
+        TextEditingController(text: package.interestRate.toString());
     String selectedBankId = package.virtualBank?.id.toString() ?? '';
 
     await showModalBottomSheet<void>(
@@ -559,7 +597,8 @@ class _LenderTabState extends State<LenderTab> {
         return StatefulBuilder(
           builder: (context, setSheetState) {
             return Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+              padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom),
               child: SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -568,17 +607,20 @@ class _LenderTabState extends State<LenderTab> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Loan package #${package.id}', style: Theme.of(context).textTheme.titleLarge),
+                        Text('Loan package #${package.id}',
+                            style: Theme.of(context).textTheme.titleLarge),
                         const SizedBox(height: 12),
                         TextField(
                           controller: nameController,
-                          decoration: const InputDecoration(labelText: 'Package name'),
+                          decoration:
+                              const InputDecoration(labelText: 'Package name'),
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
                           value: selectedBankId.isEmpty ? null : selectedBankId,
                           isExpanded: true,
-                          decoration: const InputDecoration(labelText: 'Virtual bank'),
+                          decoration:
+                              const InputDecoration(labelText: 'Virtual bank'),
                           items: _manageableBanks
                               .map(
                                 (bank) => DropdownMenuItem(
@@ -596,13 +638,15 @@ class _LenderTabState extends State<LenderTab> {
                         const SizedBox(height: 12),
                         TextField(
                           controller: topUpController,
-                          decoration: const InputDecoration(labelText: 'Top-up amount'),
+                          decoration:
+                              const InputDecoration(labelText: 'Top-up amount'),
                           keyboardType: TextInputType.number,
                         ),
                         const SizedBox(height: 12),
                         TextField(
                           controller: interestController,
-                          decoration: const InputDecoration(labelText: 'Interest rate'),
+                          decoration:
+                              const InputDecoration(labelText: 'Interest rate'),
                           keyboardType: TextInputType.number,
                         ),
                         const SizedBox(height: 16),
@@ -613,12 +657,19 @@ class _LenderTabState extends State<LenderTab> {
                             FilledButton(
                               onPressed: () async {
                                 final bankId = int.tryParse(selectedBankId);
-                                final topUpAmount = num.tryParse(topUpController.text);
-                                final interestRate = num.tryParse(interestController.text);
+                                final topUpAmount =
+                                    num.tryParse(topUpController.text);
+                                final interestRate =
+                                    num.tryParse(interestController.text);
                                 final name = nameController.text.trim();
 
-                                if (name.isEmpty || bankId == null || topUpAmount == null || topUpAmount <= 0 || interestRate == null) {
-                                  _showMessage('Fill out the package name, bank, top-up amount, and interest rate.');
+                                if (name.isEmpty ||
+                                    bankId == null ||
+                                    topUpAmount == null ||
+                                    topUpAmount <= 0 ||
+                                    interestRate == null) {
+                                  _showMessage(
+                                      'Fill out the package name, bank, top-up amount, and interest rate.');
                                   return;
                                 }
 
@@ -633,7 +684,9 @@ class _LenderTabState extends State<LenderTab> {
                                     balance: currentBalance + topUpAmount,
                                     interestRate: interestRate,
                                   );
-                                  widget.addNotice('Loan package updated: $name', type: 'package');
+                                  widget.addNotice(
+                                      'Loan package updated: $name',
+                                      type: 'package');
                                   await _refresh();
                                   _showMessage('Loan package updated.');
                                 } on LawraApiException catch (error) {
@@ -648,8 +701,11 @@ class _LenderTabState extends State<LenderTab> {
                               onPressed: () async {
                                 Navigator.of(context).pop();
                                 try {
-                                  await widget.api.deleteLoanPackage(package.id);
-                                  widget.addNotice('Deleted loan package #${package.id}', type: 'package');
+                                  await widget.api
+                                      .deleteLoanPackage(package.id);
+                                  widget.addNotice(
+                                      'Deleted loan package #${package.id}',
+                                      type: 'package');
                                   await _refresh();
                                   _showMessage('Loan package deleted.');
                                 } on LawraApiException catch (error) {
@@ -679,8 +735,12 @@ class _LenderTabState extends State<LenderTab> {
     final balance = num.tryParse(_balance);
     final interestRate = num.tryParse(_interestRate);
 
-    if (_name.trim().isEmpty || bankId == null || balance == null || interestRate == null) {
-      _showMessage('Enter a package name and fill out bank, balance, and interest.');
+    if (_name.trim().isEmpty ||
+        bankId == null ||
+        balance == null ||
+        interestRate == null) {
+      _showMessage(
+          'Enter a package name and fill out bank, balance, and interest.');
       return;
     }
 
@@ -692,7 +752,8 @@ class _LenderTabState extends State<LenderTab> {
         balance: balance,
         interestRate: interestRate,
       );
-      widget.addNotice('Loan package created for bank #$bankId', type: 'package');
+      widget.addNotice('Loan package created for bank #$bankId',
+          type: 'package');
       if (!mounted) {
         return;
       }
@@ -716,7 +777,8 @@ class _LenderTabState extends State<LenderTab> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -731,8 +793,11 @@ class _LenderTabState extends State<LenderTab> {
 
     final ownedBanks = _manageableBanks;
     final ownedPackages = _canViewAllPackages
-      ? _packages
-      : _packages.where((item) => item.virtualBank?.createdById == widget.session.userId).toList();
+        ? _packages
+        : _packages
+            .where((item) =>
+                item.virtualBank?.createdById == widget.session.userId)
+            .toList();
 
     return RefreshIndicator(
       onRefresh: _refresh,
@@ -791,7 +856,11 @@ class _LenderTabState extends State<LenderTab> {
             child: ownedPackages.isEmpty
                 ? const Text('No loan packages yet.')
                 : Column(
-                    children: ownedPackages.map((item) => _PackageTile(package: item, onTap: () => _openPackageActions(item))).toList(),
+                    children: ownedPackages
+                        .map((item) => _PackageTile(
+                            package: item,
+                            onTap: () => _openPackageActions(item)))
+                        .toList(),
                   ),
           ),
         ],
@@ -801,7 +870,11 @@ class _LenderTabState extends State<LenderTab> {
 }
 
 class LoansTab extends StatefulWidget {
-  const LoansTab({super.key, required this.api, required this.currentUser, required this.addNotice});
+  const LoansTab(
+      {super.key,
+      required this.api,
+      required this.currentUser,
+      required this.addNotice});
 
   final LawraApi api;
   final UserProfile? currentUser;
@@ -868,7 +941,8 @@ class _LoansTabState extends State<LoansTab> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   bool get _isAdmin {
@@ -898,11 +972,16 @@ class _LoansTabState extends State<LoansTab> {
               decoration: const InputDecoration(labelText: 'Status'),
               items: const [
                 DropdownMenuItem<String>(value: null, child: Text('All')),
-                DropdownMenuItem<String>(value: 'PENDING', child: Text('Pending')),
-                DropdownMenuItem<String>(value: 'APPROVED', child: Text('Approved')),
-                DropdownMenuItem<String>(value: 'REJECTED', child: Text('Rejected')),
-                DropdownMenuItem<String>(value: 'COMPLETED', child: Text('Completed')),
-                DropdownMenuItem<String>(value: 'DEFAULTED', child: Text('Defaulted')),
+                DropdownMenuItem<String>(
+                    value: 'PENDING', child: Text('Pending')),
+                DropdownMenuItem<String>(
+                    value: 'APPROVED', child: Text('Approved')),
+                DropdownMenuItem<String>(
+                    value: 'REJECTED', child: Text('Rejected')),
+                DropdownMenuItem<String>(
+                    value: 'COMPLETED', child: Text('Completed')),
+                DropdownMenuItem<String>(
+                    value: 'DEFAULTED', child: Text('Defaulted')),
               ],
               onChanged: (value) async {
                 setState(() => _statusFilter = value);
@@ -927,13 +1006,18 @@ class _LoansTabState extends State<LoansTab> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Loan #${loan.id}', style: Theme.of(context).textTheme.titleMedium),
+                                  Text('Loan #${loan.id}',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium),
                                   const SizedBox(height: 4),
-                                  Text('Borrower: ${loan.borrowerName ?? loan.borrowerId ?? '-'}'),
+                                  Text(
+                                      'Borrower: ${loan.borrowerName ?? loan.borrowerId ?? '-'}'),
                                   Text('Amount: ${_money(loan.amount)}'),
                                   Text('Interest: ${loan.interest ?? '-'}'),
                                   Text('Tenure: ${loan.tenure ?? '-'}'),
-                                  Text('Bank: ${loan.bank ?? loan.virtualBank ?? '-'}'),
+                                  Text(
+                                      'Bank: ${loan.bank ?? loan.virtualBank ?? '-'}'),
                                   const SizedBox(height: 8),
                                   _StatusChip(status: loan.status),
                                   if (canAct) ...[
@@ -942,11 +1026,13 @@ class _LoansTabState extends State<LoansTab> {
                                       spacing: 8,
                                       children: [
                                         OutlinedButton(
-                                          onPressed: () => _updateStatus(loan, 'APPROVED'),
+                                          onPressed: () =>
+                                              _updateStatus(loan, 'APPROVED'),
                                           child: const Text('Approve'),
                                         ),
                                         OutlinedButton(
-                                          onPressed: () => _updateStatus(loan, 'REJECTED'),
+                                          onPressed: () =>
+                                              _updateStatus(loan, 'REJECTED'),
                                           child: const Text('Reject'),
                                         ),
                                       ],
@@ -1078,7 +1164,9 @@ class _BanksTabState extends State<BanksTab> {
 
   List<VirtualBank> get _visibleBanks {
     final userId = widget.session.userId;
-    return _canViewAllBanks ? _banks : _banks.where((bank) => bank.createdById == userId).toList();
+    return _canViewAllBanks
+        ? _banks
+        : _banks.where((bank) => bank.createdById == userId).toList();
   }
 
   bool _canManageBank(VirtualBank bank) {
@@ -1097,13 +1185,15 @@ class _BanksTabState extends State<BanksTab> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Bank #${bank.id}', style: Theme.of(context).textTheme.titleLarge),
+                  Text('Bank #${bank.id}',
+                      style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 12),
                   Text('Name: ${bank.name}'),
                   Text('Balance: ${_money(bank.balance)}'),
                   Text('Created by: ${bank.createdBy ?? '-'}'),
                   const SizedBox(height: 12),
-                  const Text('You can view this bank, but only its owner or an admin can rename, top up, or delete it.'),
+                  const Text(
+                      'You can view this bank, but only its owner or an admin can rename, top up, or delete it.'),
                 ],
               ),
             ),
@@ -1120,13 +1210,15 @@ class _BanksTabState extends State<BanksTab> {
       isScrollControlled: true,
       builder: (context) {
         return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Bank #${bank.id}', style: Theme.of(context).textTheme.titleLarge),
+                Text('Bank #${bank.id}',
+                    style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 12),
                 TextField(
                   controller: renameController,
@@ -1152,8 +1244,10 @@ class _BanksTabState extends State<BanksTab> {
                         }
                         Navigator.of(context).pop();
                         try {
-                          await widget.api.updateVirtualBank(bank.id, name: name);
-                          widget.addNotice('Renamed bank to $name', type: 'bank');
+                          await widget.api
+                              .updateVirtualBank(bank.id, name: name);
+                          widget.addNotice('Renamed bank to $name',
+                              type: 'bank');
                           await _refresh();
                         } on LawraApiException catch (error) {
                           _showMessage(error.message);
@@ -1171,7 +1265,9 @@ class _BanksTabState extends State<BanksTab> {
                         Navigator.of(context).pop();
                         try {
                           await widget.api.topUpVirtualBank(bank.id, amount);
-                          widget.addNotice('Topped up ${bank.name} with Gh¢ ${amount.toStringAsFixed(2)}', type: 'bank');
+                          widget.addNotice(
+                              'Topped up ${bank.name} with Gh¢ ${amount.toStringAsFixed(2)}',
+                              type: 'bank');
                           await _refresh();
                         } on LawraApiException catch (error) {
                           _showMessage(error.message);
@@ -1184,7 +1280,8 @@ class _BanksTabState extends State<BanksTab> {
                         Navigator.of(context).pop();
                         try {
                           await widget.api.deleteVirtualBank(bank.id);
-                          widget.addNotice('Deleted bank ${bank.name}', type: 'bank');
+                          widget.addNotice('Deleted bank ${bank.name}',
+                              type: 'bank');
                           await _refresh();
                         } on LawraApiException catch (error) {
                           _showMessage(error.message);
@@ -1203,7 +1300,8 @@ class _BanksTabState extends State<BanksTab> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -1233,7 +1331,8 @@ class _BanksTabState extends State<BanksTab> {
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Opening balance'),
+                  decoration:
+                      const InputDecoration(labelText: 'Opening balance'),
                   keyboardType: TextInputType.number,
                   onChanged: (value) => _balance = value,
                 ),
@@ -1345,7 +1444,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _saveProfile() async {
-    if (_newPasswordController.text.isNotEmpty && _newPasswordController.text != _confirmPasswordController.text) {
+    if (_newPasswordController.text.isNotEmpty &&
+        _newPasswordController.text != _confirmPasswordController.text) {
       _showMessage('Passwords do not match.');
       return;
     }
@@ -1356,7 +1456,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         widget.session.userId,
         fullName: _profileNameController.text.trim(),
         phoneNumber: _profilePhoneController.text.trim(),
-        password: _newPasswordController.text.isEmpty ? null : _newPasswordController.text,
+        password: _newPasswordController.text.isEmpty
+            ? null
+            : _newPasswordController.text,
       );
       widget.addNotice('Profile updated', type: 'profile');
       _showMessage('Profile updated.');
@@ -1378,7 +1480,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
     try {
       await widget.api.createTenant(_tenantNameController.text.trim());
-      widget.addNotice('Tenant created: ${_tenantNameController.text.trim()}', type: 'tenant');
+      widget.addNotice('Tenant created: ${_tenantNameController.text.trim()}',
+          type: 'tenant');
       _showMessage('Tenant created.');
       await _loadAdminData();
     } on LawraApiException catch (error) {
@@ -1393,8 +1496,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
     try {
-      await widget.api.updateTenant(tenantId, _tenantRenameController.text.trim());
-      widget.addNotice('Tenant updated: ${_tenantRenameController.text.trim()}', type: 'tenant');
+      await widget.api
+          .updateTenant(tenantId, _tenantRenameController.text.trim());
+      widget.addNotice('Tenant updated: ${_tenantRenameController.text.trim()}',
+          type: 'tenant');
       _showMessage('Tenant updated.');
       await _loadAdminData();
     } on LawraApiException catch (error) {
@@ -1419,7 +1524,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _provisionUser() async {
-    if (_provisionEmailController.text.trim().isEmpty || _provisionNameController.text.trim().isEmpty || _provisionPhoneController.text.trim().isEmpty) {
+    if (_provisionEmailController.text.trim().isEmpty ||
+        _provisionNameController.text.trim().isEmpty ||
+        _provisionPhoneController.text.trim().isEmpty) {
       _showMessage('Complete the provisioning fields.');
       return;
     }
@@ -1429,7 +1536,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         fullName: _provisionNameController.text.trim(),
         phoneNumber: _provisionPhoneController.text.trim(),
       );
-      widget.addNotice('User provisioned: ${_provisionEmailController.text.trim()}', type: 'user');
+      widget.addNotice(
+          'User provisioned: ${_provisionEmailController.text.trim()}',
+          type: 'user');
       _showMessage('User provisioned.');
       _provisionEmailController.clear();
       _provisionNameController.clear();
@@ -1440,7 +1549,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -1460,23 +1570,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       children: [
                         TextFormField(
                           controller: _profileNameController,
-                          decoration: const InputDecoration(labelText: 'Full name'),
+                          decoration:
+                              const InputDecoration(labelText: 'Full name'),
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _profilePhoneController,
-                          decoration: const InputDecoration(labelText: 'Phone number'),
+                          decoration:
+                              const InputDecoration(labelText: 'Phone number'),
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _newPasswordController,
-                          decoration: const InputDecoration(labelText: 'New password'),
+                          decoration:
+                              const InputDecoration(labelText: 'New password'),
                           obscureText: true,
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _confirmPasswordController,
-                          decoration: const InputDecoration(labelText: 'Confirm password'),
+                          decoration: const InputDecoration(
+                              labelText: 'Confirm password'),
                           obscureText: true,
                         ),
                         const SizedBox(height: 16),
@@ -1484,7 +1598,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           width: double.infinity,
                           child: FilledButton(
                             onPressed: _isSavingProfile ? null : _saveProfile,
-                            child: Text(_isSavingProfile ? 'Saving...' : 'Save profile'),
+                            child: Text(_isSavingProfile
+                                ? 'Saving...'
+                                : 'Save profile'),
                           ),
                         ),
                       ],
@@ -1498,8 +1614,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: Column(
                       children: [
                         DropdownButtonFormField<String>(
-                          value: _tenantIdController.text.isEmpty ? null : _tenantIdController.text,
-                          decoration: const InputDecoration(labelText: 'Tenant'),
+                          value: _tenantIdController.text.isEmpty
+                              ? null
+                              : _tenantIdController.text,
+                          decoration:
+                              const InputDecoration(labelText: 'Tenant'),
                           isExpanded: true,
                           items: _tenants
                               .map(
@@ -1513,7 +1632,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             if (value == null) {
                               return;
                             }
-                            final tenant = _tenants.where((item) => item.id == value).cast<Tenant?>().firstWhere((item) => item != null, orElse: () => null);
+                            final tenant = _tenants
+                                .where((item) => item.id == value)
+                                .cast<Tenant?>()
+                                .firstWhere((item) => item != null,
+                                    orElse: () => null);
                             setState(() {
                               _selectedTenant = tenant;
                               _tenantIdController.text = tenant?.id ?? value;
@@ -1524,7 +1647,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _tenantNameController,
-                          decoration: const InputDecoration(labelText: 'New tenant name'),
+                          decoration: const InputDecoration(
+                              labelText: 'New tenant name'),
                         ),
                         const SizedBox(height: 12),
                         Row(
@@ -1566,12 +1690,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _provisionNameController,
-                          decoration: const InputDecoration(labelText: 'Full name'),
+                          decoration:
+                              const InputDecoration(labelText: 'Full name'),
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _provisionPhoneController,
-                          decoration: const InputDecoration(labelText: 'Phone number'),
+                          decoration:
+                              const InputDecoration(labelText: 'Phone number'),
                         ),
                         const SizedBox(height: 16),
                         SizedBox(
@@ -1685,7 +1811,8 @@ class _AppDrawer extends StatelessWidget {
         children: [
           DrawerHeader(
             decoration: const BoxDecoration(
-              gradient: LinearGradient(colors: [Color(0xFF1DBA53), Color(0xFF21B2DB)]),
+              gradient: LinearGradient(
+                  colors: [Color(0xFF1DBA53), Color(0xFF21B2DB)]),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1697,29 +1824,43 @@ class _AppDrawer extends StatelessWidget {
                   child: const Icon(Icons.person, color: Colors.white),
                 ),
                 const SizedBox(height: 12),
-                Text(currentUser?.fullName ?? 'Current user', style: const TextStyle(color: Colors.white, fontSize: 18)),
-                Text(currentUser?.email ?? session.role, style: const TextStyle(color: Colors.white70)),
+                Text(currentUser?.fullName ?? 'Current user',
+                    style: const TextStyle(color: Colors.white, fontSize: 18)),
+                Text(currentUser?.email ?? session.role,
+                    style: const TextStyle(color: Colors.white70)),
               ],
             ),
           ),
-          ListTile(leading: const Icon(Icons.settings), title: const Text('Settings'), onTap: onOpenSettings),
+          ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text('Settings'),
+              onTap: onOpenSettings),
           if (isAdmin) ...[
             ListTile(
               leading: const Icon(Icons.receipt_long),
               title: const Text('Audit Logs'),
               onTap: () {
                 Navigator.of(context).pop();
-                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AuditLogsScreen()));
+                Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AuditLogsScreen()));
               },
             ),
           ],
           ListTile(
             leading: const Icon(Icons.notifications_none),
             title: const Text('Notifications'),
-            trailing: notices.isEmpty ? null : CircleAvatar(radius: 10, child: Text('${notices.length}', style: const TextStyle(fontSize: 11))),
+            trailing: notices.isEmpty
+                ? null
+                : CircleAvatar(
+                    radius: 10,
+                    child: Text('${notices.length}',
+                        style: const TextStyle(fontSize: 11))),
             onTap: onOpenNotifications,
           ),
-          ListTile(leading: const Icon(Icons.info_outline), title: const Text('About'), onTap: onOpenAbout),
+          ListTile(
+              leading: const Icon(Icons.info_outline),
+              title: const Text('About'),
+              onTap: onOpenAbout),
           ListTile(
             leading: const Icon(Icons.logout),
             title: const Text('Logout'),
@@ -1735,7 +1876,8 @@ class _AppDrawer extends StatelessWidget {
 }
 
 class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({required this.title, required this.subtitle, this.amount});
+  const _SummaryCard(
+      {required this.title, required this.subtitle, this.amount});
 
   final String title;
   final String subtitle;
@@ -1747,16 +1889,22 @@ class _SummaryCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(colors: [Color(0xFF1DBA53), Color(0xFF21B2DB)]),
+        gradient: const LinearGradient(
+            colors: [Color(0xFF1DBA53), Color(0xFF21B2DB)]),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700)),
+          Text(title,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
           Text(subtitle, style: const TextStyle(color: Colors.white70)),
           const SizedBox(height: 16),
-          Text('Balance: ${_money(amount)}', style: const TextStyle(color: Colors.white, fontSize: 18)),
+          Text('Balance: ${_money(amount)}',
+              style: const TextStyle(color: Colors.white, fontSize: 18)),
         ],
       ),
     );
@@ -1797,7 +1945,8 @@ class _LoanTile extends StatelessWidget {
     return Card(
       child: ListTile(
         title: Text('Loan #${loan.id}'),
-        subtitle: Text('${loan.virtualBank ?? loan.bank ?? '-'}\n${loan.tenure ?? '-'}'),
+        subtitle: Text(
+            '${loan.virtualBank ?? loan.bank ?? '-'}\n${loan.tenure ?? '-'}'),
         isThreeLine: true,
         trailing: _StatusChip(status: loan.status),
       ),
@@ -1815,8 +1964,10 @@ class _PackageTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        title: Text(package.name.isNotEmpty ? package.name : 'Package #${package.id}'),
-        subtitle: Text('${package.virtualBank?.name ?? '-'}\nInterest: ${package.interestRate}%'),
+        title: Text(
+            package.name.isNotEmpty ? package.name : 'Package #${package.id}'),
+        subtitle: Text(
+            '${package.virtualBank?.name ?? '-'}\nInterest: ${package.interestRate}%'),
         isThreeLine: true,
         trailing: Text(_money(package.balance)),
         onTap: onTap,
@@ -1874,7 +2025,11 @@ class _StatusChip extends StatelessWidget {
 }
 
 class _Notice {
-  _Notice({required this.id, required this.message, required this.type, required this.timestamp});
+  _Notice(
+      {required this.id,
+      required this.message,
+      required this.type,
+      required this.timestamp});
 
   final String id;
   final String message;
