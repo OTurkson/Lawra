@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { createUser, fetchTenants, login, type Tenant } from "@/lib/api";
 import { saveAuth } from "@/lib/auth";
 import { queryClient } from "@/lib/query-client";
+import { PhoneInput } from "@/components/PhoneInput";
 
 const SignupPage = () => {
   const [email, setEmail] = useState("");
@@ -193,14 +194,11 @@ const SignupPage = () => {
 
             <div>
               <label className="block text-primary font-semibold text-sm mb-2">Phone number</label>
-              <input
-                type="tel"
-                placeholder="+233 50 000 0000"
+              <PhoneInput
                 value={phoneNumber}
-                onChange={(event) => setPhoneNumber(event.target.value)}
-                ref={phoneInputRef}
-                autoComplete="off"
-                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                onChange={setPhoneNumber}
+                placeholder="000 000 0000"
+                inputRef={phoneInputRef}
               />
             </div>
 

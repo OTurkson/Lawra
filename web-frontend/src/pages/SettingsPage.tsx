@@ -16,6 +16,7 @@ import {
 } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/Spinner";
+import { PhoneInput } from "@/components/PhoneInput";
 import { createProfileImageLabel, loadProfileImage, removeProfileImage, saveProfileImage } from "@/lib/profile-image";
 
 const SettingsPage = () => {
@@ -382,11 +383,11 @@ const SettingsPage = () => {
 
                 <div>
                   <label className="block text-primary font-semibold text-sm mb-2">Phone Number</label>
-                  <input
-                    type="text"
+                  <PhoneInput
                     value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    className="w-1/3 px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                    onChange={setPhoneNumber}
+                    placeholder="000 000 0000"
+                    className="w-1/3"
                   />
                 </div>
                 <div>
@@ -552,11 +553,10 @@ const SettingsPage = () => {
                 className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
               />
 
-              <input
+              <PhoneInput
                 value={provisionPhoneNumber}
-                onChange={(e) => setProvisionPhoneNumber(e.target.value)}
-                placeholder="Phone number"
-                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
+                onChange={setProvisionPhoneNumber}
+                placeholder="000 000 0000"
               />
 
               <button
@@ -623,11 +623,10 @@ const SettingsPage = () => {
                 className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
               />
 
-              <input
+              <PhoneInput
                 value={userPhone}
-                onChange={(e) => setUserPhone(e.target.value)}
-                placeholder="Phone number"
-                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
+                onChange={setUserPhone}
+                placeholder="000 000 0000"
               />
 
               <div className="flex gap-3">
