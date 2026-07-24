@@ -6,10 +6,10 @@ import 'package:http/http.dart' as http;
 import 'session_store.dart';
 
 String _defaultBaseUrl() {
-  // return defaultTargetPlatform == TargetPlatform.android
-  //     ? 'http://10.0.2.2:8080'
-  //     : 'http://localhost:8080';
-  return 'http://localhost:8080';
+  return defaultTargetPlatform == TargetPlatform.android
+      ? 'http://10.0.2.2:8080'
+      : 'http://localhost:8080';
+ 
 }
 
 class LawraApiException implements Exception {

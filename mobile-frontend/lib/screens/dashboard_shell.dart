@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../data/lawra_api.dart';
 import '../data/session_store.dart';
+import 'auth/auth_screen.dart';
 import 'audit_logs_screen.dart';
+import 'logout_screen.dart';
 
 typedef NoticeCallback = void Function(String message, {String type});
 
@@ -73,7 +75,10 @@ class _DashboardShellState extends State<DashboardShell> {
     if (!mounted) {
       return;
     }
-    widget.onSignedOut();
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const AuthScreen()),
+      (_) => false,
+    );
   }
 
   void _addNotice(String message, {String type = 'info'}) {
@@ -209,7 +214,16 @@ class _DashboardShellState extends State<DashboardShell> {
           ),
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: _signOut,
+            onPressed: () async {
+              final confirmed = await showLogoutConfirmation(
+                context,
+                session: widget.session,
+                currentUser: _currentUser,
+              );
+              if (confirmed && mounted) {
+                _signOut();
+              }
+            },
           ),
         ],
       ),
@@ -1826,8 +1840,10 @@ class _AppDrawer extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(currentUser?.fullName ?? 'Current user',
                     style: const TextStyle(color: Colors.white, fontSize: 18)),
-                Text(currentUser?.email ?? session.role,
+                Text(currentUser?.email ?? 'no email',
                     style: const TextStyle(color: Colors.white70)),
+                Text(session.role.substring(5),
+                    style: const TextStyle(color: Colors.white70)) 
               ],
             ),
           ),
@@ -1866,7 +1882,14 @@ class _AppDrawer extends StatelessWidget {
             title: const Text('Logout'),
             onTap: () async {
               Navigator.of(context).pop();
-              await onLogout();
+              final confirmed = await showLogoutConfirmation(
+                context,
+                session: session,
+                currentUser: currentUser,
+              );
+              if (confirmed) {
+                onLogout();
+              }
             },
           ),
         ],

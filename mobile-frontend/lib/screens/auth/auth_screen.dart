@@ -4,6 +4,7 @@ import '../../data/lawra_api.dart';
 import '../../data/session_store.dart';
 import '../../theme/lawra_theme.dart';
 import '../../widgets/auth/auth_header.dart';
+import '../../widgets/auth/phone_input.dart';
 import '../../widgets/lawra_widgets.dart';
 import '../dashboard_shell.dart';
 import 'forgot_password_screen.dart';
@@ -33,9 +34,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
   final _signupEmailController = TextEditingController();
   final _signupFullNameController = TextEditingController();
-  final _signupPhoneController = TextEditingController();
   final _signupPasswordController = TextEditingController();
   final _signupConfirmPasswordController = TextEditingController();
+  String _signupPhoneNumber = '';
   String _signupRole = 'BORROWER';
   String? _signupTenantId;
 
@@ -51,7 +52,6 @@ class _AuthScreenState extends State<AuthScreen> {
     _loginPasswordController.dispose();
     _signupEmailController.dispose();
     _signupFullNameController.dispose();
-    _signupPhoneController.dispose();
     _signupPasswordController.dispose();
     _signupConfirmPasswordController.dispose();
     super.dispose();
@@ -141,7 +141,7 @@ class _AuthScreenState extends State<AuthScreen> {
       await _api.createUser(
         email: _signupEmailController.text.trim(),
         fullName: _signupFullNameController.text.trim(),
-        phoneNumber: _signupPhoneController.text.trim(),
+        phoneNumber: _signupPhoneNumber.trim(),
         password: password,
         tenantId: tenantId,
         role: _signupRole,
@@ -288,9 +288,10 @@ class _AuthScreenState extends State<AuthScreen> {
             validator: (value) => (value == null || value.trim().isEmpty) ? 'Email is required' : null,
           ),
           const SizedBox(height: 12),
-          TextFormField(
-            controller: _signupPhoneController,
-            decoration: const InputDecoration(labelText: 'Phone number'),
+          PhoneInput(
+            value: _signupPhoneNumber,
+            onChanged: (value) => _signupPhoneNumber = value,
+            placeholder: 'Phone number',
             validator: (value) => (value == null || value.trim().isEmpty) ? 'Phone number is required' : null,
           ),
           const SizedBox(height: 12),
