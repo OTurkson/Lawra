@@ -67,53 +67,56 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Forgot password')),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'Enter your email and tenant to receive a password reset link.',
-                style: TextStyle(color: LawraColors.textMuted),
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
-                validator: (value) => (value == null || value.trim().isEmpty) ? 'Email is required' : null,
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _tenantId,
-                decoration: const InputDecoration(labelText: 'Tenant'),
-                items: widget.tenants
-                    .map((tenant) => DropdownMenuItem(value: tenant.id, child: Text(tenant.name)))
-                    .toList(),
-                onChanged: (value) => setState(() => _tenantId = value),
-              ),
-              const SizedBox(height: 20),
-              GradientButton(
-                label: _isSubmitting ? 'Sending link...' : 'Send reset link',
-                onTap: _isSubmitting ? () {} : _submit,
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => ResetPasswordScreen(api: widget.api)),
-                  );
-                },
-                child: const Text('Have a reset token? Reset password'),
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Back to sign in'),
-              ),
-            ],
+      appBar: AppBar(title: const Text('Forgot password',
+      style: TextStyle(color: LawraColors.green),)),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Enter your email and tenant to receive a password reset link.',
+                  style: TextStyle(color: LawraColors.textMuted),
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                  validator: (value) => (value == null || value.trim().isEmpty) ? 'Email is required' : null,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _tenantId,
+                  decoration: const InputDecoration(labelText: 'Tenant'),
+                  items: widget.tenants
+                      .map((tenant) => DropdownMenuItem(value: tenant.id, child: Text(tenant.name)))
+                      .toList(),
+                  onChanged: (value) => setState(() => _tenantId = value),
+                ),
+                const SizedBox(height: 20),
+                GradientButton(
+                  label: _isSubmitting ? 'Sending link...' : 'Send reset link',
+                  onTap: _isSubmitting ? () {} : _submit,
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => ResetPasswordScreen(api: widget.api)),
+                    );
+                  },
+                  child: const Text('Have a reset token? Reset password'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Back to sign in'),
+                ),
+              ],
+            ),
           ),
         ),
       ),

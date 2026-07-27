@@ -9,7 +9,10 @@ String _defaultBaseUrl() {
   return defaultTargetPlatform == TargetPlatform.android
       ? 'http://10.0.2.2:8080'
       : 'http://localhost:8080';
- 
+
+  // const override = String.fromEnvironment('BASE_URL');
+  // if (override.isNotEmpty) return override;
+  // return 'http://localhost:8080';
 }
 
 class LawraApiException implements Exception {

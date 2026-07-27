@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/Spinner";
 import { getAuth } from "@/lib/auth";
 import { pushNotification } from "@/lib/notifications";
+import { formatNumberInput, parseAmount } from "@/lib/format-number";
 
 const BorrowerPage = () => {
   const queryClient = useQueryClient();
@@ -59,7 +60,7 @@ const BorrowerPage = () => {
         throw new Error("Loan package, amount, and interest are required.");
       }
 
-      const principal = Number(principalAmount);
+      const principal = Number(parseAmount(principalAmount));
       const selected = availablePackages.find((pkg) => String(pkg.id) === selectedPackageId);
 
       if (!Number.isFinite(principal) || principal <= 0) {
@@ -89,7 +90,7 @@ const BorrowerPage = () => {
       toast({ title: "Loan submitted", description: "Loan request has been created." });
       pushNotification(queryClient, auth?.userId, {
         type: 'loan-request',
-        message: `Requested loan of Gh¢ ${Number(principalAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} at ${interestRate}% interest`,
+        message: `Requested loan of Gh¢ ${Number(parseAmount(principalAmount)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} at ${interestRate}% interest`,
       });
     },
     onError: (error: any) => {
@@ -170,7 +171,7 @@ const BorrowerPage = () => {
           </select>
           <input
             value={principalAmount}
-            onChange={(e) => setPrincipalAmount(e.target.value)}
+            onChange={(e) => setPrincipalAmount(formatNumberInput(e.target.value))}
             placeholder="Principal Amount"
             className="px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
           />

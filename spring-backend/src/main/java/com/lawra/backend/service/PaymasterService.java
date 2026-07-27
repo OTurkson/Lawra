@@ -55,9 +55,9 @@ public class PaymasterService {
 		LoanStatus newStatus = loanUpdate.getLoanStatus();
 		UUID currentUserId = authenticatedUserContextService.getCurrentUserId();
 
-		if (LoanStatus.APPROVED.equals(newStatus)
+		if ((LoanStatus.APPROVED.equals(newStatus) || LoanStatus.REJECTED.equals(newStatus))
 				&& currentUserId.equals(loan.getBorrower().getId())) {
-			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You cannot approve your own loan request");
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You cannot approve or reject your own loan request");
 		}
 
 		loan.setStatus(newStatus);

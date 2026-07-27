@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/lawra_api.dart';
+import '../theme/lawra_theme.dart';
 
 const List<String> actionOptions = [
   "USER_CREATE",
@@ -124,6 +125,15 @@ class _AuditLogsScreenState extends State<AuditLogsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Audit Logs"),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [LawraColors.green, LawraColors.cyan],
+            ),
+          ),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: _refresh,
@@ -136,9 +146,13 @@ class _AuditLogsScreenState extends State<AuditLogsScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          const Icon(Icons.error_outline,
+                              size: 48, color: LawraColors.destructive),
+                          const SizedBox(height: 16),
                           Text(_error!),
                           const SizedBox(height: 16),
-                          FilledButton(onPressed: _refresh, child: const Text("Retry")),
+                          ElevatedButton(
+                              onPressed: _refresh, child: const Text("Retry")),
                         ],
                       ),
                     ),
@@ -146,84 +160,100 @@ class _AuditLogsScreenState extends State<AuditLogsScreen> {
                 : ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                "Filters",
-                                style: TextStyle(fontWeight: FontWeight.w700),
+                      _SectionCard(
+                        title: 'Filters',
+                        child: Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: _pickRange,
+                              icon: const Icon(Icons.date_range),
+                              label: Text(
+                                _range == null
+                                    ? "Pick date range"
+                                    : "${_range!.start.year}-${_range!.start.month.toString().padLeft(2, '0')}..${_range!.end.year}-${_range!.end.month.toString().padLeft(2, '0')}",
                               ),
-                              const SizedBox(height: 12),
-                              Wrap(
-                                spacing: 12,
-                                runSpacing: 12,
-                                children: [
-                                  OutlinedButton.icon(
-                                    onPressed: _pickRange,
-                                    icon: const Icon(Icons.date_range),
-                                    label: Text(
-                                      _range == null
-                                          ? "Pick date range"
-                                          : "${_range!.start.year}-${_range!.start.month.toString().padLeft(2, '0')}..${_range!.end.year}-${_range!.end.month.toString().padLeft(2, '0')}",
-                                    ),
+                            ),
+                            SizedBox(
+                              width: 260,
+                              child: DropdownButtonFormField<String>(
+                                initialValue: _action,
+                                decoration:
+                                    const InputDecoration(labelText: "Action"),
+                                isExpanded: true,
+                                items: [
+                                  const DropdownMenuItem<String>(
+                                    value: null,
+                                    child: Text("All"),
                                   ),
-                                  SizedBox(
-                                    width: 260,
-                                    child: DropdownButtonFormField<String>(
-                                      initialValue: _action,
-                                      decoration: const InputDecoration(labelText: "Action"),
-                                      isExpanded: true,
-                                      items: [
-                                        const DropdownMenuItem<String>(
-                                          value: null,
-                                          child: Text("All"),
-                                        ),
-                                        ...actionOptions.map(
-                                          (a) => DropdownMenuItem<String>(
-                                            value: a,
-                                            child: Text(a),
-                                          ),
-                                        ),
-                                      ],
-                                      onChanged: (value) async {
-                                        setState(() => _action = value);
-                                        await _refresh();
-                                      },
+                                  ...actionOptions.map(
+                                    (a) => DropdownMenuItem<String>(
+                                      value: a,
+                                      child: Text(a),
                                     ),
                                   ),
                                 ],
+                                onChanged: (value) async {
+                                  setState(() => _action = value);
+                                  await _refresh();
+                                },
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 12),
                       if (_logs.isEmpty)
                         const Padding(
                           padding: EdgeInsets.all(16),
-                          child: Text("No audit logs found."),
+                          child: Text("No audit logs found.",
+                              style: TextStyle(color: LawraColors.textMuted)),
                         )
                       else ..._logs.map((log) {
-                        final effect = log.afterStatePreview ?? log.beforeStatePreview ?? "-";
                         return Card(
                           child: Padding(
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(16),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  "${log.action}  (${log.statusCode ?? "-"})",
-                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      log.action,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 15),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: LawraColors.cyan.withOpacity(0.1),
+                                        borderRadius:
+                                            BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        "${log.statusCode ?? "-"}",
+                                        style: const TextStyle(
+                                            color: LawraColors.cyan,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 6),
-                                Text("Time: ${_formatTime(log.timestamp)}"),
-                                Text("Actor: ${log.actorEmail ?? log.actorId ?? "-"}"),
-                                Text("Resource: ${log.resourceType}:${log.resourceId ?? "-"}"),
-                                Text("HTTP: ${log.httpMethod} ${log.path}"),
                                 const SizedBox(height: 8),
+                                _InfoRow(
+                                    "Time", _formatTime(log.timestamp)),
+                                _InfoRow("Actor",
+                                    log.actorEmail ?? log.actorId ?? "-"),
+                                _InfoRow("Resource",
+                                    "${log.resourceType}:${log.resourceId ?? "-"}"),
+                                _InfoRow(
+                                    "HTTP", "${log.httpMethod} ${log.path}"),
                               ],
                             ),
                           ),
@@ -232,6 +262,74 @@ class _AuditLogsScreenState extends State<AuditLogsScreen> {
                       const SizedBox(height: 24),
                     ],
                   ),
+      ),
+    );
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [LawraColors.green, LawraColors.cyan],
+                    ),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: LawraColors.textDark,
+                    )),
+              ],
+            ),
+            const SizedBox(height: 12),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow(this.label, this.value);
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(label,
+                style: const TextStyle(color: LawraColors.textMuted)),
+          ),
+          Text(value,
+              style: const TextStyle(fontWeight: FontWeight.w500)),
+        ],
       ),
     );
   }

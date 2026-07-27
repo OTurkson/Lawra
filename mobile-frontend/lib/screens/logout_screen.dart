@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/lawra_api.dart';
 import '../data/session_store.dart';
+import '../theme/lawra_theme.dart';
 
 /// Shows a modal bottom sheet with logout confirmation.
 /// Returns `true` if the user confirmed logout, `false` if cancelled.
@@ -56,7 +57,6 @@ class _LogoutSheetState extends State<_LogoutSheet> {
   @override
   Widget build(BuildContext context) {
     final user = widget.currentUser;
-    final theme = Theme.of(context);
 
     return Padding(
       padding: EdgeInsets.only(
@@ -82,11 +82,11 @@ class _LogoutSheetState extends State<_LogoutSheet> {
               // Avatar
               CircleAvatar(
                 radius: 36,
-                backgroundColor: Colors.green.withOpacity(0.15),
+                backgroundColor: LawraColors.green.withOpacity(0.15),
                 child: const Icon(
                   Icons.person,
                   size: 36,
-                  color: Color(0xFF1DBA53),
+                  color: LawraColors.green,
                 ),
               ),
               const SizedBox(height: 12),
@@ -94,8 +94,10 @@ class _LogoutSheetState extends State<_LogoutSheet> {
               // User name
               Text(
                 user?.fullName ?? 'Current User',
-                style: theme.textTheme.titleMedium?.copyWith(
+                style: const TextStyle(
                   fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                  color: LawraColors.textDark,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -104,8 +106,9 @@ class _LogoutSheetState extends State<_LogoutSheet> {
               // User email
               Text(
                 user?.email ?? '',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.grey[600],
+                style: const TextStyle(
+                  color: LawraColors.textMuted,
+                  fontSize: 14,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -114,8 +117,9 @@ class _LogoutSheetState extends State<_LogoutSheet> {
               // User role
               Text(
                 widget.session.role,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.grey[400],
+                style: const TextStyle(
+                  color: LawraColors.textMuted,
+                  fontSize: 13,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -134,7 +138,7 @@ class _LogoutSheetState extends State<_LogoutSheet> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(24),
                           ),
-                          side: BorderSide(color: Colors.grey[300]!),
+                          side: const BorderSide(color: LawraColors.borderLight),
                         ),
                         child: const Text(
                           'Cancel',
@@ -155,7 +159,7 @@ class _LogoutSheetState extends State<_LogoutSheet> {
                       child: FilledButton(
                         onPressed: _isLoggingOut ? null : _handleLogout,
                         style: FilledButton.styleFrom(
-                          backgroundColor: Colors.red,
+                          backgroundColor: LawraColors.destructive,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(24),
                           ),

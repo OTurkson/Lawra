@@ -4,51 +4,44 @@ class CountryCode {
   final String code;
   final String dial;
   final String name;
+  final String flagEmoji;
 
   const CountryCode({
     required this.code,
     required this.dial,
     required this.name,
+    required this.flagEmoji,
   });
 }
 
 const List<CountryCode> countryCodes = [
-  CountryCode(code: 'GH', dial: '+233', name: 'Ghana'),
-  CountryCode(code: 'NG', dial: '+234', name: 'Nigeria'),
-  CountryCode(code: 'KE', dial: '+254', name: 'Kenya'),
-  CountryCode(code: 'ZA', dial: '+27', name: 'South Africa'),
-  CountryCode(code: 'TZ', dial: '+255', name: 'Tanzania'),
-  CountryCode(code: 'UG', dial: '+256', name: 'Uganda'),
-  CountryCode(code: 'RW', dial: '+250', name: 'Rwanda'),
-  CountryCode(code: 'CM', dial: '+237', name: 'Cameroon'),
-  CountryCode(code: 'SN', dial: '+221', name: 'Senegal'),
-  CountryCode(code: 'CI', dial: '+225', name: "Côte d'Ivoire"),
-  CountryCode(code: 'US', dial: '+1', name: 'United States'),
-  CountryCode(code: 'GB', dial: '+44', name: 'United Kingdom'),
-  CountryCode(code: 'CA', dial: '+1', name: 'Canada'),
-  CountryCode(code: 'AU', dial: '+61', name: 'Australia'),
-  CountryCode(code: 'DE', dial: '+49', name: 'Germany'),
-  CountryCode(code: 'FR', dial: '+33', name: 'France'),
-  CountryCode(code: 'IN', dial: '+91', name: 'India'),
-  CountryCode(code: 'CN', dial: '+86', name: 'China'),
-  CountryCode(code: 'BR', dial: '+55', name: 'Brazil'),
-  CountryCode(code: 'MX', dial: '+52', name: 'Mexico'),
-  CountryCode(code: 'EG', dial: '+20', name: 'Egypt'),
-  CountryCode(code: 'ET', dial: '+251', name: 'Ethiopia'),
-  CountryCode(code: 'ZM', dial: '+260', name: 'Zambia'),
-  CountryCode(code: 'BW', dial: '+267', name: 'Botswana'),
-  CountryCode(code: 'MU', dial: '+230', name: 'Mauritius'),
-  CountryCode(code: 'MW', dial: '+265', name: 'Malawi'),
-  CountryCode(code: 'SL', dial: '+232', name: 'Sierra Leone'),
-  CountryCode(code: 'LR', dial: '+231', name: 'Liberia'),
-  CountryCode(code: 'BF', dial: '+226', name: 'Burkina Faso'),
-  CountryCode(code: 'ML', dial: '+223', name: 'Mali'),
-  CountryCode(code: 'TG', dial: '+228', name: 'Togo'),
-  CountryCode(code: 'BJ', dial: '+229', name: 'Benin'),
-  CountryCode(code: 'CD', dial: '+243', name: 'DR Congo'),
-  CountryCode(code: 'AO', dial: '+244', name: 'Angola'),
-  CountryCode(code: 'RU', dial: '+7', name: 'Russia'),
-  CountryCode(code: 'NL', dial: '+31', name: 'Netherlands'),
+  CountryCode(code: 'GH', dial: '+233', name: 'Ghana', flagEmoji: '🇬🇭'),
+  CountryCode(code: 'NG', dial: '+234', name: 'Nigeria', flagEmoji: '🇳🇬'),
+  CountryCode(code: 'US', dial: '+1', name: 'United States', flagEmoji: '🇺🇸'),
+  CountryCode(code: 'GB', dial: '+44', name: 'United Kingdom', flagEmoji: '🇬🇧'),
+  CountryCode(code: 'CA', dial: '+1', name: 'Canada', flagEmoji: '🇨🇦'),
+  CountryCode(code: 'CM', dial: '+237', name: 'Cameroon', flagEmoji: '🇨🇲'),
+  CountryCode(code: 'TG', dial: '+228', name: 'Togo', flagEmoji: '🇹🇬'),
+  CountryCode(code: 'LR', dial: '+231', name: 'Liberia', flagEmoji: '🇱🇷'),
+  CountryCode(code: 'FR', dial: '+33', name: 'France', flagEmoji: '🇫🇷'),
+  CountryCode(code: 'BR', dial: '+55', name: 'Brazil', flagEmoji: '🇧🇷'),
+  CountryCode(code: 'AR', dial: '+54', name: 'Argentina', flagEmoji: '🇦🇷'),
+  CountryCode(code: 'DE', dial: '+49', name: 'Germany', flagEmoji: '🇩🇪'),
+  CountryCode(code: 'IN', dial: '+91', name: 'India', flagEmoji: '🇮🇳'),
+  CountryCode(code: 'CN', dial: '+86', name: 'China', flagEmoji: '🇨🇳'),
+  CountryCode(code: 'AU', dial: '+61', name: 'Australia', flagEmoji: '🇦🇺'),
+  CountryCode(code: 'ZA', dial: '+27', name: 'South Africa', flagEmoji: '🇿🇦'),
+  CountryCode(code: 'CI', dial: '+225', name: "Côte d'Ivoire", flagEmoji: '🇨🇮'),
+  CountryCode(code: 'RW', dial: '+250', name: 'Rwanda', flagEmoji: '🇷🇼'),
+  CountryCode(code: 'TZ', dial: '+255', name: 'Tanzania', flagEmoji: '🇹🇿'),
+  CountryCode(code: 'RU', dial: '+7', name: 'Russia', flagEmoji: '🇷🇺'),
+  CountryCode(code: 'NL', dial: '+31', name: 'Netherlands', flagEmoji: '🇳🇱'),
+  CountryCode(code: 'BF', dial: '+226', name: 'Burkina Faso', flagEmoji: '🇧🇫'),
+  CountryCode(code: 'SN', dial: '+221', name: 'Senegal', flagEmoji: '🇸🇳'),
+  CountryCode(code: 'ES', dial: '+34', name: 'Spain', flagEmoji: '🇪🇸'),
+  CountryCode(code: 'PT', dial: '+351', name: 'Portugal', flagEmoji: '🇵🇹'),
+  CountryCode(code: 'EG', dial: '+20', name: 'Egypt', flagEmoji: '🇪🇬'),
+  CountryCode(code: 'UY', dial: '+598', name: 'Uruguay', flagEmoji: '🇺🇾'),
 ];
 
 /// Parses a full phone string into a dial code and local number.
@@ -134,39 +127,33 @@ class _PhoneInputState extends State<PhoneInput> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Country code dropdown
-        DropdownButtonFormField<String>(
-          value: _selectedDial,
-          decoration: const InputDecoration(
-            labelText: 'Code',
-            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+        // Country code dropdown - Fixed width to prevent layout issues
+        SizedBox(
+          width: 110,
+          child: DropdownButtonFormField<String>(
+            value: _selectedDial,
+            decoration: const InputDecoration(
+              labelText: 'Code',
+              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+            ),
+            isExpanded: true,
+            items: countryCodes.map((cc) {
+              return DropdownMenuItem<String>(
+                value: cc.dial,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(cc.flagEmoji, style: const TextStyle(fontSize: 20)),
+                    const SizedBox(width: 4),
+                    Text(cc.dial, style: const TextStyle(fontSize: 14)),
+                  ],
+                ),
+              );
+            }).toList(),
+            onChanged: (value) {
+              if (value != null) _onDialChanged(value);
+            },
           ),
-          isExpanded: false,
-          items: countryCodes.map((cc) {
-            return DropdownMenuItem<String>(
-              value: cc.dial,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: Image.network(
-                      'https://flagcdn.com/w20/${cc.code.toLowerCase()}.png',
-                      width: 20,
-                      height: 15,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const SizedBox(width: 20, height: 15),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(cc.dial, style: const TextStyle(fontSize: 14)),
-                ],
-              ),
-            );
-          }).toList(),
-          onChanged: (value) {
-            if (value != null) _onDialChanged(value);
-          },
         ),
         const SizedBox(width: 8),
         // Phone number input

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../theme/lawra_theme.dart';
 import '../screens/auth/auth_screen.dart';
 import '../../widgets/onboarding/onboarding_tour_page_layout.dart';
 import '../../widgets/onboarding/onboarding_tour_scope.dart';
@@ -28,6 +29,7 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
+  int _currentPage = 0;
 
   static const _pages = [
     OnboardingTourPage(
@@ -47,6 +49,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       illustration: SecureReliableIllustration(),
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(() {
+      final page = _controller.page?.round() ?? 0;
+      if (page != _currentPage) {
+        setState(() => _currentPage = page);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -79,17 +92,38 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: PageView.builder(
                   controller: _controller,
                   itemCount: _pages.length,
-                  itemBuilder: (context, i) {
-                    final page = _pages[i];
-                    return OnboardingTourPageLayout(
-                      title: page.title,
-                      illustration: page.illustration,
-                      pageIndex: i,
-                      pageCount: _pages.length,
-                    );
-                  },
+                    itemBuilder: (context, i) {
+                      final page = _pages[i];
+                      return OnboardingTourPageLayout(
+                        title: page.title,
+                        illustration: page.illustration,
+                        pageIndex: i,
+                        pageCount: _pages.length,
+                      );
+                    },
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    _pages.length,
+                    (dotIndex) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeInOut,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: _currentPage == dotIndex ? 18 : 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: _currentPage == dotIndex ? LawraColors.cyan : const Color(0xFFBFE7DD),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
             ],
           ),
         ),

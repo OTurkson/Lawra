@@ -4,7 +4,7 @@ import '../../theme/lawra_theme.dart';
 import 'tour_sign_in_button.dart';
 
 const onboardingTourBody =
-    'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod.';
+    'Lawra is a stress-free, one-in-a-million, game-changing financial solution.';
 
 class OnboardingTourPageLayout extends StatelessWidget {
   const OnboardingTourPageLayout({
@@ -49,23 +49,7 @@ class OnboardingTourPageLayout extends StatelessWidget {
           const TourSignInButton(),
           const SizedBox(height: 16),
           Expanded(child: illustration),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              pageCount,
-              (dotIndex) => AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                width: pageIndex == dotIndex ? 18 : 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: pageIndex == dotIndex ? LawraColors.cyan : const Color(0xFFBFE7DD),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
         ],
       ),
     );

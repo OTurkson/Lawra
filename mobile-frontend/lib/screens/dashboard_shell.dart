@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../data/lawra_api.dart';
 import '../data/session_store.dart';
+import '../theme/lawra_theme.dart';
+import '../widgets/amount_input_formatter.dart';
 import 'auth/auth_screen.dart';
 import 'audit_logs_screen.dart';
 import 'logout_screen.dart';
@@ -29,6 +32,7 @@ class _DashboardShellState extends State<DashboardShell> {
   UserProfile? _currentUser;
   String? _loadError;
   final List<_Notice> _notices = [];
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
@@ -39,9 +43,7 @@ class _DashboardShellState extends State<DashboardShell> {
   Future<void> _loadCurrentUser() async {
     try {
       final user = await _api.fetchUserById(widget.session.userId);
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _currentUser = user;
         _isLoadingUser = false;
@@ -52,17 +54,13 @@ class _DashboardShellState extends State<DashboardShell> {
         await _signOut();
         return;
       }
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _loadError = error.message;
         _isLoadingUser = false;
       });
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _loadError = error.toString();
         _isLoadingUser = false;
@@ -72,9 +70,7 @@ class _DashboardShellState extends State<DashboardShell> {
 
   Future<void> _signOut() async {
     await SessionStore.clearAuth();
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const AuthScreen()),
       (_) => false,
@@ -82,9 +78,7 @@ class _DashboardShellState extends State<DashboardShell> {
   }
 
   void _addNotice(String message, {String type = 'info'}) {
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
     setState(() {
       _notices.insert(
         0,
@@ -129,6 +123,8 @@ class _DashboardShellState extends State<DashboardShell> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                const Icon(Icons.error_outline, size: 48, color: LawraColors.destructive),
+                const SizedBox(height: 16),
                 Text(
                   'Unable to load your profile',
                   style: Theme.of(context).textTheme.titleLarge,
@@ -137,9 +133,10 @@ class _DashboardShellState extends State<DashboardShell> {
                 Text(
                   _loadError!,
                   textAlign: TextAlign.center,
+                  style: const TextStyle(color: LawraColors.textMuted),
                 ),
                 const SizedBox(height: 16),
-                FilledButton(
+                ElevatedButton(
                   onPressed: _loadCurrentUser,
                   child: const Text('Retry'),
                 ),
@@ -155,6 +152,7 @@ class _DashboardShellState extends State<DashboardShell> {
           api: _api,
           session: widget.session,
           currentUser: _currentUser,
+          onCurrentUserUpdated: _setCurrentUser,
           addNotice: _addNotice),
       LenderTab(
           api: _api,
@@ -170,6 +168,7 @@ class _DashboardShellState extends State<DashboardShell> {
     ];
 
     return Scaffold(
+      key: _scaffoldKey,
       drawer: _AppDrawer(
         currentUser: _currentUser,
         session: widget.session,
@@ -199,39 +198,27 @@ class _DashboardShellState extends State<DashboardShell> {
         },
         onLogout: _signOut,
       ),
-      appBar: AppBar(
-        title: Text(_titleForIndex(_index)),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none),
-            onPressed: () {
+      body: Column(
+        children: [
+          _GradientHeader(
+            title: _titleForIndex(_index),
+            currentUser: _currentUser,
+            onMenuTap: () => _scaffoldKey.currentState?.openDrawer(),
+            onNotificationTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
                     builder: (_) => NotificationsScreen(notices: _notices)),
               );
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              final confirmed = await showLogoutConfirmation(
-                context,
-                session: widget.session,
-                currentUser: _currentUser,
-              );
-              if (confirmed && mounted) {
-                _signOut();
-              }
-            },
+          Expanded(
+            child: IndexedStack(index: _index, children: pages),
           ),
         ],
       ),
-      body: IndexedStack(index: _index, children: pages),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _index,
         onTap: (value) => setState(() => _index = value),
-        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
               icon: Icon(Icons.handshake_outlined), label: 'Borrower'),
@@ -245,7 +232,115 @@ class _DashboardShellState extends State<DashboardShell> {
       ),
     );
   }
+
+  void _setCurrentUser(UserProfile user) {
+    if (!mounted) return;
+    setState(() => _currentUser = user);
+  }
 }
+
+class _GradientHeader extends StatelessWidget {
+  const _GradientHeader({
+    required this.title,
+    this.currentUser,
+    required this.onMenuTap,
+    required this.onNotificationTap,
+  });
+
+  final String title;
+  final UserProfile? currentUser;
+  final VoidCallback onMenuTap;
+  final VoidCallback onNotificationTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [LawraColors.green, LawraColors.cyan],
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 24),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.menu, color: Colors.white),
+                    onPressed: onMenuTap,
+                  ),
+                  const Spacer(),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  Stack(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.notifications_none, color: Colors.white),
+                        onPressed: onNotificationTap,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const SizedBox(width: 16),
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: Colors.white.withOpacity(0.3),
+                    child: const Icon(Icons.person, color: Colors.white, size: 28),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        currentUser?.fullName ?? 'User',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        currentUser?.email ?? '',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// BORROWER TAB
+// ============================================================
 
 class BorrowerTab extends StatefulWidget {
   const BorrowerTab({
@@ -253,12 +348,14 @@ class BorrowerTab extends StatefulWidget {
     required this.api,
     required this.session,
     required this.currentUser,
+    required this.onCurrentUserUpdated,
     required this.addNotice,
   });
 
   final LawraApi api;
   final AuthSession session;
   final UserProfile? currentUser;
+  final ValueChanged<UserProfile> onCurrentUserUpdated;
   final NoticeCallback addNotice;
 
   @override
@@ -292,26 +389,20 @@ class _BorrowerTabState extends State<BorrowerTab> {
         widget.api.fetchLoanPackages(),
         widget.api.fetchBorrowerLoans(widget.session.userId),
       ]);
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _packages = results[0] as List<LoanPackage>;
         _loans = results[1] as List<LoanSummary>;
         _isLoading = false;
       });
     } on LawraApiException catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _error = error.message;
         _isLoading = false;
       });
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _error = error.toString();
         _isLoading = false;
@@ -353,9 +444,7 @@ class _BorrowerTabState extends State<BorrowerTab> {
       widget.addNotice(
           'Loan request submitted for Gh¢ ${amount.toStringAsFixed(2)}',
           type: 'loan');
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _selectedPackageId = null;
         _principal = '';
@@ -367,15 +456,66 @@ class _BorrowerTabState extends State<BorrowerTab> {
     } catch (error) {
       _showMessage(error.toString());
     } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _openDepositDialog() async {
+    final depositController = TextEditingController();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Deposit balance'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Add money to your account balance.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: depositController,
+              decoration: const InputDecoration(labelText: 'Amount (Gh¢)'),
+              keyboardType: TextInputType.number,
+              inputFormatters: [AmountInputFormatter()],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Deposit'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != true) return;
+
+    final raw = parseAmount(depositController.text);
+    final amount = num.tryParse(raw ?? '');
+    if (amount == null || amount <= 0) {
+      _showMessage('Enter a valid deposit amount.');
+      return;
+    }
+
+    try {
+      final updatedUser = await widget.api.topUpCurrentUserBalance(amount);
+      widget.onCurrentUserUpdated(updatedUser);
+      _showMessage('Deposit successful.');
+      await _refresh();
+    } on LawraApiException catch (error) {
+      _showMessage(error.message);
+    } catch (error) {
+      _showMessage(error.toString());
+    }
   }
 
   @override
@@ -395,9 +535,9 @@ class _BorrowerTabState extends State<BorrowerTab> {
         padding: const EdgeInsets.all(16),
         children: [
           _SummaryCard(
-            title: currentUser?.fullName ?? 'Borrower',
-            subtitle: currentUser?.email ?? widget.session.role,
+            title: 'Account Balance',
             amount: currentUser?.balance,
+            onTap: () => _openDepositDialog(),
           ),
           const SizedBox(height: 16),
           _SectionCard(
@@ -413,7 +553,8 @@ class _BorrowerTabState extends State<BorrowerTab> {
                         (item) => DropdownMenuItem(
                           value: item.id.toString(),
                           child: Text(
-                              '${item.name.isNotEmpty ? item.name : 'Package #${item.id}'} - ${item.virtualBank?.name ?? 'Loan Package'}'),
+                            // enter amounts in 2 decimal places and showing commas for clarity and visibility
+                              '${item.name.isNotEmpty ? item.name : 'Package #${item.id}'} - Gh¢ ${item.balance.toStringAsFixed(2)}'),
                         ),
                       )
                       .toList(),
@@ -428,7 +569,8 @@ class _BorrowerTabState extends State<BorrowerTab> {
                   decoration:
                       const InputDecoration(labelText: 'Principal amount'),
                   keyboardType: TextInputType.number,
-                  onChanged: (value) => _principal = value,
+                  inputFormatters: [AmountInputFormatter()],
+                  onChanged: (value) => _principal = parseAmount(value) ?? value,
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<LoanPeriod>(
@@ -447,7 +589,7 @@ class _BorrowerTabState extends State<BorrowerTab> {
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton(
+                  child: ElevatedButton(
                     onPressed: _isSubmitting ? null : _submitLoan,
                     child:
                         Text(_isSubmitting ? 'Submitting...' : 'Request Loan'),
@@ -460,7 +602,11 @@ class _BorrowerTabState extends State<BorrowerTab> {
           _SectionCard(
             title: 'My loan applications',
             child: _loans.isEmpty
-                ? const Text('No loan applications yet.')
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text('No loan applications yet.',
+                        style: TextStyle(color: LawraColors.textMuted)),
+                  )
                 : Column(
                     children:
                         _loans.map((loan) => _LoanTile(loan: loan)).toList(),
@@ -471,6 +617,10 @@ class _BorrowerTabState extends State<BorrowerTab> {
     );
   }
 }
+
+// ============================================================
+// LENDER TAB
+// ============================================================
 
 class LenderTab extends StatefulWidget {
   const LenderTab({
@@ -518,26 +668,20 @@ class _LenderTabState extends State<LenderTab> {
         widget.api.fetchVirtualBanks(),
         widget.api.fetchLoanPackages(),
       ]);
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _banks = results[0] as List<VirtualBank>;
         _packages = results[1] as List<LoanPackage>;
         _isLoading = false;
       });
     } on LawraApiException catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _error = error.message;
         _isLoading = false;
       });
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _error = error.toString();
         _isLoading = false;
@@ -571,10 +715,13 @@ class _LenderTabState extends State<LenderTab> {
     if (!_canManagePackage(package)) {
       await showModalBottomSheet<void>(
         context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
         builder: (context) {
           return SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -582,13 +729,15 @@ class _LenderTabState extends State<LenderTab> {
                   Text('Loan package #${package.id}',
                       style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 12),
-                  Text('Package name: ${package.name}'),
-                  Text('Virtual bank: ${package.virtualBank?.name ?? '-'}'),
-                  Text('Current balance: ${_money(package.balance)}'),
-                  Text('Interest rate: ${package.interestRate}%'),
-                  const SizedBox(height: 12),
+                  _InfoRow('Package name', package.name),
+                  _InfoRow('Virtual bank', package.virtualBank?.name ?? '-'),
+                  _InfoRow('Balance', _money(package.balance)),
+                  _InfoRow('Interest rate', '${package.interestRate}%'),
+                  const SizedBox(height: 16),
                   const Text(
-                      'You can view this package, but only its owner or an admin can update or delete it.'),
+                    'You can view this package, but only its owner or an admin can update or delete it.',
+                    style: TextStyle(color: LawraColors.textMuted, fontSize: 13),
+                  ),
                 ],
               ),
             ),
@@ -607,6 +756,9 @@ class _LenderTabState extends State<LenderTab> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
@@ -615,7 +767,7 @@ class _LenderTabState extends State<LenderTab> {
                   bottom: MediaQuery.of(context).viewInsets.bottom),
               child: SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(24),
                   child: SingleChildScrollView(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -623,7 +775,7 @@ class _LenderTabState extends State<LenderTab> {
                       children: [
                         Text('Loan package #${package.id}',
                             style: Theme.of(context).textTheme.titleLarge),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
                         TextField(
                           controller: nameController,
                           decoration:
@@ -663,72 +815,79 @@ class _LenderTabState extends State<LenderTab> {
                               const InputDecoration(labelText: 'Interest rate'),
                           keyboardType: TextInputType.number,
                         ),
-                        const SizedBox(height: 16),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
+                        const SizedBox(height: 20),
+                        Row(
                           children: [
-                            FilledButton(
-                              onPressed: () async {
-                                final bankId = int.tryParse(selectedBankId);
-                                final topUpAmount =
-                                    num.tryParse(topUpController.text);
-                                final interestRate =
-                                    num.tryParse(interestController.text);
-                                final name = nameController.text.trim();
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  final bankId = int.tryParse(selectedBankId);
+                                  final topUpAmount =
+                                      num.tryParse(topUpController.text);
+                                  final interestRate =
+                                      num.tryParse(interestController.text);
+                                  final name = nameController.text.trim();
 
-                                if (name.isEmpty ||
-                                    bankId == null ||
-                                    topUpAmount == null ||
-                                    topUpAmount <= 0 ||
-                                    interestRate == null) {
-                                  _showMessage(
-                                      'Fill out the package name, bank, top-up amount, and interest rate.');
-                                  return;
-                                }
+                                  if (name.isEmpty ||
+                                      bankId == null ||
+                                      topUpAmount == null ||
+                                      topUpAmount <= 0 ||
+                                      interestRate == null) {
+                                    _showMessage(
+                                        'Fill out the package name, bank, top-up amount, and interest rate.');
+                                    return;
+                                  }
 
-                                final currentBalance = package.balance ?? 0;
+                                  final currentBalance = package.balance ?? 0;
 
-                                Navigator.of(context).pop();
-                                try {
-                                  await widget.api.updateLoanPackage(
-                                    package.id,
-                                    name: name,
-                                    virtualBankId: bankId,
-                                    balance: currentBalance + topUpAmount,
-                                    interestRate: interestRate,
-                                  );
-                                  widget.addNotice(
-                                      'Loan package updated: $name',
-                                      type: 'package');
-                                  await _refresh();
-                                  _showMessage('Loan package updated.');
-                                } on LawraApiException catch (error) {
-                                  _showMessage(error.message);
-                                } catch (error) {
-                                  _showMessage(error.toString());
-                                }
-                              },
-                              child: const Text('Update'),
+                                  Navigator.of(context).pop();
+                                  try {
+                                    await widget.api.updateLoanPackage(
+                                      package.id,
+                                      name: name,
+                                      virtualBankId: bankId,
+                                      balance: currentBalance + topUpAmount,
+                                      interestRate: interestRate,
+                                    );
+                                    widget.addNotice(
+                                        'Loan package updated: $name',
+                                        type: 'package');
+                                    await _refresh();
+                                    _showMessage('Loan package updated.');
+                                  } on LawraApiException catch (error) {
+                                    _showMessage(error.message);
+                                  } catch (error) {
+                                    _showMessage(error.toString());
+                                  }
+                                },
+                                child: const Text('Update'),
+                              ),
                             ),
-                            OutlinedButton(
-                              onPressed: () async {
-                                Navigator.of(context).pop();
-                                try {
-                                  await widget.api
-                                      .deleteLoanPackage(package.id);
-                                  widget.addNotice(
-                                      'Deleted loan package #${package.id}',
-                                      type: 'package');
-                                  await _refresh();
-                                  _showMessage('Loan package deleted.');
-                                } on LawraApiException catch (error) {
-                                  _showMessage(error.message);
-                                } catch (error) {
-                                  _showMessage(error.toString());
-                                }
-                              },
-                              child: const Text('Delete'),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () async {
+                                  Navigator.of(context).pop();
+                                  try {
+                                    await widget.api
+                                        .deleteLoanPackage(package.id);
+                                    widget.addNotice(
+                                        'Deleted loan package #${package.id}',
+                                        type: 'package');
+                                    await _refresh();
+                                    _showMessage('Loan package deleted.');
+                                  } on LawraApiException catch (error) {
+                                    _showMessage(error.message);
+                                  } catch (error) {
+                                    _showMessage(error.toString());
+                                  }
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: LawraColors.destructive,
+                                  side: const BorderSide(color: LawraColors.destructive),
+                                ),
+                                child: const Text('Delete'),
+                              ),
                             ),
                           ],
                         ),
@@ -768,9 +927,7 @@ class _LenderTabState extends State<LenderTab> {
       );
       widget.addNotice('Loan package created for bank #$bankId',
           type: 'package');
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _selectedBankId = null;
         _name = '';
@@ -784,9 +941,7 @@ class _LenderTabState extends State<LenderTab> {
     } catch (error) {
       _showMessage(error.toString());
     } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -845,7 +1000,8 @@ class _LenderTabState extends State<LenderTab> {
                 TextFormField(
                   decoration: const InputDecoration(labelText: 'Balance'),
                   keyboardType: TextInputType.number,
-                  onChanged: (value) => _balance = value,
+                  inputFormatters: [AmountInputFormatter()],
+                  onChanged: (value) => _balance = parseAmount(value) ?? value,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -856,7 +1012,7 @@ class _LenderTabState extends State<LenderTab> {
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton(
+                  child: ElevatedButton(
                     onPressed: _isSaving ? null : _createPackage,
                     child: Text(_isSaving ? 'Saving...' : 'Create package'),
                   ),
@@ -868,7 +1024,11 @@ class _LenderTabState extends State<LenderTab> {
           _SectionCard(
             title: 'My loan packages',
             child: ownedPackages.isEmpty
-                ? const Text('No loan packages yet.')
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text('No loan packages yet.',
+                        style: TextStyle(color: LawraColors.textMuted)),
+                  )
                 : Column(
                     children: ownedPackages
                         .map((item) => _PackageTile(
@@ -882,6 +1042,10 @@ class _LenderTabState extends State<LenderTab> {
     );
   }
 }
+
+// ============================================================
+// LOANS TAB
+// ============================================================
 
 class LoansTab extends StatefulWidget {
   const LoansTab(
@@ -918,25 +1082,19 @@ class _LoansTabState extends State<LoansTab> {
 
     try {
       final data = await widget.api.fetchLoans(status: _statusFilter);
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _loans = data;
         _isLoading = false;
       });
     } on LawraApiException catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _error = error.message;
         _isLoading = false;
       });
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _error = error.toString();
         _isLoading = false;
@@ -1007,47 +1165,67 @@ class _LoansTabState extends State<LoansTab> {
           _SectionCard(
             title: 'Loan list',
             child: _loans.isEmpty
-                ? const Text('No loans found.')
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text('No loans found.',
+                        style: TextStyle(color: LawraColors.textMuted)),
+                  )
                 : Column(
                     children: _loans.map(
                       (loan) {
-                        final canAct = _isAdmin && loan.status == 'PENDING';
+                        final canAct =
+                            _isAdmin &&
+                            loan.status == 'PENDING' &&
+                            loan.borrowerId != widget.currentUser?.id;
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: Card(
                             child: Padding(
-                              padding: const EdgeInsets.all(12),
+                              padding: const EdgeInsets.all(16),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Loan #${loan.id}',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                      'Borrower: ${loan.borrowerName ?? loan.borrowerId ?? '-'}'),
-                                  Text('Amount: ${_money(loan.amount)}'),
-                                  Text('Interest: ${loan.interest ?? '-'}'),
-                                  Text('Tenure: ${loan.tenure ?? '-'}'),
-                                  Text(
-                                      'Bank: ${loan.bank ?? loan.virtualBank ?? '-'}'),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text('Loan #${loan.id}',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium),
+                                      _StatusChip(status: loan.status),
+                                    ],
+                                  ),
                                   const SizedBox(height: 8),
-                                  _StatusChip(status: loan.status),
+                                  _InfoRow('Borrower',
+                                      loan.borrowerName ?? loan.borrowerId ?? '-'),
+                                  _InfoRow('Amount', _money(loan.amount)),
+                                  _InfoRow('Interest', loan.interest ?? '-'),
+                                  _InfoRow('Tenure', loan.tenure ?? '-'),
+                                  _InfoRow('Bank',
+                                      loan.bank ?? loan.virtualBank ?? '-'),
                                   if (canAct) ...[
-                                    const SizedBox(height: 8),
-                                    Wrap(
-                                      spacing: 8,
+                                    const SizedBox(height: 12),
+                                    Row(
                                       children: [
-                                        OutlinedButton(
-                                          onPressed: () =>
-                                              _updateStatus(loan, 'APPROVED'),
-                                          child: const Text('Approve'),
+                                        Expanded(
+                                          child: ElevatedButton(
+                                            onPressed: () =>
+                                                _updateStatus(loan, 'APPROVED'),
+                                            child: const Text('Approve'),
+                                          ),
                                         ),
-                                        OutlinedButton(
-                                          onPressed: () =>
-                                              _updateStatus(loan, 'REJECTED'),
-                                          child: const Text('Reject'),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: ElevatedButton(
+                                            onPressed: () =>
+                                                _updateStatus(loan, 'REJECTED'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  LawraColors.destructive,
+                                            ),
+                                            child: const Text('Reject'),
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -1066,6 +1244,10 @@ class _LoansTabState extends State<LoansTab> {
     );
   }
 }
+
+// ============================================================
+// BANKS TAB
+// ============================================================
 
 class BanksTab extends StatefulWidget {
   const BanksTab({
@@ -1107,25 +1289,19 @@ class _BanksTabState extends State<BanksTab> {
 
     try {
       final data = await widget.api.fetchVirtualBanks();
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _banks = data;
         _isLoading = false;
       });
     } on LawraApiException catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _error = error.message;
         _isLoading = false;
       });
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _error = error.toString();
         _isLoading = false;
@@ -1146,9 +1322,7 @@ class _BanksTabState extends State<BanksTab> {
         balance: _balance.trim().isEmpty ? null : num.tryParse(_balance),
       );
       widget.addNotice('Virtual bank created: ${_name.trim()}', type: 'bank');
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _name = '';
         _balance = '';
@@ -1160,9 +1334,7 @@ class _BanksTabState extends State<BanksTab> {
     } catch (error) {
       _showMessage(error.toString());
     } finally {
-      if (mounted) {
-        setState(() => _isCreating = false);
-      }
+      if (mounted) setState(() => _isCreating = false);
     }
   }
 
@@ -1191,10 +1363,13 @@ class _BanksTabState extends State<BanksTab> {
     if (!_canManageBank(bank)) {
       await showModalBottomSheet<void>(
         context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
         builder: (context) {
           return SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1202,12 +1377,14 @@ class _BanksTabState extends State<BanksTab> {
                   Text('Bank #${bank.id}',
                       style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 12),
-                  Text('Name: ${bank.name}'),
-                  Text('Balance: ${_money(bank.balance)}'),
-                  Text('Created by: ${bank.createdBy ?? '-'}'),
-                  const SizedBox(height: 12),
+                  _InfoRow('Name', bank.name),
+                  _InfoRow('Balance', _money(bank.balance)),
+                  _InfoRow('Created by', bank.createdBy ?? '-'),
+                  const SizedBox(height: 16),
                   const Text(
-                      'You can view this bank, but only its owner or an admin can rename, top up, or delete it.'),
+                    'You can view this bank, but only its owner or an admin can rename, top up, or delete it.',
+                    style: TextStyle(color: LawraColors.textMuted, fontSize: 13),
+                  ),
                 ],
               ),
             ),
@@ -1222,18 +1399,21 @@ class _BanksTabState extends State<BanksTab> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) {
         return Padding(
           padding:
               EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text('Bank #${bank.id}',
                     style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 TextField(
                   controller: renameController,
                   decoration: const InputDecoration(labelText: 'Rename bank'),
@@ -1244,64 +1424,77 @@ class _BanksTabState extends State<BanksTab> {
                   decoration: const InputDecoration(labelText: 'Top-up amount'),
                   keyboardType: TextInputType.number,
                 ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                const SizedBox(height: 20),
+                Row(
                   children: [
-                    FilledButton(
-                      onPressed: () async {
-                        final name = renameController.text.trim();
-                        if (name.isEmpty) {
-                          _showMessage('Enter a bank name.');
-                          return;
-                        }
-                        Navigator.of(context).pop();
-                        try {
-                          await widget.api
-                              .updateVirtualBank(bank.id, name: name);
-                          widget.addNotice('Renamed bank to $name',
-                              type: 'bank');
-                          await _refresh();
-                        } on LawraApiException catch (error) {
-                          _showMessage(error.message);
-                        }
-                      },
-                      child: const Text('Rename'),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final name = renameController.text.trim();
+                          if (name.isEmpty) {
+                            _showMessage('Enter a bank name.');
+                            return;
+                          }
+                          Navigator.of(context).pop();
+                          try {
+                            await widget.api
+                                .updateVirtualBank(bank.id, name: name);
+                            widget.addNotice('Renamed bank to $name',
+                                type: 'bank');
+                            await _refresh();
+                          } on LawraApiException catch (error) {
+                            _showMessage(error.message);
+                          }
+                        },
+                        child: const Text('Rename'),
+                      ),
                     ),
-                    FilledButton.tonal(
-                      onPressed: () async {
-                        final amount = num.tryParse(topUpController.text);
-                        if (amount == null || amount <= 0) {
-                          _showMessage('Enter a valid top-up amount.');
-                          return;
-                        }
-                        Navigator.of(context).pop();
-                        try {
-                          await widget.api.topUpVirtualBank(bank.id, amount);
-                          widget.addNotice(
-                              'Topped up ${bank.name} with Gh¢ ${amount.toStringAsFixed(2)}',
-                              type: 'bank');
-                          await _refresh();
-                        } on LawraApiException catch (error) {
-                          _showMessage(error.message);
-                        }
-                      },
-                      child: const Text('Top up'),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: LawraColors.cyan,
+                        ),
+                        onPressed: () async {
+                          final amount = num.tryParse(topUpController.text);
+                          if (amount == null || amount <= 0) {
+                            _showMessage('Enter a valid top-up amount.');
+                            return;
+                          }
+                          Navigator.of(context).pop();
+                          try {
+                            await widget.api.topUpVirtualBank(bank.id, amount);
+                            widget.addNotice(
+                                'Topped up ${bank.name} with Gh¢ ${amount.toStringAsFixed(2)}',
+                                type: 'bank');
+                            await _refresh();
+                          } on LawraApiException catch (error) {
+                            _showMessage(error.message);
+                          }
+                        },
+                        child: const Text('Top up'),
+                      ),
                     ),
-                    OutlinedButton(
-                      onPressed: () async {
-                        Navigator.of(context).pop();
-                        try {
-                          await widget.api.deleteVirtualBank(bank.id);
-                          widget.addNotice('Deleted bank ${bank.name}',
-                              type: 'bank');
-                          await _refresh();
-                        } on LawraApiException catch (error) {
-                          _showMessage(error.message);
-                        }
-                      },
-                      child: const Text('Delete'),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () async {
+                          Navigator.of(context).pop();
+                          try {
+                            await widget.api.deleteVirtualBank(bank.id);
+                            widget.addNotice('Deleted bank ${bank.name}',
+                                type: 'bank');
+                            await _refresh();
+                          } on LawraApiException catch (error) {
+                            _showMessage(error.message);
+                          }
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: LawraColors.destructive,
+                          side: const BorderSide(color: LawraColors.destructive),
+                        ),
+                        child: const Text('Delete'),
+                      ),
                     ),
                   ],
                 ),
@@ -1348,12 +1541,13 @@ class _BanksTabState extends State<BanksTab> {
                   decoration:
                       const InputDecoration(labelText: 'Opening balance'),
                   keyboardType: TextInputType.number,
-                  onChanged: (value) => _balance = value,
+                  inputFormatters: [AmountInputFormatter()],
+                  onChanged: (value) => _balance = parseAmount(value) ?? value,
                 ),
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton(
+                  child: ElevatedButton(
                     onPressed: _isCreating ? null : _createBank,
                     child: Text(_isCreating ? 'Creating...' : 'Create bank'),
                   ),
@@ -1365,15 +1559,31 @@ class _BanksTabState extends State<BanksTab> {
           _SectionCard(
             title: 'Virtual banks',
             child: visibleBanks.isEmpty
-                ? const Text('No virtual banks found.')
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text('No virtual banks found.',
+                        style: TextStyle(color: LawraColors.textMuted)),
+                  )
                 : Column(
                     children: visibleBanks
                         .map(
                           (bank) => ListTile(
                             contentPadding: EdgeInsets.zero,
-                            title: Text(bank.name),
-                            subtitle: Text('Balance: ${_money(bank.balance)}'),
-                            trailing: const Icon(Icons.chevron_right),
+                            title: Text(bank.name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600)),
+                            subtitle: Text('Balance: ${_money(bank.balance)}',
+                                style: const TextStyle(
+                                    color: LawraColors.textMuted)),
+                            trailing: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: LawraColors.green.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(Icons.chevron_right,
+                                  color: LawraColors.green),
+                            ),
                             onTap: () => _openBankActions(bank),
                           ),
                         )
@@ -1385,6 +1595,10 @@ class _BanksTabState extends State<BanksTab> {
     );
   }
 }
+
+// ============================================================
+// SETTINGS SCREEN
+// ============================================================
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
@@ -1438,9 +1652,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _isLoadingAdminData = true);
     try {
       final tenants = await widget.api.fetchTenants();
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _tenants = tenants;
         _selectedTenant = tenants.isNotEmpty ? tenants.first : null;
@@ -1450,9 +1662,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _isLoadingAdminData = false;
       });
     } catch (_) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() => _isLoadingAdminData = false);
     }
   }
@@ -1481,9 +1691,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } on LawraApiException catch (error) {
       _showMessage(error.message);
     } finally {
-      if (mounted) {
-        setState(() => _isSavingProfile = false);
-      }
+      if (mounted) setState(() => _isSavingProfile = false);
     }
   }
 
@@ -1570,7 +1778,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(
+        title: const Text('Settings'),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [LawraColors.green, LawraColors.cyan],
+            ),
+          ),
+        ),
+      ),
       body: _isLoadingAdminData && _isTenantAdmin
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -1610,7 +1829,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         const SizedBox(height: 16),
                         SizedBox(
                           width: double.infinity,
-                          child: FilledButton(
+                          child: ElevatedButton(
                             onPressed: _isSavingProfile ? null : _saveProfile,
                             child: Text(_isSavingProfile
                                 ? 'Saving...'
@@ -1643,9 +1862,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               )
                               .toList(),
                           onChanged: (value) {
-                            if (value == null) {
-                              return;
-                            }
+                            if (value == null) return;
                             final tenant = _tenants
                                 .where((item) => item.id == value)
                                 .cast<Tenant?>()
@@ -1668,14 +1885,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Row(
                           children: [
                             Expanded(
-                              child: FilledButton(
+                              child: ElevatedButton(
                                 onPressed: _createTenant,
                                 child: const Text('Create'),
                               ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: FilledButton.tonal(
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: LawraColors.cyan,
+                                ),
                                 onPressed: _updateTenant,
                                 child: const Text('Update'),
                               ),
@@ -1684,6 +1904,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             Expanded(
                               child: OutlinedButton(
                                 onPressed: _deleteTenant,
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: LawraColors.destructive,
+                                  side: const BorderSide(color: LawraColors.destructive),
+                                ),
                                 child: const Text('Delete'),
                               ),
                             ),
@@ -1716,7 +1940,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         const SizedBox(height: 16),
                         SizedBox(
                           width: double.infinity,
-                          child: FilledButton(
+                          child: ElevatedButton(
                             onPressed: _provisionUser,
                             child: const Text('Provision user'),
                           ),
@@ -1731,6 +1955,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 }
 
+// ============================================================
+// NOTIFICATIONS SCREEN
+// ============================================================
+
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key, required this.notices});
 
@@ -1739,18 +1967,49 @@ class NotificationsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Notifications')),
+      appBar: AppBar(
+        title: const Text('Notifications'),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [LawraColors.green, LawraColors.cyan],
+            ),
+          ),
+        ),
+      ),
       body: notices.isEmpty
-          ? const Center(child: Text('No recent activity.'))
+          ? const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.notifications_none,
+                      size: 64, color: LawraColors.textMuted),
+                  SizedBox(height: 16),
+                  Text('No recent activity.',
+                      style: TextStyle(color: LawraColors.textMuted)),
+                ],
+              ),
+            )
           : ListView.separated(
               padding: const EdgeInsets.all(16),
               itemBuilder: (context, index) {
                 final item = notices[index];
                 return Card(
                   child: ListTile(
-                    leading: const Icon(Icons.notifications_active_outlined),
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: LawraColors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.notifications_active_outlined,
+                          color: LawraColors.green),
+                    ),
                     title: Text(item.message),
-                    subtitle: Text(_timeLabel(item.timestamp)),
+                    subtitle: Text(_timeLabel(item.timestamp),
+                        style: const TextStyle(color: LawraColors.textMuted)),
                   ),
                 );
               },
@@ -1761,39 +2020,66 @@ class NotificationsScreen extends StatelessWidget {
   }
 }
 
+// ============================================================
+// ABOUT SCREEN
+// ============================================================
+
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('About')),
+      appBar: AppBar(
+        title: const Text('About'),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [LawraColors.green, LawraColors.cyan],
+            ),
+          ),
+        ),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
-        children: const [
+        children: [
           _SectionCard(
             title: 'About us',
             child: Text(
               'Lawra is an online platform that lets employees access loan services within an organisation.',
+              style: TextStyle(color: LawraColors.textMuted, height: 1.5),
             ),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           _SectionCard(
             title: 'Terms and conditions',
             child: Text(
               'This mobile app mirrors the web experience and keeps the core borrower, lender, bank, and settings flows aligned.',
+              style: TextStyle(color: LawraColors.textMuted, height: 1.5),
             ),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           _SectionCard(
             title: 'Website',
-            child: Text('www.lawra.com'),
+            child: Text(
+              'www.lawra.com',
+              style: TextStyle(
+                color: LawraColors.cyan,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 }
+
+// ============================================================
+// APP DRAWER
+// ============================================================
 
 class _AppDrawer extends StatelessWidget {
   const _AppDrawer({
@@ -1820,77 +2106,102 @@ class _AppDrawer extends StatelessWidget {
     final isAdmin = normalizedRole == 'ADMIN' || normalizedRole == 'PAYMASTER';
 
     return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
+      child: Column(
         children: [
-          DrawerHeader(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                  colors: [Color(0xFF1DBA53), Color(0xFF21B2DB)]),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.white.withOpacity(0.3),
-                  child: const Icon(Icons.person, color: Colors.white),
+          SizedBox(
+            width: double.infinity,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [LawraColors.green, LawraColors.cyan],
                 ),
-                const SizedBox(height: 12),
-                Text(currentUser?.fullName ?? 'Current user',
-                    style: const TextStyle(color: Colors.white, fontSize: 18)),
-                Text(currentUser?.email ?? 'no email',
-                    style: const TextStyle(color: Colors.white70)),
-                Text(session.role.substring(5),
-                    style: const TextStyle(color: Colors.white70)) 
+              ),
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 32,
+                        backgroundColor: Colors.white.withOpacity(0.3),
+                        child: const Icon(Icons.person, color: Colors.white, size: 36),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(currentUser?.fullName ?? 'Current user',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600)),
+                      Text(currentUser?.email ?? 'no email',
+                          style: const TextStyle(color: Colors.white70)),
+                      Text(session.role.substring(5),
+                          style: const TextStyle(color: Colors.white70)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _DrawerTile(
+                  icon: Icons.settings,
+                  title: 'Settings',
+                  onTap: onOpenSettings,
+                ),
+                if (isAdmin)
+                  _DrawerTile(
+                    icon: Icons.receipt_long,
+                    title: 'Audit Logs',
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const AuditLogsScreen()));
+                    },
+                  ),
+                _DrawerTile(
+                  icon: Icons.notifications_none,
+                  title: 'Notifications',
+                  trailing: notices.isEmpty
+                      ? null
+                      : CircleAvatar(
+                          radius: 12,
+                          backgroundColor: LawraColors.green,
+                          child: Text('${notices.length}',
+                              style: const TextStyle(
+                                  fontSize: 11, color: Colors.white)),
+                        ),
+                  onTap: onOpenNotifications,
+                ),
+                _DrawerTile(
+                  icon: Icons.info_outline,
+                  title: 'About',
+                  onTap: onOpenAbout,
+                ),
+                const Divider(),
+                _DrawerTile(
+                  icon: Icons.logout,
+                  title: 'Logout',
+                  onTap: () async {
+                    Navigator.of(context).pop();
+                    final confirmed = await showLogoutConfirmation(
+                      context,
+                      session: session,
+                      currentUser: currentUser,
+                    );
+                    if (confirmed) {
+                      onLogout();
+                    }
+                  },
+                ),
               ],
             ),
-          ),
-          ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('Settings'),
-              onTap: onOpenSettings),
-          if (isAdmin) ...[
-            ListTile(
-              leading: const Icon(Icons.receipt_long),
-              title: const Text('Audit Logs'),
-              onTap: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const AuditLogsScreen()));
-              },
-            ),
-          ],
-          ListTile(
-            leading: const Icon(Icons.notifications_none),
-            title: const Text('Notifications'),
-            trailing: notices.isEmpty
-                ? null
-                : CircleAvatar(
-                    radius: 10,
-                    child: Text('${notices.length}',
-                        style: const TextStyle(fontSize: 11))),
-            onTap: onOpenNotifications,
-          ),
-          ListTile(
-              leading: const Icon(Icons.info_outline),
-              title: const Text('About'),
-              onTap: onOpenAbout),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Logout'),
-            onTap: () async {
-              Navigator.of(context).pop();
-              final confirmed = await showLogoutConfirmation(
-                context,
-                session: session,
-                currentUser: currentUser,
-              );
-              if (confirmed) {
-                onLogout();
-              }
-            },
           ),
         ],
       ),
@@ -1898,37 +2209,75 @@ class _AppDrawer extends StatelessWidget {
   }
 }
 
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard(
-      {required this.title, required this.subtitle, this.amount});
+// ============================================================
+// REUSABLE WIDGETS
+// ============================================================
+
+class _SummaryCard extends StatefulWidget {
+  const _SummaryCard({
+    required this.title,
+    this.amount,
+    this.onTap,
+  });
 
   final String title;
-  final String subtitle;
   final num? amount;
+  final VoidCallback? onTap;
+
+  @override
+  State<_SummaryCard> createState() => _SummaryCardState();
+}
+
+class _SummaryCardState extends State<_SummaryCard> {
+  bool _showBalance = false;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-            colors: [Color(0xFF1DBA53), Color(0xFF21B2DB)]),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700)),
-          const SizedBox(height: 4),
-          Text(subtitle, style: const TextStyle(color: Colors.white70)),
-          const SizedBox(height: 16),
-          Text('Balance: ${_money(amount)}',
-              style: const TextStyle(color: Colors.white, fontSize: 18)),
-        ],
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: const LinearGradient(
+              colors: [LawraColors.green, LawraColors.cyan]),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(widget.title,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700)),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Icon(Icons.account_balance_wallet,
+                    color: Colors.white70, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _showBalance
+                        ? 'Amount: ${_money(widget.amount)}'
+                        : 'Amount: ••••••',
+                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    _showBalance ? Icons.visibility_off : Icons.visibility,
+                    color: Colors.white70,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    setState(() => _showBalance = !_showBalance);
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1948,7 +2297,27 @@ class _SectionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [LawraColors.green, LawraColors.cyan],
+                    ),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: LawraColors.textDark,
+                    )),
+              ],
+            ),
             const SizedBox(height: 12),
             child,
           ],
@@ -1967,9 +2336,15 @@ class _LoanTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        title: Text('Loan #${loan.id}'),
-        subtitle: Text(
-            '${loan.virtualBank ?? loan.bank ?? '-'}\n${loan.tenure ?? '-'}'),
+        title: Text('Loan #${loan.id}',
+            style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${loan.virtualBank ?? loan.bank ?? '-'}'),
+            Text('${loan.tenure ?? '-'}'),
+          ],
+        ),
         isThreeLine: true,
         trailing: _StatusChip(status: loan.status),
       ),
@@ -1988,11 +2363,27 @@ class _PackageTile extends StatelessWidget {
     return Card(
       child: ListTile(
         title: Text(
-            package.name.isNotEmpty ? package.name : 'Package #${package.id}'),
-        subtitle: Text(
-            '${package.virtualBank?.name ?? '-'}\nInterest: ${package.interestRate}%'),
+          package.name.isNotEmpty ? package.name : 'Package #${package.id}',
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${package.virtualBank?.name ?? '-'}'),
+            Text('Interest: ${package.interestRate}%'),
+          ],
+        ),
         isThreeLine: true,
-        trailing: Text(_money(package.balance)),
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: LawraColors.green.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(_money(package.balance),
+              style: const TextStyle(
+                  color: LawraColors.green, fontWeight: FontWeight.w600)),
+        ),
         onTap: onTap,
       ),
     );
@@ -2013,9 +2404,14 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(message, textAlign: TextAlign.center),
+            const Icon(Icons.error_outline,
+                size: 48, color: LawraColors.destructive),
+            const SizedBox(height: 16),
+            Text(message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: LawraColors.textMuted)),
             const SizedBox(height: 12),
-            FilledButton(onPressed: onRetry, child: const Text('Retry')),
+            ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
           ],
         ),
       ),
@@ -2031,18 +2427,74 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = switch (status.toUpperCase()) {
-      'APPROVED' => Colors.green,
-      'REJECTED' => Colors.red,
-      'COMPLETED' => Colors.blue,
-      'DEFAULTED' => Colors.orange,
-      _ => Colors.grey,
+      'APPROVED' => LawraColors.approve,
+      'REJECTED' => LawraColors.destructive,
+      'COMPLETED' => LawraColors.info,
+      'DEFAULTED' => LawraColors.warning,
+      _ => LawraColors.textMuted,
     };
 
-    return Chip(
-      label: Text(status),
-      side: BorderSide(color: color.withOpacity(0.3)),
-      labelStyle: TextStyle(color: color),
-      backgroundColor: color.withOpacity(0.08),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow(this.label, this.value);
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(label,
+                style: const TextStyle(color: LawraColors.textMuted)),
+          ),
+          Text(value,
+              style: const TextStyle(fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+}
+
+class _DrawerTile extends StatelessWidget {
+  const _DrawerTile({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: LawraColors.green),
+      title: Text(title,
+          style: const TextStyle(
+              color: LawraColors.textDark, fontWeight: FontWeight.w500)),
+      trailing: trailing,
+      onTap: onTap,
     );
   }
 }
@@ -2062,7 +2514,15 @@ class _Notice {
 
 String _money(num? amount) {
   final value = amount ?? 0;
-  return 'Gh¢ ${value.toStringAsFixed(2)}';
+  final formatted = value.toStringAsFixed(2);
+  final parts = formatted.split('.');
+  final intPart = parts[0];
+  final buffer = StringBuffer();
+  for (var i = 0; i < intPart.length; i++) {
+    if (i > 0 && (intPart.length - i) % 3 == 0) buffer.write(',');
+    buffer.write(intPart[i]);
+  }
+  return 'Gh¢ ${buffer.toString()}.${parts[1]}';
 }
 
 String _timeLabel(DateTime timestamp) {

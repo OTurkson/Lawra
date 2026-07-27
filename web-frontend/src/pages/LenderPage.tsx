@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getAuth, normalizeRole } from "@/lib/auth";
 import { Spinner } from "@/components/Spinner";
 import { pushNotification } from "@/lib/notifications";
+import { formatNumberInput, parseAmount } from "@/lib/format-number";
 import {
   Dialog,
   DialogContent,
@@ -71,7 +72,7 @@ const LenderPage = () => {
         throw new Error("Package name is required.");
       }
 
-      const packageBalance = Number(balance);
+      const packageBalance = Number(parseAmount(balance));
       const selectedBank = manageableBanks.find((bank) => String(bank.id) === virtualBankId);
 
       if (!Number.isFinite(packageBalance) || packageBalance <= 0) {
@@ -85,7 +86,7 @@ const LenderPage = () => {
       return createLoanPackage({
         name: name.trim(),
         virtualBankId: Number(virtualBankId),
-        balance: Number(balance),
+        balance: Number(parseAmount(balance)),
         interestRate: Number(interestRate),
       });
     },
@@ -120,7 +121,7 @@ const LenderPage = () => {
         throw new Error("Package name is required.");
       }
 
-      const topup = Number(topupAmount);
+      const topup = Number(parseAmount(topupAmount));
       const currentBalance = Number(selectedLoanPackage.balance ?? 0);
       const newBalance = currentBalance + topup;
       const selectedBank = manageableBanks.find((bank) => String(bank.id) === virtualBankId);
@@ -141,7 +142,7 @@ const LenderPage = () => {
       });
     },
     onSuccess: () => {
-      const toppedUpAmount = Number(topupAmount);
+      const toppedUpAmount = Number(parseAmount(topupAmount));
       setTopupAmount("");
       setIsPackageDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["loan-packages"] });
@@ -227,7 +228,7 @@ const LenderPage = () => {
           />
           <input
             value={balance}
-            onChange={(e) => setBalance(e.target.value)}
+            onChange={(e) => setBalance(formatNumberInput(e.target.value))}
             placeholder="Balance"
             className="px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
           />
@@ -370,7 +371,7 @@ const LenderPage = () => {
                   <label className="block text-xs text-muted-foreground">Topup Amount</label>
                   <input
                     value={topupAmount}
-                    onChange={(e) => setTopupAmount(e.target.value)}
+                    onChange={(e) => setTopupAmount(formatNumberInput(e.target.value))}
                     placeholder="Amount to add"
                     className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
                   />

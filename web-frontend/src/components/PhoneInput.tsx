@@ -8,42 +8,33 @@ import {
 } from "@/components/ui/select";
 
 export const COUNTRY_CODES = [
-  { code: "GH", dial: "+233", name: "Ghana" },
-  { code: "NG", dial: "+234", name: "Nigeria" },
-  { code: "KE", dial: "+254", name: "Kenya" },
-  { code: "ZA", dial: "+27", name: "South Africa" },
-  { code: "TZ", dial: "+255", name: "Tanzania" },
-  { code: "UG", dial: "+256", name: "Uganda" },
-  { code: "RW", dial: "+250", name: "Rwanda" },
-  { code: "CM", dial: "+237", name: "Cameroon" },
-  { code: "SN", dial: "+221", name: "Senegal" },
-  { code: "CI", dial: "+225", name: "Côte d'Ivoire" },
-  { code: "US", dial: "+1", name: "United States" },
-  { code: "GB", dial: "+44", name: "United Kingdom" },
-  { code: "CA", dial: "+1", name: "Canada" },
-  { code: "AU", dial: "+61", name: "Australia" },
-  { code: "DE", dial: "+49", name: "Germany" },
-  { code: "FR", dial: "+33", name: "France" },
-  { code: "IN", dial: "+91", name: "India" },
-  { code: "CN", dial: "+86", name: "China" },
-  { code: "BR", dial: "+55", name: "Brazil" },
-  { code: "MX", dial: "+52", name: "Mexico" },
-  { code: "EG", dial: "+20", name: "Egypt" },
-  { code: "ET", dial: "+251", name: "Ethiopia" },
-  { code: "ZM", dial: "+260", name: "Zambia" },
-  { code: "BW", dial: "+267", name: "Botswana" },
-  { code: "MU", dial: "+230", name: "Mauritius" },
-  { code: "MW", dial: "+265", name: "Malawi" },
-  { code: "SL", dial: "+232", name: "Sierra Leone" },
-  { code: "LR", dial: "+231", name: "Liberia" },
-  { code: "BF", dial: "+226", name: "Burkina Faso" },
-  { code: "ML", dial: "+223", name: "Mali" },
-  { code: "TG", dial: "+228", name: "Togo" },
-  { code: "BJ", dial: "+229", name: "Benin" },
-  { code: "CD", dial: "+243", name: "DR Congo" },
-  { code: "AO", dial: "+244", name: "Angola" },
-  { code: "RU", dial: "+7", name: "Russia" },
-  { code: "NL", dial: "+31", name: "Netherlands" },
+  { code: "GH", dial: "+233", name: "Ghana", flag: "🇬🇭" },
+  { code: "NG", dial: "+234", name: "Nigeria", flag: "🇳🇬" },
+  { code: "US", dial: "+1", name: "United States", flag: "🇺🇸" },
+  { code: "GB", dial: "+44", name: "United Kingdom", flag: "🇬🇧" },
+  { code: "CA", dial: "+1", name: "Canada", flag: "🇨🇦" },
+  { code: "CM", dial: "+237", name: "Cameroon", flag: "🇨🇲" },
+  { code: "TG", dial: "+228", name: "Togo", flag: "🇹🇬" },
+  { code: "LR", dial: "+231", name: "Liberia", flag: "🇱🇷" },
+  { code: "FR", dial: "+33", name: "France", flag: "🇫🇷" },
+  { code: "BR", dial: "+55", name: "Brazil", flag: "🇧🇷" },
+  { code: "AR", dial: "+54", name: "Argentina", flag: "🇦🇷" },
+  { code: "DE", dial: "+49", name: "Germany", flag: "🇩🇪" },
+  { code: "IN", dial: "+91", name: "India", flag: "🇮🇳" },
+  { code: "CN", dial: "+86", name: "China", flag: "🇨🇳" },
+  { code: "AU", dial: "+61", name: "Australia", flag: "🇦🇺" },
+  { code: "ZA", dial: "+27", name: "South Africa", flag: "🇿🇦" },
+  { code: "CI", dial: "+225", name: "Côte d'Ivoire", flag: "🇨🇮" },
+  { code: "RW", dial: "+250", name: "Rwanda", flag: "🇷🇼" },
+  { code: "TZ", dial: "+255", name: "Tanzania", flag: "🇹🇿" },
+  { code: "RU", dial: "+7", name: "Russia", flag: "🇷🇺" },
+  { code: "NL", dial: "+31", name: "Netherlands", flag: "🇳🇱" },
+  { code: "BF", dial: "+226", name: "Burkina Faso", flag: "🇧🇫" },
+  { code: "SN", dial: "+221", name: "Senegal", flag: "🇸🇳" },
+  { code: "ES", dial: "+34", name: "Spain", flag: "🇪🇸" },
+  { code: "PT", dial: "+351", name: "Portugal", flag: "🇵🇹" },
+  { code: "EG", dial: "+20", name: "Egypt", flag: "🇪🇬" },
+  { code: "UY", dial: "+598", name: "Uruguay", flag: "🇺🇾" },
 ];
 
 export type PhoneInputValue = {
@@ -70,18 +61,6 @@ export function combinePhoneNumber(countryCode: string, number: string): string 
   return `${countryCode} ${local}`;
 }
 
-function FlagImage({ code }: { code: string }) {
-  return (
-    <img
-      src={`https://flagcdn.com/w20/${code.toLowerCase()}.png`}
-      srcSet={`https://flagcdn.com/w40/${code.toLowerCase()}.png 2x`}
-      width={20}
-      height={15}
-      alt={`${code} flag`}
-      className="inline-block rounded-sm"
-    />
-  );
-}
 
 type PhoneInputProps = {
   value: string;
@@ -141,7 +120,7 @@ export function PhoneInput({
           <SelectValue>
             {selectedCountry && (
               <span className="flex items-center gap-1">
-                <FlagImage code={selectedCountry.code} />
+                <span className="text-lg">{selectedCountry.flag}</span>
                 <span>{selectedCountry.dial}</span>
               </span>
             )}
@@ -151,7 +130,7 @@ export function PhoneInput({
           {COUNTRY_CODES.map((cc) => (
             <SelectItem key={`${cc.code}-${cc.dial}`} value={cc.dial}>
               <span className="flex items-center gap-2">
-                <FlagImage code={cc.code} />
+                <span className="text-lg">{cc.flag}</span>
                 <span>{cc.dial}</span>
                 <span className="text-muted-foreground">{cc.name}</span>
               </span>

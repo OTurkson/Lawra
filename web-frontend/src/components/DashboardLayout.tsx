@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import { pushNotification } from "@/lib/notifications";
+import { formatNumberInput, parseAmount } from "@/lib/format-number";
 import {
   Dialog,
   DialogContent,
@@ -303,11 +304,10 @@ const DashboardLayout = () => {
             </label>
             <input
               id="deposit-amount"
-              type="number"
-              min="0.01"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
               value={depositAmount}
-              onChange={(event) => setDepositAmount(event.target.value)}
+              onChange={(event) => setDepositAmount(formatNumberInput(event.target.value))}
               placeholder="0.00"
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -323,7 +323,7 @@ const DashboardLayout = () => {
             </button>
             <button
               type="button"
-              onClick={() => depositMutation.mutate(Number(depositAmount))}
+              onClick={() => depositMutation.mutate(Number(parseAmount(depositAmount)))}
               disabled={depositMutation.isPending}
               className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
             >

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { pushNotification } from "@/lib/notifications";
 import { normalizeRole } from "@/lib/auth";
+import { formatNumberInput, parseAmount } from "@/lib/format-number";
 
 const VirtualBanksPage = () => {
   const queryClient = useQueryClient();
@@ -141,7 +142,7 @@ const VirtualBanksPage = () => {
 
       return createVirtualBank({
         name,
-        balance: balance ? Number(balance) : undefined,
+        balance: balance ? Number(parseAmount(balance)) : undefined,
       });
     },
     onSuccess: () => {
@@ -181,7 +182,7 @@ const VirtualBanksPage = () => {
     mutationFn: () => {
       if (!selectedBank) throw new Error("Select a virtual bank to top up.");
       if (!canManageSelectedBank) throw new Error("You can only top up virtual banks created by you.");
-      const amount = Number(topUpAmount);
+      const amount = Number(parseAmount(topUpAmount));
       if (!Number.isFinite(amount) || amount <= 0) throw new Error("Top-up amount must be greater than zero.");
       return topUpVirtualBank(selectedBank.id, { amount });
     },
@@ -251,7 +252,7 @@ const VirtualBanksPage = () => {
               />
               <input
                 value={balance}
-                onChange={(e) => setBalance(e.target.value)}
+                onChange={(e) => setBalance(formatNumberInput(e.target.value))}
                 placeholder="Initial deposit"
                 className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
               />
@@ -336,7 +337,7 @@ const VirtualBanksPage = () => {
                     </label>
                     <input
                       value={topUpAmount}
-                      onChange={(e) => setTopUpAmount(e.target.value)}
+                      onChange={(e) => setTopUpAmount(formatNumberInput(e.target.value))}
                       placeholder="Top-up amount"
                       className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
                     />

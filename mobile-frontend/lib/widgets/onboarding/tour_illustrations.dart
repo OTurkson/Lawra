@@ -12,26 +12,30 @@ class _TourBackdrop extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        return Stack(
-          clipBehavior: Clip.none,
-          children: [
-            for (final bar in bars)
-              Positioned(
-                left: bar.left * constraints.maxWidth,
-                top: bar.top * constraints.maxHeight,
-                child: Transform.rotate(
-                  angle: bar.angle,
-                  child: Container(
-                    width: bar.width,
-                    height: bar.height,
-                    decoration: BoxDecoration(
-                      color: bar.color,
-                      borderRadius: BorderRadius.circular(bar.height / 2),
+        return SizedBox(
+          width: constraints.maxWidth,
+          height: constraints.maxHeight,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              for (final bar in bars)
+                Positioned(
+                  left: bar.left * constraints.maxWidth,
+                  top: bar.top * constraints.maxHeight,
+                  child: Transform.rotate(
+                    angle: bar.angle,
+                    child: Container(
+                      width: bar.width,
+                      height: bar.height,
+                      decoration: BoxDecoration(
+                        color: bar.color,
+                        borderRadius: BorderRadius.circular(bar.height / 2),
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         );
       },
     );
@@ -61,38 +65,43 @@ class ModerateRatesIllustration extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.bottomCenter,
-      children: [
-        const _TourBackdrop(
-          bars: [
-            _BarSpec(left: -0.05, top: 0.05, width: 220, height: 28, color: Color(0xFFB8E8E0)),
-            _BarSpec(left: 0.15, top: 0.18, width: 180, height: 24, color: Color(0xFFCDEFE8)),
-            _BarSpec(left: -0.1, top: 0.32, width: 260, height: 30, color: Color(0xFFA8DDD4)),
+    return const Center(
+      child: SizedBox(
+        height: 280,
+        child: Stack(
+          alignment: Alignment.bottomCenter,
+          children: [
+            _TourBackdrop(
+              bars: [
+                _BarSpec(left: 0.05, top: 0.05, width: 220, height: 26, color: Color(0xFFA8DDD4)),
+                _BarSpec(left: 0.1, top: 0.18, width: 220, height: 26, color: Color(0xFFB8E8E0)),
+                _BarSpec(left: 0.15, top: 0.32, width: 220, height: 26, color: Color(0xFFCDEFE8)),
+              ],
+            ),
+            Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _CoinStack(coins: 3, stackHeight: 56),
+                  SizedBox(width: 10),
+                  _CoinStack(coins: 4, stackHeight: 72),
+                  SizedBox(width: 10),
+                  _CoinStack(coins: 5, stackHeight: 88),
+                  SizedBox(width: 10),
+                  _CoinStack(coins: 6, stackHeight: 104),
+                ],
+              ),
+            ),
+            Positioned(
+              right: 24,
+              bottom: 72,
+              child: Icon(Icons.eco, color: Color(0xFF4CAF50), size: 28),
+            ),
           ],
         ),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              _CoinStack(coins: 3, stackHeight: 56),
-              const SizedBox(width: 10),
-              _CoinStack(coins: 4, stackHeight: 72),
-              const SizedBox(width: 10),
-              _CoinStack(coins: 5, stackHeight: 88),
-              const SizedBox(width: 10),
-              _CoinStack(coins: 6, stackHeight: 104),
-            ],
-          ),
-        ),
-        Positioned(
-          right: 24,
-          bottom: 72,
-          child: Icon(Icons.eco, color: LawraColors.green.withValues(alpha: 0.7), size: 28),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -105,10 +114,8 @@ class _CoinStack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: stackHeight,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
+    return Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 28,
@@ -133,8 +140,7 @@ class _CoinStack extends StatelessWidget {
               ),
             ),
         ],
-      ),
-    );
+      );
   }
 }
 
@@ -148,48 +154,268 @@ class StressFreeIllustration extends StatelessWidget {
       children: [
         const _TourBackdrop(
           bars: [
-            _BarSpec(left: -0.2, top: 0.08, width: 280, height: 32, color: Color(0xFFCDEFD8), angle: -0.35),
-            _BarSpec(left: 0.05, top: 0.22, width: 240, height: 28, color: Color(0xFFB8E8E0), angle: -0.35),
-            _BarSpec(left: -0.05, top: 0.38, width: 300, height: 34, color: Color(0xFFA5DFD0), angle: -0.35),
+            _BarSpec(left: 0.05, top: 0.05, width: 220, height: 26, color: Color(0xFFA8DDD4)),
+            _BarSpec(left: 0.1, top: 0.18, width: 220, height: 26, color: Color(0xFFB8E8E0)),
+            _BarSpec(left: 0.15, top: 0.32, width: 220, height: 26, color: Color(0xFFCDEFE8)),
           ],
         ),
+        // Large phone mockup
         Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: Container(
-            width: 120,
-            height: 210,
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E),
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 12, offset: const Offset(0, 6))],
-            ),
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              children: [
-                Container(
-                  height: 56,
-                  decoration: BoxDecoration(color: const Color(0xFFB0BEC5), borderRadius: BorderRadius.circular(6)),
-                ),
-                const SizedBox(height: 8),
-                Container(height: 8, color: const Color(0xFFCFD8DC)),
-                const SizedBox(height: 6),
-                Container(height: 8, width: 70, color: const Color(0xFFCFD8DC)),
-                const Spacer(),
-                Row(
-                  children: [
-                    Expanded(child: Container(height: 36, color: const Color(0xFFB0BEC5))),
-                    const SizedBox(width: 6),
-                    Expanded(child: Container(height: 36, color: const Color(0xFFB0BEC5))),
-                  ],
-                ),
-              ],
+          child: SizedBox(
+            width: 150,
+            height: 220,
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1E1E),
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 14, offset: const Offset(0, 8)),
+                ],
+              ),
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                children: [
+                  // Status bar
+                  Container(
+                    height: 12,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Row(
+                      children: [
+                        const Spacer(),
+                        Container(
+                          width: 40,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                        const Spacer(flex: 2),
+                        Icon(Icons.battery_full, color: Colors.white.withValues(alpha: 0.7), size: 12),
+                        const SizedBox(width: 2),
+                        Icon(Icons.signal_wifi_4_bar, color: Colors.white.withValues(alpha: 0.7), size: 10),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  // App header
+                  Container(
+                    height: 28,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(colors: [LawraColors.green, LawraColors.cyan]),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.account_balance, color: Colors.white.withValues(alpha: 0.9), size: 12),
+                        const SizedBox(width: 3),
+                        Text(
+                          'Lawra',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 8,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  // Balance card
+                  Container(
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2E7D32),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    padding: const EdgeInsets.all(6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Balance',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            fontSize: 6,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Row(
+                          children: [
+                            Icon(Icons.monetization_on, color: Colors.white, size: 8),
+                            SizedBox(width: 2),
+                            Text(
+                              'GHS 2,450',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  // Loan progress section
+                  Container(
+                    height: 16,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.trending_up, color: LawraColors.cyan, size: 7),
+                            const SizedBox(width: 2),
+                            Text(
+                              'Loan Progress',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.6),
+                                fontSize: 6,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                height: 3,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                                child: FractionallySizedBox(
+                                  alignment: Alignment.centerLeft,
+                                  widthFactor: 0.65,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [LawraColors.cyan, LawraColors.green],
+                                      ),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              '65%',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.5),
+                                fontSize: 6,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  // Repayment schedule row
+                  Container(
+                    height: 16,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Next Payment',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.5),
+                                  fontSize: 6,
+                                ),
+                              ),
+                              Text(
+                                'Jul 30',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Amount',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.5),
+                                  fontSize: 6,
+                                ),
+                              ),
+                              Text(
+                                'GHS 320',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  // Bottom navigation bar
+                  Container(
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2C2C2C),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        const Icon(Icons.home, color: LawraColors.green, size: 10),
+                        Icon(Icons.pie_chart_outline, color: Colors.white.withValues(alpha: 0.4), size: 10),
+                        Icon(Icons.history, color: Colors.white.withValues(alpha: 0.4), size: 10),
+                        Icon(Icons.person_outline, color: Colors.white.withValues(alpha: 0.4), size: 10),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
+        // Stick figure holding the phone
         Positioned(
-          left: 48,
+          left: 20,
           bottom: 8,
-          child: _stickFigure(shirt: const Color(0xFFFF7043), pants: LawraColors.cyan),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Arm reaching to phone
+              Container(
+                width: 16,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF5D4037),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              _stickFigure(shirt: const Color(0xFFFF7043), pants: LawraColors.cyan),
+            ],
+          ),
         ),
       ],
     );
@@ -206,8 +432,9 @@ class FastFlexibleIllustration extends StatelessWidget {
       children: [
         const _TourBackdrop(
           bars: [
-            _BarSpec(left: -0.15, top: 0.1, width: 260, height: 30, color: Color(0xFFCDEFD8), angle: -0.4),
-            _BarSpec(left: 0.1, top: 0.28, width: 220, height: 26, color: Color(0xFFB8E8E0), angle: -0.4),
+           _BarSpec(left: 0.05, top: 0.05, width: 220, height: 26, color: Color(0xFFA8DDD4)),
+           _BarSpec(left: 0.1, top: 0.18, width: 220, height: 26, color: Color(0xFFB8E8E0)),
+           _BarSpec(left: 0.15, top: 0.32, width: 220, height: 26, color: Color(0xFFCDEFE8)),
           ],
         ),
         Padding(
