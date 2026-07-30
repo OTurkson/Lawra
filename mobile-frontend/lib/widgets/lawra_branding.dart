@@ -36,8 +36,8 @@ class LawraWordmark extends StatelessWidget {
 
   TextStyle _baseStyle() {
     return GoogleFonts.comfortaa(
-      fontSize: fontSize,
-      fontWeight: FontWeight.w700,
+      fontSize: fontSize,  
+      fontWeight: FontWeight.w500,
       letterSpacing: -0.5,
     );
   }

@@ -31,6 +31,7 @@ class _DashboardShellState extends State<DashboardShell> {
   bool _isLoadingUser = true;
   UserProfile? _currentUser;
   String? _loadError;
+  bool _isConnectionError = false;
   final List<_Notice> _notices = [];
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -41,6 +42,14 @@ class _DashboardShellState extends State<DashboardShell> {
   }
 
   Future<void> _loadCurrentUser() async {
+    if (mounted) {
+      setState(() {
+        _isLoadingUser = true;
+        _loadError = null;
+        _isConnectionError = false;
+      });
+    }
+
     try {
       final user = await _api.fetchUserById(widget.session.userId);
       if (!mounted) return;
@@ -48,6 +57,7 @@ class _DashboardShellState extends State<DashboardShell> {
         _currentUser = user;
         _isLoadingUser = false;
         _loadError = null;
+        _isConnectionError = false;
       });
     } on LawraApiException catch (error) {
       if (error.statusCode == 401) {
@@ -58,12 +68,14 @@ class _DashboardShellState extends State<DashboardShell> {
       setState(() {
         _loadError = error.message;
         _isLoadingUser = false;
+        _isConnectionError = error.isConnectionError;
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _loadError = error.toString();
+        _loadError = 'Something went wrong while loading your profile. Please try again.';
         _isLoadingUser = false;
+        _isConnectionError = false;
       });
     }
   }
@@ -92,21 +104,6 @@ class _DashboardShellState extends State<DashboardShell> {
     });
   }
 
-  String _titleForIndex(int index) {
-    switch (index) {
-      case 0:
-        return 'Borrower';
-      case 1:
-        return 'Lender';
-      case 2:
-        return 'Loans';
-      case 3:
-        return 'Virtual Banks';
-      default:
-        return 'Lawra';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoadingUser) {
@@ -116,6 +113,15 @@ class _DashboardShellState extends State<DashboardShell> {
     }
 
     if (_loadError != null) {
+      final title = _isConnectionError
+          ? 'We can’t reach Lawra right now'
+          : 'Unable to load your profile';
+      final icon = _isConnectionError
+          ? Icons.cloud_off_outlined
+          : Icons.error_outline;
+      final helper = _isConnectionError
+          ? 'Your session is still saved. The service may be restarting — try again in a moment.'
+          : null;
       return Scaffold(
         body: Center(
           child: Padding(
@@ -123,10 +129,10 @@ class _DashboardShellState extends State<DashboardShell> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline, size: 48, color: LawraColors.destructive),
+                Icon(icon, size: 48, color: LawraColors.destructive),
                 const SizedBox(height: 16),
                 Text(
-                  'Unable to load your profile',
+                  title,
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 8),
@@ -135,6 +141,14 @@ class _DashboardShellState extends State<DashboardShell> {
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: LawraColors.textMuted),
                 ),
+                if (helper != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    helper,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: LawraColors.textMuted),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: _loadCurrentUser,
@@ -147,25 +161,56 @@ class _DashboardShellState extends State<DashboardShell> {
       );
     }
 
-    final pages = <Widget>[
-      BorrowerTab(
-          api: _api,
-          session: widget.session,
-          currentUser: _currentUser,
-          onCurrentUserUpdated: _setCurrentUser,
-          addNotice: _addNotice),
-      LenderTab(
-          api: _api,
-          session: widget.session,
-          currentUser: _currentUser,
-          addNotice: _addNotice),
-      LoansTab(api: _api, currentUser: _currentUser, addNotice: _addNotice),
-      BanksTab(
-          api: _api,
-          session: widget.session,
-          currentUser: _currentUser,
-          addNotice: _addNotice),
+    final role = _normalizedRole(_currentUser?.role);
+    final canBorrow = role == 'BORROWER' || role == 'PAYMASTER';
+    final canManageLending =
+        role == 'ADMIN' || role == 'PAYMASTER' || role == 'BORROWER';
+    final tabs = <_DashboardTab>[
+      if (canBorrow)
+        _DashboardTab(
+          title: 'My borrowing',
+          item: const BottomNavigationBarItem(
+              icon: Icon(Icons.handshake_outlined), label: 'Borrow'),
+          child: BorrowerTab(
+              api: _api,
+              session: widget.session,
+              currentUser: _currentUser,
+              onCurrentUserUpdated: _setCurrentUser,
+              addNotice: _addNotice),
+        ),
+      if (canManageLending)
+        _DashboardTab(
+          title: 'Lending packages',
+          item: const BottomNavigationBarItem(
+              icon: Icon(Icons.currency_exchange), label: 'Lending'),
+          child: LenderTab(
+              api: _api,
+              session: widget.session,
+              currentUser: _currentUser,
+              addNotice: _addNotice),
+        ),
+      _DashboardTab(
+        title: 'Loans',
+        item: const BottomNavigationBarItem(
+            icon: Icon(Icons.receipt_long), label: 'Loans'),
+        child: LoansTab(
+            api: _api,
+            currentUser: _currentUser,
+            onCurrentUserUpdated: _setCurrentUser,
+            addNotice: _addNotice),
+      ),
+      _DashboardTab(
+        title: 'Accounts',
+        item: const BottomNavigationBarItem(
+            icon: Icon(Icons.account_balance), label: 'Accounts'),
+        child: BanksTab(
+            api: _api,
+            session: widget.session,
+            currentUser: _currentUser,
+            addNotice: _addNotice),
+      ),
     ];
+    final activeIndex = _index.clamp(0, tabs.length - 1) as int;
 
     return Scaffold(
       key: _scaffoldKey,
@@ -201,7 +246,7 @@ class _DashboardShellState extends State<DashboardShell> {
       body: Column(
         children: [
           _GradientHeader(
-            title: _titleForIndex(_index),
+            title: tabs[activeIndex].title,
             currentUser: _currentUser,
             onMenuTap: () => _scaffoldKey.currentState?.openDrawer(),
             onNotificationTap: () {
@@ -212,23 +257,14 @@ class _DashboardShellState extends State<DashboardShell> {
             },
           ),
           Expanded(
-            child: IndexedStack(index: _index, children: pages),
+            child: IndexedStack(index: activeIndex, children: tabs.map((tab) => tab.child).toList()),
           ),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _index,
+        currentIndex: activeIndex,
         onTap: (value) => setState(() => _index = value),
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.handshake_outlined), label: 'Borrower'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.currency_exchange), label: 'Lender'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long), label: 'Loans'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance), label: 'Banks'),
-        ],
+        items: tabs.map((tab) => tab.item).toList(),
       ),
     );
   }
@@ -237,6 +273,18 @@ class _DashboardShellState extends State<DashboardShell> {
     if (!mounted) return;
     setState(() => _currentUser = user);
   }
+}
+
+class _DashboardTab {
+  const _DashboardTab({
+    required this.title,
+    required this.item,
+    required this.child,
+  });
+
+  final String title;
+  final BottomNavigationBarItem item;
+  final Widget child;
 }
 
 class _GradientHeader extends StatelessWidget {
@@ -518,6 +566,48 @@ class _BorrowerTabState extends State<BorrowerTab> {
     }
   }
 
+  Future<void> _openRepaymentDialog(LoanSummary loan) async {
+    final controller = TextEditingController();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Repay loan #${loan.id}'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          inputFormatters: [AmountInputFormatter()],
+          decoration: InputDecoration(
+            labelText: 'Amount (Gh¢)',
+            helperText: 'Outstanding: ${_money(loan.outstandingAmount)}',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Pay')),
+        ],
+      ),
+    );
+    if (result != true) return;
+    final amount = num.tryParse(parseAmount(controller.text) ?? '');
+    if (amount == null || amount <= 0) {
+      _showMessage('Enter a valid repayment amount.');
+      return;
+    }
+    try {
+      await widget.api.repayLoan(loan.id, amount);
+      widget.addNotice('Repayment of ${_money(amount)} submitted', type: 'repayment');
+      final currentUser = widget.currentUser;
+      if (currentUser != null) {
+        widget.onCurrentUserUpdated(
+            await widget.api.fetchUserById(currentUser.id));
+      }
+      await _refresh();
+      _showMessage('Repayment successful.');
+    } on LawraApiException catch (error) {
+      _showMessage(error.message);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -600,7 +690,7 @@ class _BorrowerTabState extends State<BorrowerTab> {
           ),
           const SizedBox(height: 16),
           _SectionCard(
-            title: 'My loan applications',
+            title: 'My Loan Applications',
             child: _loans.isEmpty
                 ? const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
@@ -609,7 +699,13 @@ class _BorrowerTabState extends State<BorrowerTab> {
                   )
                 : Column(
                     children:
-                        _loans.map((loan) => _LoanTile(loan: loan)).toList(),
+                        _loans.map((loan) => _LoanTile(
+                              loan: loan,
+                              onRepay: loan.status == 'APPROVED' &&
+                                      (loan.outstandingAmount ?? 0) > 0
+                                  ? () => _openRepaymentDialog(loan)
+                                  : null,
+                            )).toList(),
                   ),
           ),
         ],
@@ -1052,10 +1148,12 @@ class LoansTab extends StatefulWidget {
       {super.key,
       required this.api,
       required this.currentUser,
+      required this.onCurrentUserUpdated,
       required this.addNotice});
 
   final LawraApi api;
   final UserProfile? currentUser;
+  final ValueChanged<UserProfile> onCurrentUserUpdated;
   final NoticeCallback addNotice;
 
   @override
@@ -1081,7 +1179,13 @@ class _LoansTabState extends State<LoansTab> {
     });
 
     try {
-      final data = await widget.api.fetchLoans(status: _statusFilter);
+      final userId = widget.currentUser?.id;
+      if (userId == null) {
+        throw StateError('User not loaded yet.');
+      }
+      final data = _isManagement
+          ? await widget.api.fetchLoans(status: _statusFilter)
+          : await widget.api.fetchBorrowerLoans(userId);
       if (!mounted) return;
       setState(() {
         _loans = data;
@@ -1112,15 +1216,124 @@ class _LoansTabState extends State<LoansTab> {
     }
   }
 
+  Future<void> _openRepaymentDialog(LoanSummary loan) async {
+    final controller = TextEditingController();
+    final paysOwnLoan = loan.borrowerId == widget.currentUser?.id;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(paysOwnLoan
+            ? 'Repay loan #${loan.id}'
+            : 'Pay for ${loan.borrowerName ?? 'employee'}'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          inputFormatters: [AmountInputFormatter()],
+          decoration: InputDecoration(
+            labelText: 'Amount (Gh¢)',
+            helperText: paysOwnLoan
+                ? 'Outstanding: ${_money(loan.outstandingAmount)}'
+                : 'Your wallet will be debited. Outstanding: ${_money(loan.outstandingAmount)}',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(paysOwnLoan ? 'Pay' : 'Pay on behalf')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final amount = num.tryParse(parseAmount(controller.text) ?? '');
+    if (amount == null || amount <= 0) {
+      _showMessage('Enter a valid repayment amount.');
+      return;
+    }
+    if (amount > (loan.outstandingAmount ?? 0)) {
+      _showMessage('The payment cannot exceed the outstanding balance.');
+      return;
+    }
+    try {
+      await widget.api.repayLoan(loan.id, amount);
+      widget.addNotice('Repayment of ${_money(amount)} submitted', type: 'repayment');
+      final currentUser = widget.currentUser;
+      if (currentUser != null) {
+        widget.onCurrentUserUpdated(
+            await widget.api.fetchUserById(currentUser.id));
+      }
+      await _refresh();
+      _showMessage('Repayment successful.');
+    } on LawraApiException catch (error) {
+      _showMessage(error.message);
+    }
+  }
+
+  Future<void> _openRepaymentHistory(LoanSummary loan) async {
+    try {
+      final repayments = await widget.api.fetchRepayments(loan.id);
+      if (!mounted) return;
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (context) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: SizedBox(
+              height: MediaQuery.of(context).size.height * 0.55,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Payment history · Loan #${loan.id}',
+                      style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 8),
+                  const Text('Payments are final and show who funded them.',
+                      style: TextStyle(color: LawraColors.textMuted)),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: repayments.isEmpty
+                        ? const Center(child: Text('No payments recorded.'))
+                        : ListView.separated(
+                            itemCount: repayments.length,
+                            separatorBuilder: (_, __) => const Divider(),
+                            itemBuilder: (context, index) {
+                              final repayment = repayments[index];
+                              return ListTile(
+                                title: Text(repayment.paidByName ?? '-'),
+                                subtitle: Text(
+                                    '${repayment.paidByRole ?? '-'} · ${repayment.paidAt ?? '-'}'),
+                                trailing: Text(_money(repayment.amount),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600)),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    } on LawraApiException catch (error) {
+      _showMessage(error.message);
+    }
+  }
+
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  bool get _isAdmin {
+  bool get _isManagement {
     final role = _normalizedRole(widget.currentUser?.role);
     return role == 'ADMIN' || role == 'PAYMASTER';
   }
+
+  List<LoanSummary> get _outstandingRepayments => _loans
+      .where((loan) => loan.status == 'APPROVED' && (loan.outstandingAmount ?? 0) > 0)
+      .toList();
 
   @override
   Widget build(BuildContext context) {
@@ -1137,7 +1350,8 @@ class _LoansTabState extends State<LoansTab> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _SectionCard(
+          if (_isManagement)
+            _SectionCard(
             title: 'Filter loans',
             child: DropdownButtonFormField<String>(
               value: _statusFilter,
@@ -1161,7 +1375,7 @@ class _LoansTabState extends State<LoansTab> {
               },
             ),
           ),
-          const SizedBox(height: 16),
+          if (_isManagement) const SizedBox(height: 16),
           _SectionCard(
             title: 'Loan list',
             child: _loans.isEmpty
@@ -1174,7 +1388,7 @@ class _LoansTabState extends State<LoansTab> {
                     children: _loans.map(
                       (loan) {
                         final canAct =
-                            _isAdmin &&
+                            _isManagement &&
                             loan.status == 'PENDING' &&
                             loan.borrowerId != widget.currentUser?.id;
                         return Padding(
@@ -1204,6 +1418,10 @@ class _LoansTabState extends State<LoansTab> {
                                   _InfoRow('Tenure', loan.tenure ?? '-'),
                                   _InfoRow('Bank',
                                       loan.bank ?? loan.virtualBank ?? '-'),
+                                  if (loan.status == 'APPROVED')
+                                    _InfoRow('Payment status',
+                                        (loan.repaymentStatus ?? 'PENDING')
+                                            .replaceAll('_', ' ')),
                                   if (canAct) ...[
                                     const SizedBox(height: 12),
                                     Row(
@@ -1239,6 +1457,64 @@ class _LoansTabState extends State<LoansTab> {
                     ).toList(),
                   ),
           ),
+          const SizedBox(height: 16),
+          _SectionCard(
+            title: 'Outstanding Repayments',
+            child: _outstandingRepayments.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text('No outstanding repayments found.',
+                        style: TextStyle(color: LawraColors.textMuted)),
+                  )
+                : Column(
+                    children: _outstandingRepayments.map((loan) {
+                      final isOwnLoan = loan.borrowerId == widget.currentUser?.id;
+                      return Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (_isManagement)
+                                _InfoRow('Borrower', loan.borrowerName ?? '-'),
+                              _InfoRow('Loan', '#${loan.id}'),
+                              _InfoRow('Total repayment', _money(loan.repaymentAmount)),
+                              _InfoRow('Paid', _money(loan.totalPaid)),
+                              _InfoRow('Outstanding', _money(loan.outstandingAmount)),
+                              _InfoRow('Payment status',
+                                  (loan.repaymentStatus ?? 'PENDING').replaceAll('_', ' ')),
+                              _InfoRow('Due date', loan.dueDate ?? '-'),
+                              if (isOwnLoan || _isManagement) ...[
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: ElevatedButton(
+                                        onPressed: () =>
+                                            _openRepaymentDialog(loan),
+                                        child: Text(isOwnLoan
+                                            ? 'Make repayment'
+                                            : 'Pay on behalf'),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        onPressed: () =>
+                                            _openRepaymentHistory(loan),
+                                        child: const Text('History'),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+          ),
         ],
       ),
     );
@@ -1271,9 +1547,7 @@ class _BanksTabState extends State<BanksTab> {
   bool _isLoading = true;
   String? _error;
   List<VirtualBank> _banks = [];
-  String _name = '';
-  String _balance = '';
-  bool _isCreating = false;
+  bool _showBalances = false;
 
   @override
   void initState() {
@@ -1281,11 +1555,21 @@ class _BanksTabState extends State<BanksTab> {
     _refresh();
   }
 
-  Future<void> _refresh() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  @override
+  void didUpdateWidget(covariant BanksTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentUser?.balance != widget.currentUser?.balance) {
+      _refresh(showLoading: false);
+    }
+  }
+
+  Future<void> _refresh({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
 
     try {
       final data = await widget.api.fetchVirtualBanks();
@@ -1293,6 +1577,7 @@ class _BanksTabState extends State<BanksTab> {
       setState(() {
         _banks = data;
         _isLoading = false;
+        _error = null;
       });
     } on LawraApiException catch (error) {
       if (!mounted) return;
@@ -1306,35 +1591,6 @@ class _BanksTabState extends State<BanksTab> {
         _error = error.toString();
         _isLoading = false;
       });
-    }
-  }
-
-  Future<void> _createBank() async {
-    if (_name.trim().isEmpty) {
-      _showMessage('Enter a bank name.');
-      return;
-    }
-
-    setState(() => _isCreating = true);
-    try {
-      await widget.api.createVirtualBank(
-        name: _name.trim(),
-        balance: _balance.trim().isEmpty ? null : num.tryParse(_balance),
-      );
-      widget.addNotice('Virtual bank created: ${_name.trim()}', type: 'bank');
-      if (!mounted) return;
-      setState(() {
-        _name = '';
-        _balance = '';
-      });
-      await _refresh();
-      _showMessage('Virtual bank created.');
-    } on LawraApiException catch (error) {
-      _showMessage(error.message);
-    } catch (error) {
-      _showMessage(error.toString());
-    } finally {
-      if (mounted) setState(() => _isCreating = false);
     }
   }
 
@@ -1356,8 +1612,10 @@ class _BanksTabState extends State<BanksTab> {
   }
 
   bool _canManageBank(VirtualBank bank) {
-    return _isAdmin || bank.createdById == widget.session.userId;
+    return _canViewAllBanks || bank.createdById == widget.session.userId;
   }
+
+  bool get _shouldShowBalances => !_canViewAllBanks || _showBalances;
 
   Future<void> _openBankActions(VirtualBank bank) async {
     if (!_canManageBank(bank)) {
@@ -1378,7 +1636,7 @@ class _BanksTabState extends State<BanksTab> {
                       style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 12),
                   _InfoRow('Name', bank.name),
-                  _InfoRow('Balance', _money(bank.balance)),
+                  _InfoRow('Balance', _shouldShowBalances ? _money(bank.balance) : '••••••'),
                   _InfoRow('Created by', bank.createdBy ?? '-'),
                   const SizedBox(height: 16),
                   const Text(
@@ -1416,12 +1674,21 @@ class _BanksTabState extends State<BanksTab> {
                 const SizedBox(height: 16),
                 TextField(
                   controller: renameController,
-                  decoration: const InputDecoration(labelText: 'Rename bank'),
+                  readOnly: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Account name',
+                    helperText: 'Account names are managed from your profile.',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: topUpController,
-                  decoration: const InputDecoration(labelText: 'Top-up amount'),
+                  decoration: InputDecoration(
+                    labelText: 'Add funds',
+                    helperText: bank.createdById == widget.session.userId
+                        ? 'Adds to your wallet.'
+                        : 'This amount is debited from your wallet.',
+                  ),
                   keyboardType: TextInputType.number,
                 ),
                 const SizedBox(height: 20),
@@ -1429,24 +1696,8 @@ class _BanksTabState extends State<BanksTab> {
                   children: [
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () async {
-                          final name = renameController.text.trim();
-                          if (name.isEmpty) {
-                            _showMessage('Enter a bank name.');
-                            return;
-                          }
-                          Navigator.of(context).pop();
-                          try {
-                            await widget.api
-                                .updateVirtualBank(bank.id, name: name);
-                            widget.addNotice('Renamed bank to $name',
-                                type: 'bank');
-                            await _refresh();
-                          } on LawraApiException catch (error) {
-                            _showMessage(error.message);
-                          }
-                        },
-                        child: const Text('Rename'),
+                        onPressed: null,
+                        child: const Text('Profile managed'),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1478,22 +1729,12 @@ class _BanksTabState extends State<BanksTab> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () async {
-                          Navigator.of(context).pop();
-                          try {
-                            await widget.api.deleteVirtualBank(bank.id);
-                            widget.addNotice('Deleted bank ${bank.name}',
-                                type: 'bank');
-                            await _refresh();
-                          } on LawraApiException catch (error) {
-                            _showMessage(error.message);
-                          }
-                        },
+                        onPressed: null,
                         style: OutlinedButton.styleFrom(
                           foregroundColor: LawraColors.destructive,
                           side: const BorderSide(color: LawraColors.destructive),
                         ),
-                        child: const Text('Delete'),
+                        child: const Text('Account protected'),
                       ),
                     ),
                   ],
@@ -1529,35 +1770,16 @@ class _BanksTabState extends State<BanksTab> {
         padding: const EdgeInsets.all(16),
         children: [
           _SectionCard(
-            title: 'Create virtual bank',
-            child: Column(
-              children: [
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Bank name'),
-                  onChanged: (value) => _name = value,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  decoration:
-                      const InputDecoration(labelText: 'Opening balance'),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [AmountInputFormatter()],
-                  onChanged: (value) => _balance = parseAmount(value) ?? value,
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isCreating ? null : _createBank,
-                    child: Text(_isCreating ? 'Creating...' : 'Create bank'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          _SectionCard(
             title: 'Virtual banks',
+            action: _canViewAllBanks
+                ? IconButton(
+                    tooltip: _showBalances ? 'Hide balances' : 'Show balances',
+                    onPressed: () => setState(() => _showBalances = !_showBalances),
+                    icon: Icon(
+                      _showBalances ? Icons.visibility_off : Icons.visibility,
+                    ),
+                  )
+                : null,
             child: visibleBanks.isEmpty
                 ? const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
@@ -1572,7 +1794,7 @@ class _BanksTabState extends State<BanksTab> {
                             title: Text(bank.name,
                                 style: const TextStyle(
                                     fontWeight: FontWeight.w600)),
-                            subtitle: Text('Balance: ${_money(bank.balance)}',
+                            subtitle: Text('Balance: ${_shouldShowBalances ? _money(bank.balance) : '••••••'}',
                                 style: const TextStyle(
                                     color: LawraColors.textMuted)),
                             trailing: Container(
@@ -1631,10 +1853,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _isSavingProfile = false;
+  bool _isSavingManagedUser = false;
+  bool _isDeletingManagedUser = false;
   bool _isLoadingAdminData = false;
   bool _isTenantAdmin = false;
   List<Tenant> _tenants = [];
   Tenant? _selectedTenant;
+  List<UserProfile> _users = [];
+  UserProfile? _selectedManagedUser;
+  final _managedUserEmailController = TextEditingController();
+  final _managedUserNameController = TextEditingController();
+  final _managedUserPhoneController = TextEditingController();
+  final _managedUserPasswordController = TextEditingController();
 
   @override
   void initState() {
@@ -1651,13 +1881,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadAdminData() async {
     setState(() => _isLoadingAdminData = true);
     try {
-      final tenants = await widget.api.fetchTenants();
+      final tenantsFuture = widget.api.fetchTenants();
+      final usersFuture = widget.api.fetchUsers();
+      final tenants = await tenantsFuture;
+      final users = await usersFuture;
       if (!mounted) return;
+      Tenant? selectedTenant;
+      for (final tenant in tenants) {
+        if (tenant.id == _selectedTenant?.id) {
+          selectedTenant = tenant;
+          break;
+        }
+      }
+      selectedTenant ??= tenants.isNotEmpty ? tenants.first : null;
       setState(() {
         _tenants = tenants;
-        _selectedTenant = tenants.isNotEmpty ? tenants.first : null;
+        _users = users;
+        _selectedTenant = selectedTenant;
         _tenantIdController.text = _selectedTenant?.id ?? '';
-        _tenantNameController.text = _selectedTenant?.name ?? '';
         _tenantRenameController.text = _selectedTenant?.name ?? '';
         _isLoadingAdminData = false;
       });
@@ -1701,10 +1942,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
     try {
-      await widget.api.createTenant(_tenantNameController.text.trim());
+      final tenant =
+          await widget.api.createTenant(_tenantNameController.text.trim());
       widget.addNotice('Tenant created: ${_tenantNameController.text.trim()}',
           type: 'tenant');
       _showMessage('Tenant created.');
+      if (mounted) {
+        setState(() {
+          _selectedTenant = tenant;
+          _tenantNameController.clear();
+          _tenantIdController.text = tenant.id;
+          _tenantRenameController.text = tenant.name;
+        });
+      }
       await _loadAdminData();
     } on LawraApiException catch (error) {
       _showMessage(error.message);
@@ -1723,22 +1973,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.addNotice('Tenant updated: ${_tenantRenameController.text.trim()}',
           type: 'tenant');
       _showMessage('Tenant updated.');
-      await _loadAdminData();
-    } on LawraApiException catch (error) {
-      _showMessage(error.message);
-    }
-  }
-
-  Future<void> _deleteTenant() async {
-    final tenantId = _tenantIdController.text.trim();
-    if (tenantId.isEmpty) {
-      _showMessage('Choose a tenant to delete.');
-      return;
-    }
-    try {
-      await widget.api.deleteTenant(tenantId);
-      widget.addNotice('Tenant deleted', type: 'tenant');
-      _showMessage('Tenant deleted.');
       await _loadAdminData();
     } on LawraApiException catch (error) {
       _showMessage(error.message);
@@ -1765,14 +1999,112 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _provisionEmailController.clear();
       _provisionNameController.clear();
       _provisionPhoneController.clear();
+      await _loadAdminData();
     } on LawraApiException catch (error) {
       _showMessage(error.message);
+    }
+  }
+
+  void _selectManagedUser(String? userId) {
+    UserProfile? selectedUser;
+    for (final user in _users) {
+      if (user.id == userId) {
+        selectedUser = user;
+        break;
+      }
+    }
+    setState(() {
+      _selectedManagedUser = selectedUser;
+      _managedUserEmailController.text = selectedUser?.email ?? '';
+      _managedUserNameController.text = selectedUser?.fullName ?? '';
+      _managedUserPhoneController.text = selectedUser?.phoneNumber ?? '';
+      _managedUserPasswordController.clear();
+    });
+  }
+
+  Future<void> _updateManagedUser() async {
+    final selectedUser = _selectedManagedUser;
+    if (selectedUser == null) {
+      _showMessage('Choose an employee to update.');
+      return;
+    }
+    final email = _managedUserEmailController.text.trim();
+    final fullName = _managedUserNameController.text.trim();
+    final phoneNumber = _managedUserPhoneController.text.trim();
+    final password = _managedUserPasswordController.text;
+    if (email.isEmpty || fullName.isEmpty || phoneNumber.isEmpty) {
+      _showMessage('Email, name, and phone number are required.');
+      return;
+    }
+    if (email == selectedUser.email &&
+        fullName == selectedUser.fullName &&
+        phoneNumber == (selectedUser.phoneNumber ?? '') &&
+        password.isEmpty) {
+      _showMessage('No changes detected.');
+      return;
+    }
+
+    setState(() => _isSavingManagedUser = true);
+    try {
+      await widget.api.updateUser(
+        selectedUser.id,
+        email: email,
+        fullName: fullName,
+        phoneNumber: phoneNumber,
+        password: password.isEmpty ? null : password,
+      );
+      widget.addNotice('User updated: $email', type: 'user');
+      _showMessage('User updated.');
+      await _loadAdminData();
+    } on LawraApiException catch (error) {
+      _showMessage(error.message);
+    } finally {
+      if (mounted) setState(() => _isSavingManagedUser = false);
+    }
+  }
+
+  Future<void> _deleteManagedUser() async {
+    final selectedUser = _selectedManagedUser;
+    if (selectedUser == null) {
+      _showMessage('Choose an employee to delete.');
+      return;
+    }
+    setState(() => _isDeletingManagedUser = true);
+    try {
+      await widget.api.deleteUser(selectedUser.id);
+      widget.addNotice('User deleted: ${selectedUser.email}', type: 'user');
+      _showMessage('User deleted.');
+      _selectManagedUser(null);
+      await _loadAdminData();
+    } on LawraApiException catch (error) {
+      _showMessage(error.message);
+    } finally {
+      if (mounted) setState(() => _isDeletingManagedUser = false);
     }
   }
 
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  void dispose() {
+    _tenantNameController.dispose();
+    _tenantIdController.dispose();
+    _tenantRenameController.dispose();
+    _provisionEmailController.dispose();
+    _provisionNameController.dispose();
+    _provisionPhoneController.dispose();
+    _profileNameController.dispose();
+    _profilePhoneController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    _managedUserEmailController.dispose();
+    _managedUserNameController.dispose();
+    _managedUserPhoneController.dispose();
+    _managedUserPasswordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -1796,7 +2128,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 _SectionCard(
-                  title: 'Edit profile',
+                  title: 'Edit Profile',
                   child: Form(
                     key: _formKey,
                     child: Column(
@@ -1843,21 +2175,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 if (_isTenantAdmin) ...[
                   const SizedBox(height: 16),
                   _SectionCard(
-                    title: 'Tenant management',
+                    title: 'Tenant Management',
                     child: Column(
                       children: [
                         DropdownButtonFormField<String>(
-                          value: _tenantIdController.text.isEmpty
-                              ? null
-                              : _tenantIdController.text,
+                          value: _selectedTenant?.id,
                           decoration:
                               const InputDecoration(labelText: 'Tenant'),
                           isExpanded: true,
+                          dropdownColor: LawraColors.white,
+                          borderRadius: BorderRadius.circular(16),
                           items: _tenants
                               .map(
                                 (tenant) => DropdownMenuItem(
                                   value: tenant.id,
-                                  child: Text('${tenant.name} (${tenant.id})'),
+                                  child: Text(
+                                    tenant.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          selectedItemBuilder: (context) => _tenants
+                              .map(
+                                (tenant) => Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    tenant.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               )
                               .toList(),
@@ -1874,6 +2222,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               _tenantRenameController.text = tenant?.name ?? '';
                             });
                           },
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _tenantRenameController,
+                          decoration: const InputDecoration(
+                              labelText: 'Selected tenant name'),
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
@@ -1900,17 +2254,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 child: const Text('Update'),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: _deleteTenant,
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: LawraColors.destructive,
-                                  side: const BorderSide(color: LawraColors.destructive),
-                                ),
-                                child: const Text('Delete'),
-                              ),
-                            ),
                           ],
                         ),
                       ],
@@ -1918,7 +2261,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 16),
                   _SectionCard(
-                    title: 'Provision user',
+                    title: 'User Provisioning',
                     child: Column(
                       children: [
                         TextFormField(
@@ -1944,6 +2287,110 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             onPressed: _provisionUser,
                             child: const Text('Provision user'),
                           ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _SectionCard(
+                    title: 'User Management',
+                    child: Column(
+                      children: [
+                        DropdownButtonFormField<String>(
+                          value: _selectedManagedUser?.id,
+                          decoration: const InputDecoration(
+                              labelText: 'Select an employee'),
+                          isExpanded: true,
+                          dropdownColor: LawraColors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          items: _users
+                              .map(
+                                (user) => DropdownMenuItem(
+                                  value: user.id,
+                                  child: Text(
+                                    '${user.fullName} · ${user.email}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          selectedItemBuilder: (context) => _users
+                              .map(
+                                (user) => Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    '${user.fullName} · ${user.email}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: _selectManagedUser,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _managedUserEmailController,
+                          enabled: _selectedManagedUser != null,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: const InputDecoration(labelText: 'Email'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _managedUserNameController,
+                          enabled: _selectedManagedUser != null,
+                          decoration: const InputDecoration(labelText: 'Full name'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _managedUserPhoneController,
+                          enabled: _selectedManagedUser != null,
+                          decoration:
+                              const InputDecoration(labelText: 'Phone number'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _managedUserPasswordController,
+                          enabled: _selectedManagedUser != null,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                            labelText: 'New password (optional)',
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: LawraColors.cyan,
+                                ),
+                                onPressed: _selectedManagedUser == null ||
+                                        _isSavingManagedUser
+                                    ? null
+                                    : _updateManagedUser,
+                                child: Text(_isSavingManagedUser
+                                    ? 'Updating...'
+                                    : 'Update'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: LawraColors.destructive,
+                                ),
+                                onPressed: _selectedManagedUser == null ||
+                                        _isDeletingManagedUser
+                                    ? null
+                                    : _deleteManagedUser,
+                                child: Text(_isDeletingManagedUser
+                                    ? 'Deleting...'
+                                    : 'Delete user'),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -2249,7 +2696,7 @@ class _SummaryCardState extends State<_SummaryCard> {
                 style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
-                    fontWeight: FontWeight.w700)),
+                    fontWeight: FontWeight.w400)),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -2259,9 +2706,9 @@ class _SummaryCardState extends State<_SummaryCard> {
                 Expanded(
                   child: Text(
                     _showBalance
-                        ? 'Amount: ${_money(widget.amount)}'
-                        : 'Amount: ••••••',
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                        ? _money(widget.amount)
+                        : '••••••••',
+                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
                   ),
                 ),
                 IconButton(
@@ -2284,10 +2731,11 @@ class _SummaryCardState extends State<_SummaryCard> {
 }
 
 class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.title, required this.child});
+  const _SectionCard({required this.title, required this.child, this.action});
 
   final String title;
   final Widget child;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
@@ -2316,6 +2764,8 @@ class _SectionCard extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                       color: LawraColors.textDark,
                     )),
+                const Spacer(),
+                if (action != null) action!,
               ],
             ),
             const SizedBox(height: 12),
@@ -2328,25 +2778,30 @@ class _SectionCard extends StatelessWidget {
 }
 
 class _LoanTile extends StatelessWidget {
-  const _LoanTile({required this.loan});
+  const _LoanTile({required this.loan, this.onRepay});
 
   final LoanSummary loan;
+  final VoidCallback? onRepay;
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        title: Text('Loan #${loan.id}',
+        title: Text('Gh¢ ${loan.amount}',
             style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${loan.virtualBank ?? loan.bank ?? '-'}'),
-            Text('${loan.tenure ?? '-'}'),
+            Text(loan.virtualBank ?? loan.bank ?? '-'),
+            Text(loan.tenure ?? '-'),
+            if (loan.status == 'APPROVED')
+              Text('Outstanding: ${_money(loan.outstandingAmount)} · ${(loan.repaymentStatus ?? 'PENDING').replaceAll('_', ' ')}'),
           ],
         ),
-        isThreeLine: true,
-        trailing: _StatusChip(status: loan.status),
+        isThreeLine: loan.status == 'APPROVED',
+        trailing: onRepay == null
+            ? _StatusChip(status: loan.status)
+            : ElevatedButton(onPressed: onRepay, child: const Text('Repay')),
       ),
     );
   }

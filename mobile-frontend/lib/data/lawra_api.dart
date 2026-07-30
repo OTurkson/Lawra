@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -6,13 +7,15 @@ import 'package:http/http.dart' as http;
 import 'session_store.dart';
 
 String _defaultBaseUrl() {
-  return defaultTargetPlatform == TargetPlatform.android
-      ? 'http://10.0.2.2:8080'
-      : 'http://localhost:8080';
+  const override = String.fromEnvironment('BASE_URL');
+  if (override.isNotEmpty) return override;
 
-  // const override = String.fromEnvironment('BASE_URL');
-  // if (override.isNotEmpty) return override;
-  // return 'http://localhost:8080';
+  // Android emulators use 10.0.2.2 to reach the development machine.
+  // return !kIsWeb && defaultTargetPlatform == TargetPlatform.android
+  //     ? 'http://10.0.2.2:8080'
+  //     : 'http://localhost:8080';
+
+  return 'http://localhost:8080';
 }
 
 class LawraApiException implements Exception {
@@ -21,6 +24,10 @@ class LawraApiException implements Exception {
   final String message;
   final int statusCode;
   final Object? body;
+
+  /// Network failures do not mean the user is signed out.  Keeping this
+  /// distinct from a 401 lets callers offer a retry without losing a session.
+  bool get isConnectionError => statusCode == 0;
 
   @override
   String toString() => 'LawraApiException($statusCode): $message';
@@ -162,6 +169,9 @@ class LoanSummary {
     this.virtualBank,
     this.tenure,
     this.repaymentAmount,
+    this.totalPaid,
+    this.outstandingAmount,
+    this.repaymentStatus,
     this.installment,
     this.bank,
     this.dueDate,
@@ -178,6 +188,9 @@ class LoanSummary {
   final String? virtualBank;
   final String? tenure;
   final num? repaymentAmount;
+  final num? totalPaid;
+  final num? outstandingAmount;
+  final String? repaymentStatus;
   final num? installment;
   final String? bank;
   final String? dueDate;
@@ -195,11 +208,43 @@ class LoanSummary {
       virtualBank: json['virtualBank']?.toString(),
       tenure: json['tenure']?.toString(),
       repaymentAmount: json['repaymentAmount'] as num?,
+      totalPaid: json['totalPaid'] as num?,
+      outstandingAmount: json['outstandingAmount'] as num?,
+      repaymentStatus: json['repaymentStatus']?.toString(),
       installment: json['installment'] as num?,
       bank: json['bank']?.toString(),
       dueDate: json['dueDate']?.toString(),
       accountName: json['accountName']?.toString(),
       accountNumber: json['accountNumber']?.toString(),
+    );
+  }
+}
+
+class RepaymentSummary {
+  RepaymentSummary({
+    required this.id,
+    required this.amount,
+    this.paidAt,
+    this.paidById,
+    this.paidByName,
+    this.paidByRole,
+  });
+
+  final int id;
+  final num amount;
+  final String? paidAt;
+  final String? paidById;
+  final String? paidByName;
+  final String? paidByRole;
+
+  factory RepaymentSummary.fromJson(Map<String, dynamic> json) {
+    return RepaymentSummary(
+      id: int.tryParse(json['id']?.toString() ?? '') ?? 0,
+      amount: (json['amount'] as num?) ?? 0,
+      paidAt: json['paidAt']?.toString(),
+      paidById: json['paidById']?.toString(),
+      paidByName: json['paidByName']?.toString(),
+      paidByRole: json['paidByRole']?.toString(),
     );
   }
 }
@@ -301,9 +346,28 @@ class LawraApi {
       ..headers.addAll(await _headers(publicRoute: publicRoute))
       ..body = body == null ? '' : jsonEncode(body);
 
-    final streamed = await response.send();
-
-    final rawBody = await streamed.stream.bytesToString();
+    late http.StreamedResponse streamed;
+    late String rawBody;
+    try {
+      streamed = await response
+          .send()
+          .timeout(const Duration(seconds: 20));
+      rawBody = await streamed.stream
+          .bytesToString()
+          .timeout(const Duration(seconds: 20));
+    } on TimeoutException {
+      throw LawraApiException(
+        'Lawra is taking too long to respond. Please try again.',
+        0,
+        null,
+      );
+    } on http.ClientException {
+      throw LawraApiException(
+        'Lawra is temporarily unavailable. Check your connection and try again in a moment.',
+        0,
+        null,
+      );
+    }
 
     final isJson =
         streamed.headers['content-type']?.contains('application/json') ?? false;
@@ -392,10 +456,6 @@ class LawraApi {
     return Tenant.fromJson(data);
   }
 
-  Future<void> deleteTenant(String id) async {
-    await _send('/tenants/$id', method: 'DELETE');
-  }
-
   Future<UserProfile> fetchUserById(String id) async {
     final data = await _send('/users/$id') as Map<String, dynamic>;
     return UserProfile.fromJson(data);
@@ -474,14 +534,6 @@ class LawraApi {
   Future<List<VirtualBank>> fetchVirtualBanks() async {
     final data = await _send('/banks') as List<dynamic>;
     return data.cast<Map<String, dynamic>>().map(VirtualBank.fromJson).toList();
-  }
-
-  Future<VirtualBank> createVirtualBank(
-      {required String name, num? balance}) async {
-    final data = await _send('/banks',
-        method: 'POST',
-        body: {'name': name, 'balance': balance}) as Map<String, dynamic>;
-    return VirtualBank.fromJson(data);
   }
 
   Future<VirtualBank> updateVirtualBank(int id, {required String name}) async {
@@ -586,6 +638,20 @@ class LawraApi {
         method: 'PUT',
         body: {'loanStatus': loanStatus}) as Map<String, dynamic>;
     return LoanSummary.fromJson(data);
+  }
+
+  Future<LoanSummary> repayLoan(int id, num amount) async {
+    final data = await _send('/loans/$id/repayments',
+        method: 'POST', body: {'amount': amount}) as Map<String, dynamic>;
+    return LoanSummary.fromJson(data);
+  }
+
+  Future<List<RepaymentSummary>> fetchRepayments(int id) async {
+    final data = await _send('/loans/$id/repayments') as List<dynamic>;
+    return data
+        .cast<Map<String, dynamic>>()
+        .map(RepaymentSummary.fromJson)
+        .toList();
   }
 
   Future<List<AuditLogSummary>> fetchAuditLogs({

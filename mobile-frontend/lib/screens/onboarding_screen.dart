@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -30,6 +32,7 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
   int _currentPage = 0;
+  bool _isLeavingTour = false;
 
   static const _pages = [
     OnboardingTourPage(
@@ -67,15 +70,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
-  Future<void> _goToSignIn() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(OnboardingScreen.tourCompletedKey, true);
-    if (!mounted) return;
+  void _goToSignIn() {
+    if (_isLeavingTour) return;
+    _isLeavingTour = true;
+
+    // Completing the tour only affects a future launch, so do not make the
+    // user wait for the disk write before showing sign-in.
+    unawaited(_markTourCompleted());
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => const AuthScreen(initialIsLogin: true),
+      PageRouteBuilder<void>(
+        pageBuilder: (_, __, ___) => const AuthScreen(initialIsLogin: true),
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
       ),
     );
+  }
+
+  Future<void> _markTourCompleted() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(OnboardingScreen.tourCompletedKey, true);
   }
 
   @override
