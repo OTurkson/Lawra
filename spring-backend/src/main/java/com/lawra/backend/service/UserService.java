@@ -35,6 +35,7 @@ public class UserService {
     private final EmailService emailService;
     private final PasswordResetService passwordResetService;
     private final AuthenticatedUserContextService authenticatedUserContextService;
+    private final AccountService accountService;
 
     // list all users
     public List<UserResponseDTO> getAllUsers() {
@@ -71,6 +72,7 @@ public class UserService {
         ensureEmailIsAvailable(email, tenantId, null);
 
         User savedUser = saveUserEntity(user);
+        accountService.provision(savedUser);
         emailService.sendAccountCreationEmail(savedUser);
         return userMapper.map(savedUser);
     }
@@ -110,6 +112,7 @@ public class UserService {
         user.setTenant(tenant);
 
         User savedUser = saveUserEntity(user);
+        accountService.provision(savedUser);
 
         String token = passwordResetService.createResetToken(savedUser);
         emailService.sendAccountCreationEmail(savedUser, token);
@@ -141,6 +144,7 @@ public class UserService {
         ensureEmailIsAvailable(email, tenant.getId(), null);
 
         User savedUser = saveUserEntity(user);
+        accountService.provision(savedUser);
 
         String token = passwordResetService.createResetToken(savedUser);
         emailService.sendAccountCreationEmail(savedUser, token);
@@ -202,7 +206,11 @@ public class UserService {
             return userMapper.map(user);
         }
 
-        return userMapper.map(saveUserEntity(user));
+        User savedUser = saveUserEntity(user);
+        if (hasChanges && userRequestDTO.getFullName() != null) {
+            accountService.syncAccountName(savedUser);
+        }
+        return userMapper.map(savedUser);
     }
 
     @Transactional
@@ -210,11 +218,8 @@ public class UserService {
         User currentUser = authenticatedUserContextService.getCurrentUser();
         BigDecimal amount = normalizeAmount(request.getAmount());
 
-        BigDecimal currentBalance = currentUser.getBalance() == null ? BigDecimal.ZERO : currentUser.getBalance();
-        currentUser.setBalance(currentBalance.add(amount));
-
-        User saved = userRepository.save(currentUser);
-        return userMapper.map(saved);
+        accountService.credit(currentUser, amount);
+        return userMapper.map(currentUser);
     }
 
     public void deleteUser(UUID id) {
@@ -231,7 +236,8 @@ public class UserService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You cannot delete your own account");
         }
 
-        userRepository.deleteById(id);
+        accountService.deleteWithUser(user);
+        userRepository.delete(user);
     }
 
     private BigDecimal normalizeAmount(BigDecimal amount) {

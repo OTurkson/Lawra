@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  createVirtualBank,
   deleteVirtualBank,
   fetchVirtualBanks,
   topUpVirtualBank,
@@ -21,6 +20,7 @@ import {
 import { pushNotification } from "@/lib/notifications";
 import { normalizeRole } from "@/lib/auth";
 import { formatNumberInput, parseAmount } from "@/lib/format-number";
+import { Eye, EyeOff } from "lucide-react";
 
 const VirtualBanksPage = () => {
   const queryClient = useQueryClient();
@@ -31,8 +31,7 @@ const VirtualBanksPage = () => {
   const isTenantAdmin = isAdmin || role === "PAYMASTER";
   const isBorrower = role === "BORROWER";
 
-  const [name, setName] = useState("");
-  const [balance, setBalance] = useState("");
+  const [showBalances, setShowBalances] = useState(false);
   const [selectedBankId, setSelectedBankId] = useState("");
   const [renameName, setRenameName] = useState("");
   const [topUpAmount, setTopUpAmount] = useState("");
@@ -63,7 +62,8 @@ const VirtualBanksPage = () => {
 
   const selectedBank = visibleBanks.find((bank) => String(bank.id) === selectedBankId);
   const isSelectedBankOwner = !!selectedBank && selectedBank.createdById === user?.id;
-  const canManageSelectedBank = !!selectedBank && (isAdmin || isSelectedBankOwner);
+  const canManageSelectedBank = !!selectedBank && (isTenantAdmin || isSelectedBankOwner);
+  const shouldShowBalances = !isTenantAdmin || showBalances;
 
   const formatDateTime = (value?: string) => {
     if (!value) {
@@ -86,7 +86,22 @@ const VirtualBanksPage = () => {
         <thead>
           <tr className="bg-table-header text-table-header-foreground">
             <th className="px-4 py-2 text-left font-normal">Name</th>
-            <th className="px-4 py-2 text-center font-normal">Balance</th>
+            <th className="px-4 py-2 text-center font-normal">
+              <span className="inline-flex items-center gap-1">
+                Balance
+                {isTenantAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => setShowBalances((visible) => !visible)}
+                    className="rounded p-1 hover:bg-muted/50"
+                    title={showBalances ? "Hide balances" : "Show balances"}
+                    aria-label={showBalances ? "Hide balances" : "Show balances"}
+                  >
+                    {showBalances ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                )}
+              </span>
+            </th>
             {options.showCreatedBy && <th className="px-4 py-2 text-center font-normal">Created By</th>}
           </tr>
         </thead>
@@ -119,7 +134,7 @@ const VirtualBanksPage = () => {
               }}
             >
               <td className="px-4 py-2 text-muted-foreground">{bank.name ?? "-"}</td>
-              <td className="px-4 py-2 text-center text-muted-foreground">{bank.balance ?? "-"}</td>
+              <td className="px-4 py-2 text-center text-muted-foreground">{shouldShowBalances ? bank.balance ?? "-" : "••••••"}</td>
               {options.showCreatedBy && <td className="px-4 py-2 text-center text-muted-foreground">{bank.createdBy ?? "-"}</td>}
             </tr>
           ))}
@@ -135,31 +150,6 @@ const VirtualBanksPage = () => {
       </table>
     </div>
   );
-
-  const createMutation = useMutation({
-    mutationFn: () => {
-      if (!name) throw new Error("Virtual bank name is required.");
-
-      return createVirtualBank({
-        name,
-        balance: balance ? Number(parseAmount(balance)) : undefined,
-      });
-    },
-    onSuccess: () => {
-      setName("");
-      setBalance("");
-      queryClient.invalidateQueries({ queryKey: ["virtual-banks"] });
-      queryClient.invalidateQueries({ queryKey: ["current-user", user?.id] });
-      toast({ title: "Virtual bank created" });
-      pushNotification(queryClient, user?.id, {
-        type: 'bank-create',
-        message: `Created virtual bank ${name} with Gh¢ ${Number(balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      });
-    },
-    onError: (error: any) => {
-      toast({ title: "Create failed", description: error?.message ?? "Unable to create virtual bank." });
-    },
-  });
 
   const updateMutation = useMutation({
     mutationFn: () => {
@@ -233,48 +223,9 @@ const VirtualBanksPage = () => {
 
   return (
     <div className="space-y-6">
-      {isBorrower ? (
-        renderBanksTable({ showCreatedBy: false, emptyMessage: "No virtual banks created by you yet." })
-      ) : (
-        <>
-          <div className="bg-card rounded-lg shadow-sm p-6 space-y-4">
-            <div>
-              <h2 className="text-lg font-light text-foreground">Create Virtual Bank</h2>
-              {/* <p className="text-xs text-muted-foreground mt-1">Create a new bank without leaving the page.</p> */}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Virtual bank name"
-                className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
-              />
-              <input
-                value={balance}
-                onChange={(e) => setBalance(formatNumberInput(e.target.value))}
-                placeholder="Initial deposit"
-                className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
-              />
-            </div>
-            <div className="flex items-center justify-center gap-12">
-              <button onClick={() => createMutation.mutate()}
-              disabled={createMutation.isPending}
-              className="w-50 px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-                {createMutation.isPending ? (
-                  <>
-                    <Spinner size="sm" />
-                    Creating...
-                  </>
-                ) : (
-                  "Create Virtual Bank"
-                )}
-              </button>
-            </div>
-          </div>
-          {renderBanksTable({ showCreatedBy: true, emptyMessage: "No virtual banks found." })}
-        </>
-      )}
+      {isBorrower
+        ? renderBanksTable({ showCreatedBy: false, emptyMessage: "No virtual bank is assigned to your account yet." })
+        : renderBanksTable({ showCreatedBy: true, emptyMessage: "No virtual banks found." })}
 
       <Dialog
         open={isBankDialogOpen}
@@ -297,7 +248,7 @@ const VirtualBanksPage = () => {
               <div className="space-y-2 rounded-lg border border-border p-4 bg-muted/20">
                 <p className="text-sm font-semibold text-foreground">{selectedBank.name}</p>
                 <p className="text-xs text-muted-foreground">ID: {selectedBank.id}</p>
-                <p className="text-xs text-muted-foreground">Balance: {selectedBank.balance ?? "-"}</p>
+                <p className="text-xs text-muted-foreground">Balance: {shouldShowBalances ? selectedBank.balance ?? "-" : "••••••"}</p>
                 <p className="text-xs text-muted-foreground">Created by: {selectedBank.createdBy ?? "-"}</p>
                 <p className="text-xs text-muted-foreground">Created at: {formatDateTime(selectedBank.createdAt)}</p>
                 <p className="text-xs text-muted-foreground">Date modified: {formatDateTime(selectedBank.updatedAt)}</p>
@@ -307,33 +258,7 @@ const VirtualBanksPage = () => {
                 <>
                   <div className="space-y-3">
                     <label className="text-xs text-muted-foreground">
-                      {isSelectedBankOwner ? "Rename bank" : "Rename bank as admin"}
-                    </label>
-                    <input
-                      value={renameName}
-                      onChange={(e) => setRenameName(e.target.value)}
-                      placeholder="Rename bank"
-                      className="w-full px-4 py-2 rounded-full border border-primary/40 bg-card text-foreground"
-                    />
-                    <button
-                      onClick={() => updateMutation.mutate()}
-                      disabled={updateMutation.isPending || !canManageSelectedBank}
-                      className="w-full px-6 py-2 rounded-full bg-approve text-approve-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      {updateMutation.isPending ? (
-                        <>
-                          <Spinner size="sm" />
-                          Renaming...
-                        </>
-                      ) : (
-                        "Rename"
-                      )}
-                    </button>
-                  </div>
-
-                  <div className="space-y-3">
-                    <label className="text-xs text-muted-foreground">
-                      {isSelectedBankOwner ? "Top-up amount" : "Top-up amount as admin"}
+                      {isSelectedBankOwner ? "Top-up amount" : "Add funds from your wallet"}
                     </label>
                     <input
                       value={topUpAmount}
@@ -357,17 +282,10 @@ const VirtualBanksPage = () => {
                     </button>
                   </div>
 
-                  <button
-                    onClick={() => setIsDeleteConfirmOpen(true)}
-                    disabled={!canManageSelectedBank}
-                    className="w-full px-6 py-2 rounded-full bg-destructive text-destructive-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    Delete
-                  </button>
                 </>
               ) : (
                 <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-                  You can view this bank's details, but only its owner or an admin can rename, top up, or delete it.
+                  This account is view-only. Only its owner or an administrator can add funds.
                 </div>
               )}
             </div>

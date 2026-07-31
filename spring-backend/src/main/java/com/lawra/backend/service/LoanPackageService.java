@@ -27,6 +27,7 @@ public class LoanPackageService {
 	private final VirtualBankRepository virtualBankRepository;
 	private final LoanPackageMapper loanPackageMapper;
 	private final AuthenticatedUserContextService authenticatedUserContextService;
+	private final AccountService accountService;
 
 //	list all loan packages from the virtual banks available
 	public List<LoanPackageDTO> getAll() {
@@ -72,16 +73,22 @@ public class LoanPackageService {
 		validateLoanPackageName(loanPackage);
 		VirtualBank bank = resolveTenantScopedBank(loanPackage.getVirtualBank());
 		ensureCanManageBank(bank);
+		User currentUser = authenticatedUserContextService.getCurrentUser();
 		
 		// Validate that loan package balance doesn't exceed virtual bank balance
-		if (loanPackage.getBalance().compareTo(bank.getBalance()) > 0) {
+		if (!isFundingAnotherUser(currentUser, bank)
+				&& loanPackage.getBalance().compareTo(bank.getBalance()) > 0) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, 
 				"Loan package balance cannot exceed virtual bank balance. Available: " + bank.getBalance());
 		}
 		
 		// Deduct loan package balance from virtual bank
-		bank.setBalance(bank.getBalance().subtract(loanPackage.getBalance()));
-		virtualBankRepository.save(bank);
+		if (isFundingAnotherUser(currentUser, bank)) {
+			accountService.debit(currentUser, loanPackage.getBalance());
+		} else {
+			bank.setBalance(bank.getBalance().subtract(loanPackage.getBalance()));
+			virtualBankRepository.save(bank);
+		}
 		
 		loanPackage.setVirtualBank(bank);
 		return loanPackageRepository.save(loanPackage);
@@ -93,6 +100,7 @@ public class LoanPackageService {
 		validateLoanPackageBalance(updated);
 		LoanPackage existing = getByIdEntity(id);
 		ensureCanManageLoanPackage(existing);
+		User currentUser = authenticatedUserContextService.getCurrentUser();
 		VirtualBank existingBank = existing.getVirtualBank();
 		VirtualBank updatedBank = resolveTenantScopedBank(updated.getVirtualBank());
 		BigDecimal existingBalance = nonNullBalance(existing.getBalance());
@@ -102,27 +110,22 @@ public class LoanPackageService {
 			BigDecimal balanceDifference = updatedBalance.subtract(existingBalance);
 
 			if (balanceDifference.compareTo(BigDecimal.ZERO) > 0) {
-				BigDecimal availableBalance = nonNullBalance(updatedBank.getBalance());
-				if (balanceDifference.compareTo(availableBalance) > 0) {
-					throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-						"Insufficient virtual bank balance. Available: " + availableBalance);
+				if (isFundingAnotherUser(currentUser, updatedBank)) {
+					accountService.debit(currentUser, balanceDifference);
+				} else {
+					BigDecimal availableBalance = nonNullBalance(updatedBank.getBalance());
+					if (balanceDifference.compareTo(availableBalance) > 0) {
+						throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+							"Insufficient virtual bank balance. Available: " + availableBalance);
+					}
+					updatedBank.setBalance(availableBalance.subtract(balanceDifference));
 				}
-				updatedBank.setBalance(availableBalance.subtract(balanceDifference));
 			} else if (balanceDifference.compareTo(BigDecimal.ZERO) < 0) {
 				updatedBank.setBalance(nonNullBalance(updatedBank.getBalance()).add(balanceDifference.negate()));
 			}
 		} else {
-			VirtualBank sourceBank = existingBank != null ? existingBank : updatedBank;
-			sourceBank.setBalance(nonNullBalance(sourceBank.getBalance()).add(existingBalance));
-
-			BigDecimal availableBalance = nonNullBalance(updatedBank.getBalance());
-			if (updatedBalance.compareTo(availableBalance) > 0) {
-				throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-					"Insufficient virtual bank balance. Available: " + availableBalance);
-			}
-
-			updatedBank.setBalance(availableBalance.subtract(updatedBalance));
-			virtualBankRepository.save(sourceBank);
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+					"A loan package cannot be moved between user wallets");
 		}
 
 		virtualBankRepository.save(updatedBank);
@@ -164,7 +167,7 @@ public class LoanPackageService {
 	private void ensureCanManageBank(VirtualBank bank) {
 		User currentUser = authenticatedUserContextService.getCurrentUser();
 		boolean isOwner = bank.getCreatedBy() != null && bank.getCreatedBy().getId().equals(currentUser.getId());
-		boolean isAdmin = currentUser.getRole() == UserRole.ADMIN;
+		boolean isAdmin = currentUser.getRole() == UserRole.ADMIN || currentUser.getRole() == UserRole.PAYMASTER;
 
 		if (!isOwner && !isAdmin) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only manage loan packages on your own virtual banks");
@@ -175,7 +178,7 @@ public class LoanPackageService {
 		User currentUser = authenticatedUserContextService.getCurrentUser();
 		VirtualBank bank = loanPackage.getVirtualBank();
 		boolean isOwner = bank != null && bank.getCreatedBy() != null && bank.getCreatedBy().getId().equals(currentUser.getId());
-		boolean isAdmin = currentUser.getRole() == UserRole.ADMIN;
+		boolean isAdmin = currentUser.getRole() == UserRole.ADMIN || currentUser.getRole() == UserRole.PAYMASTER;
 
 		if (!isOwner && !isAdmin) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only manage your own loan packages");
@@ -199,6 +202,11 @@ public class LoanPackageService {
 
 	private BigDecimal nonNullBalance(BigDecimal balance) {
 		return balance != null ? balance : BigDecimal.ZERO;
+	}
+
+	private boolean isFundingAnotherUser(User currentUser, VirtualBank targetBank) {
+		return targetBank.getCreatedBy() != null
+				&& !targetBank.getCreatedBy().getId().equals(currentUser.getId());
 	}
 }
 

@@ -3,6 +3,8 @@ package com.lawra.backend.controller;
 import com.lawra.backend.dto.BorrowerLoanPackageDTO;
 import com.lawra.backend.dto.LoanRequestDTO;
 import com.lawra.backend.dto.LoanSummaryDTO;
+import com.lawra.backend.dto.RepaymentRequestDTO;
+import com.lawra.backend.dto.RepaymentSummaryDTO;
 import com.lawra.backend.service.BorrowerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -29,10 +31,23 @@ public class BorrowerController {
 
 //    display loans requests for the authenticated borrower/paymaster user.
     @GetMapping("/users/{borrowerId}/loans")
-    @PreAuthorize("hasRole('BORROWER') or hasRole('PAYMASTER')")
+    @PreAuthorize("hasRole('BORROWER') or hasRole('PAYMASTER') or hasRole('ADMIN')")
     public ResponseEntity<List<LoanSummaryDTO>> getLoansPerBorrower(@PathVariable UUID borrowerId) {
         List<LoanSummaryDTO> loansPerBorrower = borrowerService.getLoansPerBorrower(borrowerId);
         return ResponseEntity.ok(loansPerBorrower);
+    }
+
+    @PostMapping("/loans/{loanId}/repayments")
+    @PreAuthorize("hasRole('BORROWER') or hasRole('PAYMASTER') or hasRole('ADMIN')")
+    public ResponseEntity<LoanSummaryDTO> repayLoan(@PathVariable Long loanId,
+                                                      @RequestBody RepaymentRequestDTO request) {
+        return ResponseEntity.ok(borrowerService.repayLoan(loanId, request));
+    }
+
+    @GetMapping("/loans/{loanId}/repayments")
+    @PreAuthorize("hasRole('BORROWER') or hasRole('PAYMASTER') or hasRole('ADMIN')")
+    public ResponseEntity<List<RepaymentSummaryDTO>> getRepayments(@PathVariable Long loanId) {
+        return ResponseEntity.ok(borrowerService.getRepayments(loanId));
     }
 
     @GetMapping("/borrower/loan-packages")

@@ -5,6 +5,7 @@ import com.lawra.backend.enums.LoanStatus;
 import com.lawra.backend.enums.UserRole;
 import com.lawra.backend.model.*;
 import com.lawra.backend.repository.*;
+import com.lawra.backend.service.AccountService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +29,7 @@ public class DataInitializer {
     private final LoanPackageRepository loanPackageRepository;
     private final LoanRepository loanRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AccountService accountService;
 
     @Bean
     CommandLineRunner seedDemoData() {
@@ -51,10 +53,10 @@ public class DataInitializer {
             borrower.setPhoneNumber("0240000001");
             borrower.setPassword(passwordEncoder.encode("password"));
             borrower.setRole(UserRole.BORROWER);
-            borrower.setBalance(BigDecimal.ZERO);
             borrower.setPasswordResetRequired(false);
             borrower.setTenant(tenant);
             borrower = userRepository.save(borrower);
+            VirtualBank borrowerAccount = accountService.provision(borrower);
 
             User paymaster = new User();
             paymaster.setEmail("paymaster@unilever.test");
@@ -62,24 +64,20 @@ public class DataInitializer {
             paymaster.setPhoneNumber("0240000002");
             paymaster.setPassword(passwordEncoder.encode("password"));
             paymaster.setRole(UserRole.PAYMASTER);
-            paymaster.setBalance(BigDecimal.ZERO);
             paymaster.setPasswordResetRequired(false);
             paymaster.setTenant(tenant);
             paymaster = userRepository.save(paymaster);
+            VirtualBank bank = accountService.provision(paymaster);
 
-            // Virtual bank
-            VirtualBank bank = new VirtualBank();
-            bank.setName("Abusia Funds");
-            bank.setTenant(tenant);
-            bank.setCreatedBy(paymaster);
-            bank.setBalance(new BigDecimal("20000.00"));
+            // The paymaster's automatically provisioned account funds its packages.
+            bank.setBalance(BigDecimal.ZERO);
             bank = virtualBankRepository.save(bank);
 
             // Loan package linked to virtual bank
             LoanPackage loanPackage = new LoanPackage();
             loanPackage.setVirtualBank(bank);
             loanPackage.setName("Abusia Starter");
-            loanPackage.setBalance(new BigDecimal("20000.00"));
+            loanPackage.setBalance(new BigDecimal("18500.00"));
             loanPackage.setInterestRate(new BigDecimal("12.50"));
             loanPackage = loanPackageRepository.save(loanPackage);
 
@@ -110,9 +108,12 @@ public class DataInitializer {
                     .build();
             loanRepository.save(approvedLoan);
 
+            // The approved loan has already been disbursed to the borrower's account.
+            borrowerAccount.setBalance(new BigDecimal("1500.00"));
+            virtualBankRepository.save(borrowerAccount);
+
             log.info("Demo data created: tenant={}, borrower={}, paymaster={}, bank={}",
                     tenant.getId(), borrower.getId(), paymaster.getId(), bank.getId());
         };
     }
 }
-    

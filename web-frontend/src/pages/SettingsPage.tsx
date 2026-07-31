@@ -4,7 +4,6 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createTenant,
-  deleteTenant,
   deleteUser,
   fetchTenantById,
   fetchTenants,
@@ -18,6 +17,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/Spinner";
 import { PhoneInput } from "@/components/PhoneInput";
 import { createProfileImageLabel, loadProfileImage, removeProfileImage, saveProfileImage } from "@/lib/profile-image";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const SettingsPage = () => {
   const { user } = useCurrentUser();
@@ -32,7 +38,8 @@ const SettingsPage = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [tenantId, setTenantId] = useState("");
-  const [tenantName, setTenantName] = useState("");
+  const [newTenantName, setNewTenantName] = useState("");
+  const [tenantRename, setTenantRename] = useState("");
 
   const [provisionEmail, setProvisionEmail] = useState("");
   const [provisionFullName, setProvisionFullName] = useState("");
@@ -90,9 +97,10 @@ const SettingsPage = () => {
   });
 
   const createTenantMutation = useMutation({
-    mutationFn: () => createTenant({ name: tenantName }),
-    onSuccess: () => {
-      setTenantName("");
+    mutationFn: () => createTenant({ name: newTenantName.trim() }),
+    onSuccess: (tenant) => {
+      setNewTenantName("");
+      setTenantId(tenant.id);
       queryClient.invalidateQueries({ queryKey: ["tenants"] });
       toast({ title: "Tenant created" });
     },
@@ -100,22 +108,13 @@ const SettingsPage = () => {
   });
 
   const updateTenantMutation = useMutation({
-    mutationFn: () => updateTenant(tenantId, { name: tenantName }),
+    mutationFn: () => updateTenant(tenantId, { name: tenantRename.trim() }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenants"] });
+      queryClient.invalidateQueries({ queryKey: ["tenant", tenantId] });
       toast({ title: "Tenant updated" });
     },
     onError: (error: any) => toast({ title: "Tenant update failed", description: error?.message }),
-  });
-
-  const deleteTenantMutation = useMutation({
-    mutationFn: () => deleteTenant(tenantId),
-    onSuccess: () => {
-      setTenantId("");
-      queryClient.invalidateQueries({ queryKey: ["tenants"] });
-      toast({ title: "Tenant deleted" });
-    },
-    onError: (error: any) => toast({ title: "Tenant delete failed", description: error?.message }),
   });
 
   const provisionUserMutation = useMutation({
@@ -298,9 +297,13 @@ const SettingsPage = () => {
   }, [isTenantAdmin, user?.id]);
 
   useEffect(() => {
-    if (selectedTenant?.name) {
-      setTenantName(selectedTenant.name);
+    if (isTenantAdmin && !tenantId && tenants?.length) {
+      setTenantId(tenants[0].id);
     }
+  }, [isTenantAdmin, tenantId, tenants]);
+
+  useEffect(() => {
+    setTenantRename(selectedTenant?.name ?? "");
   }, [selectedTenant]);
 
   useEffect(() => {
@@ -596,18 +599,18 @@ const SettingsPage = () => {
                 <p className="text-sm text-muted-foreground">Select a user, change only what is needed, and save.</p>
               </div>
 
-              <select
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
-              >
-                <option value="">Select User ID</option>
+              <Select value={userId} onValueChange={setUserId}>
+                <SelectTrigger className="h-12 w-full rounded-full border-primary/40 bg-card px-5 text-foreground">
+                  <SelectValue placeholder="Select an employee" />
+                </SelectTrigger>
+                <SelectContent>
                 {(users ?? []).map((managedUser) => (
-                  <option key={managedUser.id} value={managedUser.id}>
-                    {managedUser.id} - {managedUser.fullName}
-                  </option>
+                  <SelectItem key={managedUser.id} value={String(managedUser.id)}>
+                    {managedUser.fullName} · {managedUser.email}
+                  </SelectItem>
                 ))}
-              </select>
+                </SelectContent>
+              </Select>
 
               <input
                 value={userEmail}
@@ -668,6 +671,66 @@ const SettingsPage = () => {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isTenantAdmin && (
+        <div className="bg-card rounded-lg shadow-sm p-6 space-y-4 max-w-2xl">
+          <div>
+            <h3 className="text-primary font-semibold text-sm">Tenant Management</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Create a tenant or update the selected tenant's name.
+            </p>
+          </div>
+
+          <div className="space-y-4 rounded-2xl border border-primary/10 bg-muted/10 p-4">
+            <Select value={tenantId} onValueChange={setTenantId}>
+              <SelectTrigger className="h-12 w-full rounded-full border-primary/40 bg-card px-5 text-foreground">
+                <SelectValue placeholder="Select a tenant" />
+              </SelectTrigger>
+              <SelectContent>
+                {(tenants ?? []).map((tenant) => (
+                  <SelectItem key={tenant.id} value={tenant.id}>
+                    {tenant.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <input
+              value={tenantRename}
+              onChange={(event) => setTenantRename(event.target.value)}
+              placeholder="Selected tenant name"
+              className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
+            />
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => updateTenantMutation.mutate()}
+                disabled={!tenantId || !tenantRename.trim() || updateTenantMutation.isPending}
+                className="px-6 py-2 rounded-full bg-secondary text-secondary-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {updateTenantMutation.isPending ? <><Spinner size="sm" /> Updating...</> : "Update tenant"}
+              </button>
+            </div>
+
+            <div className="border-t border-primary/10 pt-4 space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Create tenant</p>
+              <input
+                value={newTenantName}
+                onChange={(event) => setNewTenantName(event.target.value)}
+                placeholder="New tenant name"
+                className="w-full px-5 py-3 rounded-full border border-primary/40 bg-card text-foreground"
+              />
+              <button
+                onClick={() => createTenantMutation.mutate()}
+                disabled={!newTenantName.trim() || createTenantMutation.isPending}
+                className="px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {createTenantMutation.isPending ? <><Spinner size="sm" /> Creating...</> : "Create tenant"}
+              </button>
             </div>
           </div>
         </div>

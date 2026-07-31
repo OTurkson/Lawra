@@ -22,9 +22,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class LenderService {
     private final VirtualBankRepository lenderRepository;
-    private final UserRepository userRepository;
     private final VirtualBankMapper virtualBankMapper;
     private final AuthenticatedUserContextService authenticatedUserContextService;
+    private final AccountService accountService;
 
     //    List all VBs
     public List<VirtualBankDTO> getAllVirtualBanks () {
@@ -42,22 +42,8 @@ public class LenderService {
         User currentUser = authenticatedUserContextService.getCurrentUser();
         UUID tenantId = authenticatedUserContextService.getCurrentTenantId();
 
-        // If user already has a virtual bank, bad request
-        if (lenderRepository.existsByCreatedBy_IdAndTenant_Id(currentUser.getId(), tenantId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User already owns a virtual bank");
-        }
-
-        BigDecimal initialDeposit = normalizeInitialDeposit(virtualBank.getBalance());
-
-        ensureSufficientUserBalance(currentUser, initialDeposit);
-
-        currentUser.setBalance(currentUser.getBalance().subtract(initialDeposit));
-
-        virtualBank.setTenant(authenticatedUserContextService.getCurrentTenant());
-        virtualBank.setCreatedBy(currentUser);
-        virtualBank.setBalance(initialDeposit);
-
-        return lenderRepository.save(virtualBank);
+        throw new ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED,
+                "Accounts are provisioned automatically when a user is created");
     }
 
     @Transactional
@@ -67,12 +53,8 @@ public class LenderService {
 
         ensureCanManageBank(currentUser, bank);
 
-        if (request.getName() == null || request.getName().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Virtual bank name is required");
-        }
-
-        bank.setName(request.getName().trim());
-        return lenderRepository.save(bank);
+        throw new ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED,
+                "Account names are managed from the user profile");
     }
 
     @Transactional
@@ -83,10 +65,10 @@ public class LenderService {
         ensureCanManageBank(currentUser, bank);
 
         BigDecimal amount = normalizeRequiredAmount(request.getAmount());
-        ensureSufficientUserBalance(currentUser, amount);
-
-        currentUser.setBalance(currentUser.getBalance().subtract(amount));
-        bank.setBalance(bank.getBalance().add(amount));
+        if (bank.getCreatedBy() != null && !bank.getCreatedBy().getId().equals(currentUser.getId())) {
+            accountService.debit(currentUser, amount);
+        }
+        bank.setBalance((bank.getBalance() == null ? BigDecimal.ZERO : bank.getBalance()).add(amount));
 
         return lenderRepository.save(bank);
     }
@@ -97,16 +79,8 @@ public class LenderService {
         User currentUser = authenticatedUserContextService.getCurrentUser();
 
         ensureCanManageBank(currentUser, bank);
-        BigDecimal refundAmount = bank.getBalance() == null ? BigDecimal.ZERO : bank.getBalance();
-        User refundTarget = bank.getCreatedBy() != null ? bank.getCreatedBy() : currentUser;
-
-        if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal currentBalance = refundTarget.getBalance() == null ? BigDecimal.ZERO : refundTarget.getBalance();
-            refundTarget.setBalance(currentBalance.add(refundAmount));
-            userRepository.save(refundTarget);
-        }
-
-        lenderRepository.delete(bank);
+        throw new ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED,
+                "User accounts cannot be deleted independently of the user");
     }
 
     private VirtualBank  getTenantBank(Long id) {
@@ -117,21 +91,12 @@ public class LenderService {
 
     private void ensureCanManageBank(User currentUser, VirtualBank bank) {
         boolean isOwner = bank.getCreatedBy() != null && bank.getCreatedBy().getId().equals(currentUser.getId());
-        boolean isAdmin = currentUser.getRole() == com.lawra.backend.enums.UserRole.ADMIN;
+        boolean isAdmin = currentUser.getRole() == com.lawra.backend.enums.UserRole.ADMIN
+                || currentUser.getRole() == com.lawra.backend.enums.UserRole.PAYMASTER;
 
         if (!isOwner && !isAdmin) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only manage your own virtual banks");
         }
-    }
-
-    private BigDecimal normalizeInitialDeposit(BigDecimal amount) {
-        if (amount == null) {
-            return BigDecimal.ZERO;
-        }
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Amount must be greater than zero");
-        }
-        return amount;
     }
 
     private BigDecimal normalizeRequiredAmount(BigDecimal amount) {
@@ -141,11 +106,4 @@ public class LenderService {
         return amount;
     }
 
-    private void ensureSufficientUserBalance(User currentUser, BigDecimal amount) {
-        BigDecimal currentBalance = currentUser.getBalance() == null ? BigDecimal.ZERO : currentUser.getBalance();
-        System.out.println(currentBalance);
-        if (currentBalance.compareTo(amount) < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Insufficient balance for this action");
-        }
-    }
 }

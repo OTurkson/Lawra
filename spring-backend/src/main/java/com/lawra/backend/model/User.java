@@ -7,7 +7,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -47,8 +46,8 @@ public class User {
     @Column(nullable = false)
     private String phoneNumber;
 
-    @Column(precision = 12, scale = 2)
-    private BigDecimal balance = BigDecimal.valueOf(0.00);
+    @OneToOne(mappedBy = "createdBy", fetch = FetchType.LAZY)
+    private VirtualBank virtualBank;
 
 //    Tenant associated with a particular user
     @ManyToOne(fetch = FetchType.LAZY)

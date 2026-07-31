@@ -224,6 +224,15 @@ public class AuditLogCaptureFilter extends OncePerRequestFilter {
                     beforeStateApplicable = true;
                     beforeTenantId = actorTenantId;
                     beforeResourceId = resourceId;
+                } else if ("POST".equals(httpMethod) && size == 3
+                        && "repayments".equals(segments.get(2))) {
+                    action = "LOAN_REPAYMENT_CREATE";
+                    resourceType = "LOAN";
+                    resourceId = segments.get(1);
+                    auditTenantId = actorTenantId;
+                    beforeStateApplicable = true;
+                    beforeTenantId = actorTenantId;
+                    beforeResourceId = resourceId;
                 }
             }
 

@@ -17,7 +17,8 @@ public class TenantController {
 
 	private final TenantService tenantService;
 
-	// CREATE, LIST/GET, UPDATE, DELETE
+	// CREATE, LIST/GET, UPDATE. Tenant deletion is reserved for a future
+	// system-wide administrator workflow and is deliberately not exposed here.
 	@GetMapping
 	public ResponseEntity<List<Tenant>> getTenants() {
 		return ResponseEntity.ok(tenantService.getAll());
@@ -40,10 +41,4 @@ public class TenantController {
 		return ResponseEntity.ok(tenantService.update(id, tenant));
 	}
 
-	@DeleteMapping("/{id}")
-	@PreAuthorize("hasRole('ADMIN')")
-	public ResponseEntity<Void> deleteTenant(@PathVariable UUID id) {
-		tenantService.delete(id);
-		return ResponseEntity.noContent().build();
-	}
 }

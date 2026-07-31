@@ -11,9 +11,11 @@ import com.lawra.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -28,6 +30,7 @@ public class PaymasterService {
 	private final AuthenticatedUserContextService authenticatedUserContextService;
 	private final UserRepository userRepository;
 	private final LoanPackageRepository loanPackageRepository;
+	private final AccountService accountService;
 
 //	List all loans
 	public List<LoanSummaryDTO> getLoanSummaries(LoanStatus status) {
@@ -37,11 +40,21 @@ public class PaymasterService {
 				: loanRepository.findByStatusAndBorrower_Tenant_Id(status, tenantId);
 
 		return loans.stream()
+				.sorted(Comparator.comparingInt(loan -> loanPriority(loan.getStatus())))
 				.map(loanMapper::toSummary)
 				.collect(Collectors.toList());
 	}
 
+	private int loanPriority(LoanStatus status) {
+		if (status == null || status == LoanStatus.PENDING) return 0;
+		if (status == LoanStatus.APPROVED) return 1;
+		if (status == LoanStatus.COMPLETED) return 2;
+		if (status == LoanStatus.REJECTED) return 3;
+		return 4;
+	}
+
 //	Update a single loan (status)
+	@Transactional
 	public LoanSummaryDTO updateLoanStatus(Long id, LoanRequestDTO loanUpdate) {
 		UUID tenantId = authenticatedUserContextService.getCurrentTenantId();
 
@@ -53,6 +66,13 @@ public class PaymasterService {
 		}
 
 		LoanStatus newStatus = loanUpdate.getLoanStatus();
+		if (newStatus != LoanStatus.APPROVED && newStatus != LoanStatus.REJECTED) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+					"Loan decisions must be APPROVED or REJECTED; completed status is set by repayments");
+		}
+		if (loan.getStatus() != LoanStatus.PENDING) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only pending loans can be decided");
+		}
 		UUID currentUserId = authenticatedUserContextService.getCurrentUserId();
 
 		if ((LoanStatus.APPROVED.equals(newStatus) || LoanStatus.REJECTED.equals(newStatus))
@@ -68,11 +88,10 @@ public class PaymasterService {
 			loan.setApprovedBy(null);
 		}
 
-		switch (newStatus) {
-			case APPROVED -> applyApprovalEffects(loan);
-			case COMPLETED -> applyCompletionEffects(loan);
-			case REJECTED -> {
-				// Rejected loans still need to be persisted so they appear in the loan history.
+        switch (newStatus) {
+            case APPROVED -> applyApprovalEffects(loan);
+            case REJECTED -> {
+                // Rejected loans still need to be persisted so they appear in the loan history.
 			}
 			default -> {
 				// Other statuses do not trigger balance changes.
@@ -80,20 +99,15 @@ public class PaymasterService {
 		}
 
 		Loan saved = loanRepository.save(loan);
-		if (LoanStatus.APPROVED.equals(newStatus)) {
-			emailService.sendLoanApprovalEmail(saved.getBorrower(), authenticatedUserContextService.getCurrentUser(), saved);
-		} else if (LoanStatus.REJECTED.equals(newStatus)) {
-			emailService.sendLoanDecisionEmail(saved.getBorrower(), saved);
-		}
+		emailService.sendLoanDecisionEmail(
+				saved.getBorrower(), authenticatedUserContextService.getCurrentUser(), saved);
 		return loanMapper.toSummary(saved);
 	}
 
 	private void applyApprovalEffects(Loan loan) {
 		try {
 			// Add loan principal to borrower balance
-			BigDecimal borrowerBalance = loan.getBorrower().getBalance();
-			loan.getBorrower().setBalance(borrowerBalance.add(loan.getPrincipalAmount()));
-			userRepository.save(loan.getBorrower());
+			accountService.credit(loan.getBorrower(), loan.getPrincipalAmount());
 
 			// Deduct loan principal from loan package balance
 			BigDecimal loanPackageBalance = loan.getLoanPackage().getBalance();
@@ -104,20 +118,5 @@ public class PaymasterService {
 		}
 	}
 
-	private void applyCompletionEffects(Loan loan) {
-		try {
-			// Deduct total repayment amount from borrower balance (loan repayment)
-			BigDecimal borrowerBalance = loan.getBorrower().getBalance();
-			loan.getBorrower().setBalance(borrowerBalance.subtract(loan.getTotalRepaymentAmount()));
-			userRepository.save(loan.getBorrower());
-
-			// Add total repayment amount to virtual bank balance (funds received)
-			BigDecimal virtualBankBalance = loan.getLoanPackage().getVirtualBank().getBalance();
-			loan.getLoanPackage().getVirtualBank().setBalance(virtualBankBalance.add(loan.getTotalRepaymentAmount()));
-			loanPackageRepository.save(loan.getLoanPackage());
-		} catch (Exception e) {
-			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Problem updating balances when completing loan: " + e.getMessage());
-		}
-	}
 }
 

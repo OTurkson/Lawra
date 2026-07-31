@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface LoanPackageRepository extends JpaRepository<LoanPackage, Long> {
+    boolean existsByVirtualBank_Id(Long virtualBankId);
 	List<LoanPackage> findByVirtualBank_Tenant_Id(UUID tenantId);
 
 	List<LoanPackage> findByVirtualBank_Tenant_IdAndVirtualBank_CreatedBy_Id(

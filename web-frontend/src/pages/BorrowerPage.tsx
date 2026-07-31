@@ -13,11 +13,13 @@ import { Spinner } from "@/components/Spinner";
 import { getAuth } from "@/lib/auth";
 import { pushNotification } from "@/lib/notifications";
 import { formatNumberInput, parseAmount } from "@/lib/format-number";
+import { getRoleAccess } from "@/lib/access";
 
 const BorrowerPage = () => {
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
   const { toast } = useToast();
+  const access = getRoleAccess(user?.role);
 
   const [selectedPackageId, setSelectedPackageId] = useState("");
   const [principalAmount, setPrincipalAmount] = useState("");
@@ -37,7 +39,7 @@ const BorrowerPage = () => {
       }
       return fetchBorrowerLoans(user.id);
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && access.canBorrow,
   });
 
   const allLoans = useMemo(() => borrowerLoans ?? [], [borrowerLoans]);
@@ -141,6 +143,15 @@ const BorrowerPage = () => {
 
     return { label: "Upcoming", className: "bg-approve/15 text-approve" };
   };
+
+  if (!access.canBorrow) {
+    return (
+      <div className="rounded-lg border border-border bg-card p-6">
+        <h1 className="text-xl font-semibold text-foreground">Borrowing is not available</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Administrators can manage lending operations and review loans, but cannot submit personal borrowing requests.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

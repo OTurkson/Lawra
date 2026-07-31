@@ -27,6 +27,20 @@ export function formatApiError(error: unknown, fallbackMessage: string) {
   return fallbackMessage;
 }
 
+function isExpiredSessionResponse(status: number, body: unknown) {
+  if (status === 401) return true;
+  if (status !== 403) return false;
+  const message = typeof body === "string"
+    ? body
+    : String((body as any)?.error ?? (body as any)?.message ?? "");
+  return /(?:expired|invalid)\s+(?:jwt\s+)?token|token\s+(?:has\s+)?(?:expired|invalid)|token validation failed/i.test(message);
+}
+
+function endExpiredSession() {
+  clearAuth();
+  window.location.replace("/auth/login");
+}
+
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
   const pathname = path.startsWith("http") ? new URL(path).pathname : path;
@@ -52,9 +66,8 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   if (!response.ok) {
     const message = (body as any)?.error || (body as any)?.message || response.statusText;
 
-    if (response.status === 401 && !isPublicAuthRoute) {
-      clearAuth();
-      window.location.replace("/auth/login");
+    if (!isPublicAuthRoute && isExpiredSessionResponse(response.status, body)) {
+      endExpiredSession();
     }
 
     throw new ApiError(typeof message === "string" ? message : "Request failed", response.status, body);
@@ -86,11 +99,6 @@ export type VirtualBank = {
   tenant?: string;
   createdAt?: string;
   updatedAt?: string;
-};
-
-export type VirtualBankRequest = {
-  name: string;
-  balance?: number;
 };
 
 export type VirtualBankUpdateRequest = {
@@ -178,6 +186,7 @@ export type UserResponse = {
 };
 
 export type LoanStatus = "PENDING" | "APPROVED" | "REJECTED" | "COMPLETED" | "DEFAULTED";
+export type RepaymentStatus = "PENDING" | "PARTIAL" | "PAID" | "OVERDUE";
 
 export type LoanSummary = {
   id: number;
@@ -190,12 +199,24 @@ export type LoanSummary = {
   virtualBank?: string;
   tenure?: string;
   repaymentAmount?: number;
+  totalPaid?: number;
+  outstandingAmount?: number;
+  repaymentStatus?: RepaymentStatus;
   // installment?: number;
   // bank?: string;
   dueDate?: string;
   // accountName?: string;
   // accountNumber?: string;
   status: LoanStatus;
+};
+
+export type RepaymentSummary = {
+  id: number;
+  amount: number;
+  paidAt?: string;
+  paidById?: string;
+  paidByName?: string;
+  paidByRole?: string;
 };
 
 export type LoanStatusUpdateRequest = {
@@ -261,16 +282,6 @@ export function resetPassword(request: PasswordResetRequest) {
 
 export function fetchVirtualBanks() {
   return apiFetch<VirtualBank[]>("/banks");
-}
-
-export function createVirtualBank(request: VirtualBankRequest) {
-  return apiFetch<VirtualBank>("/banks", {
-    method: "POST",
-    body: JSON.stringify({
-      name: request.name,
-      balance: request.balance,
-    }),
-  });
 }
 
 export function updateVirtualBank(id: number, request: VirtualBankUpdateRequest) {
@@ -351,10 +362,6 @@ export function updateTenant(id: string, request: TenantRequest) {
     method: "PUT",
     body: JSON.stringify(request),
   });
-}
-
-export function deleteTenant(id: string) {
-  return apiFetch<void>(`/tenants/${id}`, { method: "DELETE" });
 }
 
 export function fetchLoanPackages() {
@@ -443,6 +450,17 @@ export function updateLoanStatus(id: number, request: LoanStatusUpdateRequest) {
   });
 }
 
+export function repayLoan(id: number, amount: number) {
+  return apiFetch<LoanSummary>(`/loans/${id}/repayments`, {
+    method: "POST",
+    body: JSON.stringify({ amount }),
+  });
+}
+
+export function fetchRepayments(id: number) {
+  return apiFetch<RepaymentSummary[]>(`/loans/${id}/repayments`);
+}
+
 function buildQuery(params: Record<string, string | number | undefined | null>) {
   const searchParams = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -466,8 +484,11 @@ async function downloadBlob(path: string, filename: string) {
   const response = await fetch(url, { method: "GET", headers });
   if (!response.ok) {
     const fallback = response.statusText || "Request failed";
-    clearAuth();
-    window.location.replace("/auth/login");
+    const contentType = response.headers.get("content-type") ?? "";
+    const body = contentType.includes("application/json") ? await response.json() : await response.text();
+    if (isExpiredSessionResponse(response.status, body)) {
+      endExpiredSession();
+    }
     throw new ApiError(fallback, response.status, null);
   }
 

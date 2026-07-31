@@ -3,14 +3,20 @@ package com.lawra.backend.service;
 import com.lawra.backend.dto.BorrowerLoanPackageDTO;
 import com.lawra.backend.dto.LoanRequestDTO;
 import com.lawra.backend.dto.LoanSummaryDTO;
+import com.lawra.backend.dto.RepaymentRequestDTO;
+import com.lawra.backend.dto.RepaymentSummaryDTO;
 import com.lawra.backend.enums.LoanPeriod;
+import com.lawra.backend.enums.LoanStatus;
+import com.lawra.backend.enums.UserRole;
 import com.lawra.backend.mapper.LoanMapper;
 import com.lawra.backend.model.Loan;
 import com.lawra.backend.model.LoanPackage;
+import com.lawra.backend.model.Repayment;
 import com.lawra.backend.model.User;
 import com.lawra.backend.repository.LoanPackageRepository;
 import com.lawra.backend.repository.LoanRepository;
 import com.lawra.backend.repository.UserRepository;
+import com.lawra.backend.repository.RepaymentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -20,6 +26,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -32,6 +39,8 @@ public class BorrowerService {
     private final LoanMapper loanMapper;
     private final EmailService emailService;
     private final AuthenticatedUserContextService authenticatedUserContextService;
+    private final RepaymentRepository repaymentRepository;
+    private final AccountService accountService;
 
     // request loan
     public LoanSummaryDTO createLoan(LoanRequestDTO loanRequest) {
@@ -132,12 +141,98 @@ public class BorrowerService {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Borrower not found"));
 
         List<Loan> loans = loanRepository.findByBorrower_IdAndBorrower_Tenant_Id(borrowerId, currentTenantId);
-        List<LoanSummaryDTO> loansPerBorrower = new ArrayList<>();
+        return loans.stream()
+                .sorted(Comparator.comparingInt(loan -> loanPriority(loan.getStatus())))
+                .map(loanMapper::toSummary)
+                .toList();
+    }
 
-        for (Loan loan : loans) {
-            loansPerBorrower.add(loanMapper.toSummary(loan));
+    @org.springframework.transaction.annotation.Transactional
+    public LoanSummaryDTO repayLoan(Long loanId, RepaymentRequestDTO request) {
+        User payer = authenticatedUserContextService.getCurrentUser();
+        UUID tenantId = authenticatedUserContextService.getCurrentTenantId();
+        Loan loan = loanRepository.findByIdAndTenantIdForRepayment(loanId, tenantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Loan not found"));
+
+        boolean paysOwnLoan = loan.getBorrower().getId().equals(payer.getId());
+        boolean canPayForEmployee = payer.getRole() == UserRole.PAYMASTER || payer.getRole() == UserRole.ADMIN;
+        if (!paysOwnLoan && !canPayForEmployee) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "You can only repay your own loan unless you are a paymaster");
         }
-        return loansPerBorrower;
+        if (loan.getStatus() != LoanStatus.APPROVED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only approved loans can be repaid");
+        }
+        if (request == null || request.getAmount() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Repayment amount must be greater than zero");
+        }
+
+        BigDecimal amount;
+        try {
+            amount = request.getAmount().setScale(2, RoundingMode.UNNECESSARY);
+        } catch (ArithmeticException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Repayment amount can have at most two decimal places");
+        }
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Repayment amount must be greater than zero");
+        }
+
+        BigDecimal paid = repaymentRepository.totalPaidForLoan(loanId);
+        BigDecimal outstanding = loan.getTotalRepaymentAmount().subtract(paid);
+        if (outstanding.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This loan has already been fully repaid");
+        }
+        if (amount.compareTo(outstanding) > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Repayment exceeds the outstanding balance of " + outstanding);
+        }
+
+        // The person submitting the payment funds it. A paymaster payment never debits the borrower.
+        accountService.debit(payer, amount);
+        LoanPackage loanPackage = loan.getLoanPackage();
+        loanPackage.setBalance(loanPackage.getBalance().add(amount));
+        loanPackageRepository.save(loanPackage);
+
+        Repayment repayment = new Repayment();
+        repayment.setLoan(loan);
+        repayment.setAmount(amount);
+        repayment.setPaidBy(payer);
+        repaymentRepository.save(repayment);
+        BigDecimal outstandingAfterPayment = outstanding.subtract(amount);
+        if (outstandingAfterPayment.compareTo(BigDecimal.ZERO) == 0) {
+            loan.setStatus(LoanStatus.COMPLETED);
+            loanRepository.save(loan);
+        }
+        emailService.sendRepaymentEmail(loan.getBorrower(), payer, loan, amount, outstandingAfterPayment);
+        return loanMapper.toSummary(loan);
+    }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<RepaymentSummaryDTO> getRepayments(Long loanId) {
+        User viewer = authenticatedUserContextService.getCurrentUser();
+        UUID tenantId = authenticatedUserContextService.getCurrentTenantId();
+        Loan loan = loanRepository.findByIdAndBorrower_Tenant_Id(loanId, tenantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Loan not found"));
+        boolean canViewAll = viewer.getRole() == UserRole.PAYMASTER || viewer.getRole() == UserRole.ADMIN;
+        if (!canViewAll && !loan.getBorrower().getId().equals(viewer.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only view repayments for your own loans");
+        }
+
+        return repaymentRepository.findByLoan_IdOrderByPaidAtDesc(loanId).stream()
+                .map(this::toRepaymentSummary)
+                .toList();
+    }
+
+    private RepaymentSummaryDTO toRepaymentSummary(Repayment repayment) {
+        User payer = repayment.getPaidBy() == null ? repayment.getLoan().getBorrower() : repayment.getPaidBy();
+        RepaymentSummaryDTO dto = new RepaymentSummaryDTO();
+        dto.setId(repayment.getId());
+        dto.setAmount(repayment.getAmount());
+        dto.setPaidAt(repayment.getPaidAt());
+        dto.setPaidById(payer.getId());
+        dto.setPaidByName(payer.getFullName());
+        dto.setPaidByRole(payer.getRole().name());
+        return dto;
     }
 
     public List<BorrowerLoanPackageDTO> getBorrowerLoanPackages() {
@@ -152,6 +247,14 @@ public class BorrowerService {
                         loanPackage.getInterestRate()
                 ))
                 .toList();
+    }
+
+    private int loanPriority(com.lawra.backend.enums.LoanStatus status) {
+        if (status == null || status == com.lawra.backend.enums.LoanStatus.PENDING) return 0;
+        if (status == com.lawra.backend.enums.LoanStatus.APPROVED) return 1;
+        if (status == com.lawra.backend.enums.LoanStatus.COMPLETED) return 2;
+        if (status == com.lawra.backend.enums.LoanStatus.REJECTED) return 3;
+        return 4;
     }
 
     // Corresponding list of ALL loans -> Paymaster Service

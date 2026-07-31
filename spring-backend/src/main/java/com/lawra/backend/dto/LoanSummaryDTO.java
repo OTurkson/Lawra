@@ -1,6 +1,7 @@
 package com.lawra.backend.dto;
 
 import com.lawra.backend.enums.LoanStatus;
+import com.lawra.backend.enums.RepaymentStatus;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -20,6 +21,9 @@ public class LoanSummaryDTO {
     private String virtualBank;
     private String tenure;
     private BigDecimal repaymentAmount;
+    private BigDecimal totalPaid;
+    private BigDecimal outstandingAmount;
+    private RepaymentStatus repaymentStatus;
     private LocalDate dueDate;
     private String bank;
     private String approvedBy;

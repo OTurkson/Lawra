@@ -12,6 +12,8 @@ type DecodedJwt = {
 };
 
 const AUTH_STORAGE_KEY = "lawra_auth";
+const AUTH_ACTIVITY_STORAGE_KEY = "lawra_auth_last_activity";
+export const AUTH_INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
 
 export function normalizeRole(role?: string | null) {
   if (!role) {
@@ -24,6 +26,7 @@ export function normalizeRole(role?: string | null) {
 export function saveAuth(data: AuthData) {
   try {
     sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data));
+    recordAuthActivity();
   } catch (error) {
     // Ignore storage errors to avoid breaking the UI
     console.error("Failed to save auth data", error);
@@ -44,8 +47,28 @@ export function getAuth(): AuthData | null {
 export function clearAuth() {
   try {
     sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    sessionStorage.removeItem(AUTH_ACTIVITY_STORAGE_KEY);
   } catch (error) {
     console.error("Failed to clear auth data", error);
+  }
+}
+
+export function recordAuthActivity(now = Date.now()) {
+  try {
+    sessionStorage.setItem(AUTH_ACTIVITY_STORAGE_KEY, String(now));
+  } catch (error) {
+    console.error("Failed to record auth activity", error);
+  }
+}
+
+export function isAuthSessionInactive(now = Date.now()) {
+  try {
+    const lastActivity = Number(sessionStorage.getItem(AUTH_ACTIVITY_STORAGE_KEY));
+    if (!Number.isFinite(lastActivity) || lastActivity <= 0) return false;
+    return now - lastActivity >= AUTH_INACTIVITY_TIMEOUT_MS;
+  } catch (error) {
+    console.error("Failed to read auth activity", error);
+    return false;
   }
 }
 

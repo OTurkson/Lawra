@@ -12,5 +12,7 @@ public interface VirtualBankRepository extends JpaRepository<VirtualBank, Long> 
 
     Optional<VirtualBank> findByIdAndTenant_Id(Long id, UUID tenantId);
 
+    Optional<VirtualBank> findByCreatedBy_IdAndTenant_Id(UUID userId, UUID tenantId);
+
     boolean existsByCreatedBy_IdAndTenant_Id(UUID userId, UUID tenantId);
 }

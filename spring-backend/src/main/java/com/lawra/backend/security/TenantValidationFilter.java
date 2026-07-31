@@ -51,7 +51,7 @@ public class TenantValidationFilter extends OncePerRequestFilter {
         try {
             // Validate JWT token
             if (!jwtService.isTokenValid(token)) {
-                sendForbiddenResponse(response, "Invalid or expired token");
+                sendUnauthorizedResponse(response, "Invalid or expired token");
                 return;
             }
 
@@ -120,12 +120,20 @@ public class TenantValidationFilter extends OncePerRequestFilter {
     }
 
     private void sendForbiddenResponse(HttpServletResponse response, String message) throws IOException {
-        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        sendErrorResponse(response, HttpServletResponse.SC_FORBIDDEN, message);
+    }
+
+    private void sendUnauthorizedResponse(HttpServletResponse response, String message) throws IOException {
+        sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, message);
+    }
+
+    private void sendErrorResponse(HttpServletResponse response, int status, String message) throws IOException {
+        response.setStatus(status);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         
         Map<String, String> errorResponse = new HashMap<>();
         errorResponse.put("error", message);
-        errorResponse.put("status", String.valueOf(HttpServletResponse.SC_FORBIDDEN));
+        errorResponse.put("status", String.valueOf(status));
         
         response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
     }

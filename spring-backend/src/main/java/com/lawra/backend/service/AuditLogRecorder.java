@@ -26,6 +26,7 @@ public class AuditLogRecorder {
     private final LoanRepository loanRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final ObjectMapper objectMapper;
+    private final AccountService accountService;
 
     public record ResolvedActor(UUID tenantId, UUID actorId, String actorEmail, String actorRole) {}
 
@@ -185,7 +186,7 @@ public class AuditLogRecorder {
         m.put("email", user.getEmail());
         m.put("fullName", user.getFullName());
         m.put("phoneNumber", user.getPhoneNumber());
-        m.put("balance", user.getBalance());
+        m.put("balance", accountService.balanceOf(user));
         m.put("role", user.getRole() != null ? user.getRole().name() : null);
         m.put("passwordResetRequired", user.getPasswordResetRequired());
         m.put("tenantId", user.getTenant() != null ? user.getTenant().getId().toString() : null);

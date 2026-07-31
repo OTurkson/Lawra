@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { getAuth, normalizeRole } from "@/lib/auth";
+import { getRoleAccess } from "@/lib/access";
 import { Spinner } from "@/components/Spinner";
 import { pushNotification } from "@/lib/notifications";
 import { formatNumberInput, parseAmount } from "@/lib/format-number";
@@ -29,7 +30,8 @@ const LenderPage = () => {
   const { toast } = useToast();
   const auth = getAuth();
   const role = normalizeRole(auth?.role);
-  const isAdmin = role === "ADMIN";
+  const isManager = role === "ADMIN" || role === "PAYMASTER";
+  const access = getRoleAccess(auth?.role);
 
   const [selectedId, setSelectedId] = useState("");
   const [name, setName] = useState("");
@@ -57,14 +59,14 @@ const LenderPage = () => {
   });
 
   const manageableBanks = useMemo(() => {
-    if (isAdmin) {
+    if (isManager) {
       return virtualBanks ?? [];
     }
 
     return (virtualBanks ?? []).filter((bank) => bank.createdById === auth?.userId);
-  }, [auth?.userId, isAdmin, virtualBanks]);
+  }, [auth?.userId, isManager, virtualBanks]);
 
-  const canManageSelectedPackage = !!selectedLoanPackage && (isAdmin || selectedLoanPackage.virtualBank?.createdById === auth?.userId);
+  const canManageSelectedPackage = !!selectedLoanPackage && (isManager || selectedLoanPackage.virtualBank?.createdById === auth?.userId);
 
   const createMutation = useMutation({
     mutationFn: () => {
@@ -200,6 +202,15 @@ const LenderPage = () => {
     setInterestRate(String(selectedLoanPackage.interestRate ?? ""));
     setTopupAmount("");
   }, [selectedLoanPackage]);
+
+  if (!access.canManageLending) {
+    return (
+      <div className="rounded-lg border border-border bg-card p-6">
+        <h1 className="text-xl font-semibold text-foreground">Lending packages are managed by your paymaster</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Use My borrowing to request a loan from an available package.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

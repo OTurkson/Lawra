@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { HelpCircle, User, LogOut, Settings, Landmark, HandCoins, Banknote, CircleDollarSign, Eye, EyeOff, ClipboardList } from "lucide-react";
-import { clearAuth, getAuth, isAuthTokenExpired } from "@/lib/auth";
+import { AUTH_INACTIVITY_TIMEOUT_MS, clearAuth, getAuth, isAuthSessionInactive, isAuthTokenExpired, recordAuthActivity } from "@/lib/auth";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { topUpCurrentUserBalance } from "@/lib/api";
@@ -26,25 +26,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { jwtDecode } from "jwt-decode";
+import { getRoleAccess, roleLabel, type RoleAccess } from "@/lib/access";
 
 const navItems = [
-  { label: "Borrower", icon: HandCoins, path: "/dashboard" },
-  { label: "Lender", icon: CircleDollarSign, path: "/dashboard/lender" },
-  { label: "Loans", icon: Banknote, path: "/dashboard/loans" },
-  { label: "Virtual Banks", icon: Landmark, path: "/dashboard/virtual-banks" },
-  { label: "Audit Logs", icon: ClipboardList, path: "/dashboard/audit-logs" },
-  { label: "System Setting", icon: Settings, path: "/dashboard/settings" },
-  { label: "Logout", icon: LogOut, path: "/dashboard/logout" },
+  { label: "My borrowing", icon: HandCoins, path: "/dashboard", group: "Workspace", access: "canBorrow" },
+  { label: "Loans", icon: Banknote, path: "/dashboard/loans", group: "Workspace", access: "canViewVirtualBanks" },
+  { label: "Lending packages", icon: CircleDollarSign, path: "/dashboard/lender", group: "Operations", access: "canManageLending" },
+  { label: "Virtual banks", icon: Landmark, path: "/dashboard/virtual-banks", group: "Accounts", access: "canViewVirtualBanks" },
+  { label: "Audit logs", icon: ClipboardList, path: "/dashboard/audit-logs", group: "Administration", access: "canViewAuditLogs" },
+  { label: "Settings", icon: Settings, path: "/dashboard/settings", group: "Account", access: "canViewVirtualBanks" },
+  { label: "Sign out", icon: LogOut, path: "/dashboard/logout", group: "Account", access: "canViewVirtualBanks" },
 ];
-
-const getRoleDisplayName = (role: string): string => {
-  const roleMap: Record<string, string> = {
-    "ROLE_ADMIN": "Platform Administrator",
-    "ROLE_PAYMASTER": "HR Manager",
-    "ROLE_BORROWER": "Employee",
-  };
-  return roleMap[role] || role;
-};
 
 const DashboardLayout = () => {
   const location = useLocation();
@@ -52,6 +44,8 @@ const DashboardLayout = () => {
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
   const previousDashboardPathRef = useRef("/dashboard");
+  const inactivityTimerRef = useRef<number | null>(null);
+  const lastActivityWriteRef = useRef(0);
   const [showBalance, setShowBalance] = useState(false);
   const [isDepositDialogOpen, setIsDepositDialogOpen] = useState(false);
   const [depositAmount, setDepositAmount] = useState("");
@@ -59,16 +53,12 @@ const DashboardLayout = () => {
 
   const auth = getAuth();
   const isSessionExpired = isAuthTokenExpired(auth?.token);
-  const isTenantAdmin = user?.role === "PAYMASTER" || user?.role === "ADMIN";
-  const canViewVirtualBanks = isTenantAdmin || user?.role === "BORROWER";
-  const visibleNavItems = navItems.filter((item) => {
-    if (item.path !== "/dashboard/virtual-banks") {
-      if (item.path === "/dashboard/audit-logs") return isTenantAdmin;
-      return true;
-    }
-
-    return canViewVirtualBanks;
-  });
+  const access = getRoleAccess(user?.role ?? auth?.role);
+  const visibleNavItems = navItems.filter((item) => access[item.access as keyof RoleAccess]);
+  const groupedNavItems = visibleNavItems.reduce<Record<string, typeof visibleNavItems>>((groups, item) => {
+    (groups[item.group] ??= []).push(item);
+    return groups;
+  }, {});
   
   // Decode JWT to get role and tenant info
   let decodedJwt: any = null;
@@ -80,40 +70,81 @@ const DashboardLayout = () => {
     }
   }
 
-  const roleDisplayName = decodedJwt?.role ? getRoleDisplayName(decodedJwt.role) : auth?.role || "User";
-
-  useEffect(() => {
-    if (!auth?.token || isSessionExpired) {
-      return;
-    }
-
-    const decodedToken = jwtDecode<{ exp?: number }>(auth.token);
-    if (typeof decodedToken.exp !== "number") {
-      clearAuth();
-      navigate("/auth/login", { replace: true });
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      clearAuth();
-      navigate("/auth/login", { replace: true });
-    }, Math.max(decodedToken.exp * 1000 - Date.now(), 0));
-
-    return () => window.clearTimeout(timeoutId);
-  }, [auth?.token, isSessionExpired, navigate]);
+  const roleDisplayName = roleLabel(user?.role ?? decodedJwt?.role ?? auth?.role);
 
   const redirectToLogin = () => {
     clearAuth();
+    queryClient.clear();
     navigate("/auth/login", { replace: true });
   };
 
+  useEffect(() => {
+    if (!auth?.token || isSessionExpired) return;
+
+    const checkSession = () => {
+      if (isAuthTokenExpired(auth.token) || isAuthSessionInactive()) {
+        redirectToLogin();
+        return true;
+      }
+      return false;
+    };
+
+    const scheduleInactivityCheck = () => {
+      if (inactivityTimerRef.current !== null) {
+        window.clearTimeout(inactivityTimerRef.current);
+      }
+      inactivityTimerRef.current = window.setTimeout(checkSession, AUTH_INACTIVITY_TIMEOUT_MS);
+    };
+
+    const recordActivity = () => {
+      if (checkSession()) return;
+      const now = Date.now();
+      if (now - lastActivityWriteRef.current >= 10_000) {
+        recordAuthActivity(now);
+        lastActivityWriteRef.current = now;
+        scheduleInactivityCheck();
+      }
+    };
+
+    recordAuthActivity();
+    lastActivityWriteRef.current = Date.now();
+    scheduleInactivityCheck();
+    let tokenExpiryTimeout: number | null = null;
+    try {
+      const decodedToken = jwtDecode<{ exp?: number }>(auth.token);
+      if (typeof decodedToken.exp === "number") {
+        tokenExpiryTimeout = window.setTimeout(
+          checkSession,
+          Math.max(decodedToken.exp * 1000 - Date.now(), 0),
+        );
+      }
+    } catch {
+      redirectToLogin();
+      return;
+    }
+    const intervalId = window.setInterval(checkSession, 30_000);
+    const activityEvents: Array<keyof WindowEventMap> = ["pointerdown", "keydown", "scroll", "touchstart"];
+    activityEvents.forEach((eventName) => window.addEventListener(eventName, recordActivity, { passive: true }));
+    window.addEventListener("focus", checkSession);
+    document.addEventListener("visibilitychange", checkSession);
+
+    return () => {
+      if (inactivityTimerRef.current !== null) window.clearTimeout(inactivityTimerRef.current);
+      if (tokenExpiryTimeout !== null) window.clearTimeout(tokenExpiryTimeout);
+      window.clearInterval(intervalId);
+      activityEvents.forEach((eventName) => window.removeEventListener(eventName, recordActivity));
+      window.removeEventListener("focus", checkSession);
+      document.removeEventListener("visibilitychange", checkSession);
+    };
+  }, [auth?.token, isSessionExpired, navigate, queryClient]);
+
   const handleProtectedInteraction = () => {
-    if (isAuthTokenExpired(auth?.token)) {
+    if (isAuthTokenExpired(auth?.token) || isAuthSessionInactive()) {
       redirectToLogin();
     }
   };
 
-  if (!auth?.token || isSessionExpired) {
+  if (!auth?.token || isSessionExpired || isAuthSessionInactive()) {
     clearAuth();
     return <Navigate to="/auth/login" replace />;
   }
@@ -213,22 +244,27 @@ const DashboardLayout = () => {
         </div>
 
         {/* Nav */}
-        <nav className="w-full px-4 space-y-1">
-          {visibleNavItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Link
-                key={item.label}
-                to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-colors ${
-                  isActive ? "bg-primary-foreground/20" : "hover:bg-primary-foreground/10"
-                }`}
-              >
-                <item.icon size={20} />
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="w-full px-4 space-y-5">
+          {Object.entries(groupedNavItems).map(([group, items]) => (
+            <div key={group} className="space-y-1">
+              <p className="px-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-primary-foreground/60">{group}</p>
+              {items.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.label}
+                    to={item.path}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-colors ${
+                      isActive ? "bg-primary-foreground/20" : "hover:bg-primary-foreground/10"
+                    }`}
+                  >
+                    <item.icon size={20} />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
       </aside>
 
@@ -236,7 +272,7 @@ const DashboardLayout = () => {
       <div className="flex-1 flex flex-col">
         {/* Top bar */}
         <header className="h-14 bg-card flex items-center justify-between px-6 border-b border-border">
-          <span className="paymaster-font text-muted-foreground text-xl tracking-wide">{user?.role}</span>
+          <span className="paymaster-font text-muted-foreground text-xl tracking-wide">{roleDisplayName}</span>
           <div className="flex items-center gap-4">
             <button className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground">
               <HelpCircle size={16} />
