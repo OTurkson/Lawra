@@ -22,7 +22,8 @@ public class LoanMapper {
         return Loan.builder()
                 .loanPackage(loanPackage)
                 .principalAmount(request.getPrincipalAmount())
-                .interestRate(request.getInterestRate())
+                // Package terms are authoritative; clients must not choose their own rate.
+                .interestRate(loanPackage.getInterestRate())
                 .period(request.getPeriod())
                 .borrower(borrower)
                 .build();

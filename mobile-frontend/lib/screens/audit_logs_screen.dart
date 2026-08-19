@@ -251,7 +251,7 @@ class _AuditLogsScreenState extends State<AuditLogsScreen> {
                                 _InfoRow("Actor",
                                     log.actorEmail ?? log.actorId ?? "-"),
                                 _InfoRow("Resource",
-                                    "${log.resourceType}:${log.resourceId ?? "-"}"),
+                                    log.resourceType),
                                 _InfoRow(
                                     "HTTP", "${log.httpMethod} ${log.path}"),
                               ],

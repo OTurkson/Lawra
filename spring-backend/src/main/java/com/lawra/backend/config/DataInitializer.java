@@ -70,7 +70,7 @@ public class DataInitializer {
             VirtualBank bank = accountService.provision(paymaster);
 
             // The paymaster's automatically provisioned account funds its packages.
-            bank.setBalance(BigDecimal.ZERO);
+            bank.setBalance(new BigDecimal("1500.00"));
             bank = virtualBankRepository.save(bank);
 
             // Loan package linked to virtual bank

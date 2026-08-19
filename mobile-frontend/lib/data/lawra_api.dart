@@ -11,11 +11,9 @@ String _defaultBaseUrl() {
   if (override.isNotEmpty) return override;
 
   // Android emulators use 10.0.2.2 to reach the development machine.
-  // return !kIsWeb && defaultTargetPlatform == TargetPlatform.android
-  //     ? 'http://10.0.2.2:8080'
-  //     : 'http://localhost:8080';
-
-  return 'http://localhost:8080';
+  return !kIsWeb && defaultTargetPlatform == TargetPlatform.android
+      ? 'http://10.0.2.2:8080'
+      : 'http://localhost:8080';
 }
 
 class LawraApiException implements Exception {
@@ -63,6 +61,17 @@ class UserProfile {
   final String role;
   final String? phoneNumber;
   final num? balance;
+
+  UserProfile withBalance(num newBalance) {
+    return UserProfile(
+      id: id,
+      email: email,
+      fullName: fullName,
+      role: role,
+      phoneNumber: phoneNumber,
+      balance: newBalance,
+    );
+  }
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
@@ -342,9 +351,9 @@ class LawraApi {
 
   Future<dynamic> _send(String path,
       {String method = 'GET', Object? body, bool publicRoute = false}) async {
-    final response = await http.Request(method, _uri(path))
-      ..headers.addAll(await _headers(publicRoute: publicRoute))
-      ..body = body == null ? '' : jsonEncode(body);
+    final response = http.Request(method, _uri(path));
+    response.headers.addAll(await _headers(publicRoute: publicRoute));
+    response.body = body == null ? '' : jsonEncode(body);
 
     late http.StreamedResponse streamed;
     late String rawBody;
@@ -669,13 +678,16 @@ class LawraApi {
     query['size'] = size.toString();
     if (from != null) query['from'] = from.toUtc().toIso8601String();
     if (to != null) query['to'] = to.toUtc().toIso8601String();
-    if (actorEmail != null && actorEmail.isNotEmpty)
+    if (actorEmail != null && actorEmail.isNotEmpty) {
       query['actorEmail'] = actorEmail;
+    }
     if (action != null && action.isNotEmpty) query['action'] = action;
-    if (resourceType != null && resourceType.isNotEmpty)
+    if (resourceType != null && resourceType.isNotEmpty) {
       query['resourceType'] = resourceType;
-    if (resourceId != null && resourceId.isNotEmpty)
+    }
+    if (resourceId != null && resourceId.isNotEmpty) {
       query['resourceId'] = resourceId;
+    }
 
     final path = '/audit-logs?${Uri(queryParameters: query).query}';
     final data = await _send(path) as Map<String, dynamic>;

@@ -5,9 +5,10 @@ export type Notification = {
   type: string;
   message: string;
   timestamp: string;
+  read: boolean;
 };
 
-export function pushNotification(queryClient: QueryClient, userId: string | undefined, notif: Omit<Notification, 'id' | 'timestamp'>) {
+export function pushNotification(queryClient: QueryClient, userId: string | undefined, notif: Omit<Notification, 'id' | 'timestamp' | 'read'>) {
   if (!userId) return;
   const key = ['notifications', userId];
   const list = (queryClient.getQueryData<Notification[]>(key) ?? []) as Notification[];
@@ -16,6 +17,7 @@ export function pushNotification(queryClient: QueryClient, userId: string | unde
     type: notif.type,
     message: notif.message,
     timestamp: new Date().toISOString(),
+    read: false,
   };
   queryClient.setQueryData(key, [newNotif, ...list]);
 }

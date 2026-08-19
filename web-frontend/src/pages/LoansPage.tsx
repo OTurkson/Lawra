@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchBorrowerLoans, fetchLoans, fetchRepayments, LoanSummary, LoanStatus, RepaymentSummary, repayLoan, updateLoanStatus } from "@/lib/api";
+import { fetchBorrowerLoans, fetchLoans, fetchRepayments, LoanSummary, LoanStatus, RepaymentSummary, repayLoan, updateLoanStatus, UserResponse } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import TablePaginator from "@/components/ui/TablePaginator";
 import { useToast } from "@/hooks/use-toast";
@@ -97,8 +97,22 @@ const LoansPage = () => {
 
   const repaymentMutation = useMutation({
     mutationFn: ({ id, amount }: { id: number; amount: number }) => repayLoan(id, amount),
-    onSuccess: () => {
-      setRepaymentAmounts({});
+    onSuccess: (updatedLoan, { id, amount }) => {
+      setRepaymentAmounts((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+      const replaceLoan = (loans: LoanSummary[] | undefined) =>
+        loans?.map((loan) => loan.id === updatedLoan.id ? updatedLoan : loan);
+      queryClient.setQueriesData<LoanSummary[]>({ queryKey: ["paymaster-loans"] }, replaceLoan);
+      queryClient.setQueriesData<LoanSummary[]>({ queryKey: ["borrower-loans"] }, replaceLoan);
+      queryClient.setQueriesData<UserResponse | null>(
+        { queryKey: ["current-user"] },
+        (currentUser) => currentUser
+          ? { ...currentUser, balance: Math.max(0, Number(currentUser.balance ?? 0) - amount) }
+          : currentUser,
+      );
       queryClient.invalidateQueries({ queryKey: ["paymaster-loans"] });
       queryClient.invalidateQueries({ queryKey: ["borrower-loans"] });
       queryClient.invalidateQueries({ queryKey: ["loan-repayments"] });
@@ -150,6 +164,13 @@ const LoansPage = () => {
                 const isOwnLoan = loan.borrowerId === user?.id;
                 const canPay = isOwnLoan || isManagement;
                 const amount = repaymentAmounts[loan.id] ?? "";
+                const payment = Number(amount);
+                const outstanding = Number(loan.outstandingAmount ?? 0);
+                const isValidPayment = amount.trim() !== ""
+                  && Number.isFinite(payment)
+                  && payment > 0
+                  && payment <= outstanding;
+                const exceedsOutstanding = Number.isFinite(payment) && payment > outstanding;
                 return (
                   <tr key={loan.id} className="border-b border-border">
                     {isManagement && <td className="px-3 py-3 text-muted-foreground">{loan.borrowerName ?? "-"}</td>}
@@ -167,11 +188,12 @@ const LoansPage = () => {
                             onChange={(event) => setRepaymentAmounts((current) => ({ ...current, [loan.id]: event.target.value }))}
                             inputMode="decimal"
                             placeholder="Amount"
-                            className="w-24 rounded border border-input bg-background px-2 py-1"
+                            aria-invalid={exceedsOutstanding}
+                            title={exceedsOutstanding ? "Payment exceeds the outstanding balance" : undefined}
+                            className={`w-24 rounded border bg-background px-2 py-1 ${exceedsOutstanding ? "border-destructive" : "border-input"}`}
                           />
                           <button
                             onClick={() => {
-                              const payment = Number(amount);
                               if (!Number.isFinite(payment) || payment <= 0) {
                                 toast({ title: "Invalid amount", description: "Enter a repayment amount greater than zero." });
                                 return;
@@ -182,7 +204,8 @@ const LoansPage = () => {
                               }
                               setPendingRepayment({ loan, amount: payment });
                             }}
-                            disabled={repaymentMutation.isPending || !amount}
+                            disabled={repaymentMutation.isPending || !isValidPayment}
+                            title={exceedsOutstanding ? "Payment exceeds the outstanding balance" : undefined}
                             className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground disabled:opacity-60"
                           >
                             {isOwnLoan ? "Pay" : "Pay on behalf"}
@@ -442,32 +465,58 @@ const LoansPage = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={!!pendingRepayment} onOpenChange={(open) => { if (!open) setPendingRepayment(null); }}>
+      <AlertDialog
+        open={!!pendingRepayment}
+        onOpenChange={(open) => {
+          if (!open && !repaymentMutation.isPending) setPendingRepayment(null);
+        }}
+      >
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm repayment</AlertDialogTitle>
-            <AlertDialogDescription>
-              {pendingRepayment && pendingRepayment.loan.borrowerId !== user?.id
-                ? `GHS ${pendingRepayment.amount.toFixed(2)} will be debited from your wallet and applied to ${pendingRepayment.loan.borrowerName ?? "this employee"}'s loan.`
-                : `GHS ${pendingRepayment?.amount.toFixed(2) ?? "0.00"} will be debited from your wallet and applied to your loan.`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={repaymentMutation.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={!pendingRepayment || repaymentMutation.isPending}
-              className="flex items-center justify-center gap-2"
-              onClick={() => {
-                if (!pendingRepayment) return;
-                repaymentMutation.mutate(
-                  { id: pendingRepayment.loan.id, amount: pendingRepayment.amount },
-                  { onSettled: () => setPendingRepayment(null) },
-                );
-              }}
-            >
-              {repaymentMutation.isPending ? <><Spinner size="sm" /> Paying...</> : "Confirm payment"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          {repaymentMutation.isPending ? (
+            <div className="flex flex-col items-center gap-4 py-6 text-center">
+              <Spinner size="lg" />
+              <AlertDialogHeader>
+                <AlertDialogTitle>Updating repayment</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Your payment is being securely processed. Please don&apos;t close or leave this page until it is complete.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+            </div>
+          ) : (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {pendingRepayment?.loan.borrowerId !== user?.id
+                    ? "Confirm payment on behalf"
+                    : "Confirm repayment"}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {pendingRepayment && pendingRepayment.loan.borrowerId !== user?.id
+                    ? `GHS ${pendingRepayment.amount.toFixed(2)} will be debited from your wallet and applied to ${pendingRepayment.loan.borrowerName ?? "this employee"}'s loan.`
+                    : `GHS ${pendingRepayment?.amount.toFixed(2) ?? "0.00"} will be debited from your wallet and applied to your loan.`}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={!pendingRepayment}
+                  className="flex items-center justify-center gap-2"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    if (!pendingRepayment) return;
+                    repaymentMutation.mutate(
+                      { id: pendingRepayment.loan.id, amount: pendingRepayment.amount },
+                      { onSettled: () => setPendingRepayment(null) },
+                    );
+                  }}
+                >
+                  {pendingRepayment?.loan.borrowerId !== user?.id
+                    ? "Confirm payment on behalf"
+                    : "Confirm payment"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
         </AlertDialogContent>
       </AlertDialog>
     </>

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../data/lawra_api.dart';
 import '../data/session_store.dart';
@@ -210,7 +209,7 @@ class _DashboardShellState extends State<DashboardShell> {
             addNotice: _addNotice),
       ),
     ];
-    final activeIndex = _index.clamp(0, tabs.length - 1) as int;
+    final activeIndex = _index.clamp(0, tabs.length - 1);
 
     return Scaffold(
       key: _scaffoldKey,
@@ -232,7 +231,7 @@ class _DashboardShellState extends State<DashboardShell> {
         onOpenNotifications: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => NotificationsScreen(notices: _notices),
+              builder: (_) => _NotificationsScreen(notices: _notices),
             ),
           );
         },
@@ -252,7 +251,7 @@ class _DashboardShellState extends State<DashboardShell> {
             onNotificationTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                    builder: (_) => NotificationsScreen(notices: _notices)),
+                    builder: (_) => _NotificationsScreen(notices: _notices)),
               );
             },
           ),
@@ -594,15 +593,26 @@ class _BorrowerTabState extends State<BorrowerTab> {
       return;
     }
     try {
-      await widget.api.repayLoan(loan.id, amount);
+      final updatedLoan = await widget.api.repayLoan(loan.id, amount);
+      if (!mounted) return;
+      setState(() {
+        _loans = _loans
+            .map((item) => item.id == updatedLoan.id ? updatedLoan : item)
+            .toList();
+      });
       widget.addNotice('Repayment of ${_money(amount)} submitted', type: 'repayment');
+      _showMessage('Repayment successful.');
       final currentUser = widget.currentUser;
       if (currentUser != null) {
-        widget.onCurrentUserUpdated(
-            await widget.api.fetchUserById(currentUser.id));
+        widget.onCurrentUserUpdated(currentUser.withBalance(
+            ((currentUser.balance ?? 0) - amount).clamp(0, double.infinity)));
+        try {
+          widget.onCurrentUserUpdated(
+              await widget.api.fetchUserById(currentUser.id));
+        } on Object {
+          // The repayment succeeded; this secondary refresh can be retried.
+        }
       }
-      await _refresh();
-      _showMessage('Repayment successful.');
     } on LawraApiException catch (error) {
       _showMessage(error.message);
     }
@@ -934,7 +944,7 @@ class _LenderTabState extends State<LenderTab> {
                                     return;
                                   }
 
-                                  final currentBalance = package.balance ?? 0;
+                                  final currentBalance = package.balance;
 
                                   Navigator.of(context).pop();
                                   try {
@@ -1255,16 +1265,51 @@ class _LoansTabState extends State<LoansTab> {
       _showMessage('The payment cannot exceed the outstanding balance.');
       return;
     }
+    if (!paysOwnLoan) {
+      if (!mounted) return;
+      final shouldPayOnBehalf = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Confirm payment on behalf'),
+          content: Text(
+            '${_money(amount)} will be debited from your account and applied '
+            'to ${loan.borrowerName ?? 'this employee'}\'s loan #${loan.id}.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Confirm payment'),
+            ),
+          ],
+        ),
+      );
+      if (shouldPayOnBehalf != true) return;
+    }
     try {
-      await widget.api.repayLoan(loan.id, amount);
+      final updatedLoan = await widget.api.repayLoan(loan.id, amount);
+      if (!mounted) return;
+      setState(() {
+        _loans = _loans
+            .map((item) => item.id == updatedLoan.id ? updatedLoan : item)
+            .toList();
+      });
       widget.addNotice('Repayment of ${_money(amount)} submitted', type: 'repayment');
+      _showMessage('Repayment successful.');
       final currentUser = widget.currentUser;
       if (currentUser != null) {
-        widget.onCurrentUserUpdated(
-            await widget.api.fetchUserById(currentUser.id));
+        widget.onCurrentUserUpdated(currentUser.withBalance(
+            ((currentUser.balance ?? 0) - amount).clamp(0, double.infinity)));
+        try {
+          widget.onCurrentUserUpdated(
+              await widget.api.fetchUserById(currentUser.id));
+        } on Object {
+          // The repayment succeeded; this secondary refresh can be retried.
+        }
       }
-      await _refresh();
-      _showMessage('Repayment successful.');
     } on LawraApiException catch (error) {
       _showMessage(error.message);
     }
@@ -1592,11 +1637,6 @@ class _BanksTabState extends State<BanksTab> {
         _isLoading = false;
       });
     }
-  }
-
-  bool get _isAdmin {
-    final role = _normalizedRole(widget.currentUser?.role);
-    return role == 'ADMIN';
   }
 
   bool get _canViewAllBanks {
@@ -2406,8 +2446,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 // NOTIFICATIONS SCREEN
 // ============================================================
 
-class NotificationsScreen extends StatelessWidget {
-  const NotificationsScreen({super.key, required this.notices});
+class _NotificationsScreen extends StatelessWidget {
+  const _NotificationsScreen({required this.notices});
 
   final List<_Notice> notices;
 
@@ -2824,7 +2864,7 @@ class _PackageTile extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${package.virtualBank?.name ?? '-'}'),
+            Text(package.virtualBank?.name ?? '-'),
             Text('Interest: ${package.interestRate}%'),
           ],
         ),

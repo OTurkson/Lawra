@@ -47,8 +47,20 @@ public class BorrowerService {
         UUID currentTenantId = authenticatedUserContextService.getCurrentTenantId();
         UUID currentUserId = authenticatedUserContextService.getCurrentUserId();
 
+        if (loanRequest == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Loan request is required");
+        }
+        if (loanRequest.getBorrowerId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Borrower is required");
+        }
         if (!currentUserId.equals(loanRequest.getBorrowerId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only create loans for your own account");
+        }
+        if (loanRequest.getLoanPackageId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Loan package is required");
+        }
+        if (loanRequest.getPeriod() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Loan period is required");
         }
 
         // Resolve referenced entities safely
@@ -62,6 +74,16 @@ public class BorrowerService {
 
         if (loanRequest.getPrincipalAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Principal amount must be greater than zero");
+        }
+        try {
+            loanRequest.setPrincipalAmount(
+                    loanRequest.getPrincipalAmount().setScale(2, RoundingMode.UNNECESSARY));
+        } catch (ArithmeticException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Principal amount can have at most two decimal places");
+        }
+        if (loanPackage.getInterestRate() == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Loan package interest rate is not configured");
         }
 
         if (loanPackage.getBalance() != null && loanRequest.getPrincipalAmount().compareTo(loanPackage.getBalance()) > 0) {
@@ -151,6 +173,10 @@ public class BorrowerService {
     public LoanSummaryDTO repayLoan(Long loanId, RepaymentRequestDTO request) {
         User payer = authenticatedUserContextService.getCurrentUser();
         UUID tenantId = authenticatedUserContextService.getCurrentTenantId();
+        if (payer.getTenant() == null || !tenantId.equals(payer.getTenant().getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Authenticated user does not belong to this tenant");
+        }
         Loan loan = loanRepository.findByIdAndTenantIdForRepayment(loanId, tenantId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Loan not found"));
 
@@ -158,7 +184,7 @@ public class BorrowerService {
         boolean canPayForEmployee = payer.getRole() == UserRole.PAYMASTER || payer.getRole() == UserRole.ADMIN;
         if (!paysOwnLoan && !canPayForEmployee) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "You can only repay your own loan unless you are a paymaster");
+                    "You can only repay your own loan unless you are an admin or paymaster");
         }
         if (loan.getStatus() != LoanStatus.APPROVED) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only approved loans can be repaid");
@@ -189,8 +215,11 @@ public class BorrowerService {
 
         // The person submitting the payment funds it. A paymaster payment never debits the borrower.
         accountService.debit(payer, amount);
-        LoanPackage loanPackage = loan.getLoanPackage();
-        loanPackage.setBalance(loanPackage.getBalance().add(amount));
+        LoanPackage loanPackage = loanPackageRepository
+                .findForUpdateByIdAndVirtualBank_Tenant_Id(loan.getLoanPackage().getId(), tenantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Loan package not found"));
+        BigDecimal packageBalance = loanPackage.getBalance() == null ? BigDecimal.ZERO : loanPackage.getBalance();
+        loanPackage.setBalance(packageBalance.add(amount));
         loanPackageRepository.save(loanPackage);
 
         Repayment repayment = new Repayment();

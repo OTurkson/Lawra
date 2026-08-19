@@ -28,5 +28,10 @@ public interface LoanRepository extends JpaRepository<Loan, Long> {
 	Optional<Loan> findByIdAndTenantIdForRepayment(@Param("id") Long id,
 	                                               @Param("tenantId") UUID tenantId);
 
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("select loan from Loan loan where loan.id = :id and loan.borrower.tenant.id = :tenantId")
+	Optional<Loan> findByIdAndTenantIdForDecision(@Param("id") Long id,
+	                                              @Param("tenantId") UUID tenantId);
+
 	List<Loan> findByBorrower_IdAndBorrower_Tenant_Id(UUID borrowerId, UUID tenantId);
 }

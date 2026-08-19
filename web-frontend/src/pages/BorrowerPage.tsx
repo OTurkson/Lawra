@@ -89,7 +89,7 @@ const BorrowerPage = () => {
       setPeriod("THREE_MONTHS");
       queryClient.invalidateQueries({ queryKey: ["borrower-loans"] });
       queryClient.invalidateQueries({ queryKey: ["current-user"] });
-      toast({ title: "Loan submitted", description: "Loan request has been created." });
+      toast({ title: "Loan Request Submitted", description: "Loan request has been created." });
       pushNotification(queryClient, auth?.userId, {
         type: 'loan-request',
         message: `Requested loan of Gh¢ ${Number(parseAmount(principalAmount)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} at ${interestRate}% interest`,

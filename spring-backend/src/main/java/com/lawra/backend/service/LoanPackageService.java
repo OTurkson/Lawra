@@ -71,6 +71,8 @@ public class LoanPackageService {
 	@Transactional
 	public LoanPackage create(LoanPackage loanPackage) {
 		validateLoanPackageName(loanPackage);
+		validateLoanPackageBalance(loanPackage);
+		validateInterestRate(loanPackage);
 		VirtualBank bank = resolveTenantScopedBank(loanPackage.getVirtualBank());
 		ensureCanManageBank(bank);
 		User currentUser = authenticatedUserContextService.getCurrentUser();
@@ -98,6 +100,7 @@ public class LoanPackageService {
 	public LoanPackage update(Long id, LoanPackage updated) {
 		validateLoanPackageName(updated);
 		validateLoanPackageBalance(updated);
+		validateInterestRate(updated);
 		LoanPackage existing = getByIdEntity(id);
 		ensureCanManageLoanPackage(existing);
 		User currentUser = authenticatedUserContextService.getCurrentUser();
@@ -202,6 +205,21 @@ public class LoanPackageService {
 
 	private BigDecimal nonNullBalance(BigDecimal balance) {
 		return balance != null ? balance : BigDecimal.ZERO;
+	}
+
+	private void validateInterestRate(LoanPackage loanPackage) {
+		if (loanPackage.getInterestRate() == null) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Interest rate is required");
+		}
+		if (loanPackage.getInterestRate().compareTo(BigDecimal.ZERO) < 0) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Interest rate cannot be negative");
+		}
+		try {
+			loanPackage.setInterestRate(loanPackage.getInterestRate().setScale(2, java.math.RoundingMode.UNNECESSARY));
+		} catch (ArithmeticException exception) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+					"Interest rate can have at most two decimal places");
+		}
 	}
 
 	private boolean isFundingAnotherUser(User currentUser, VirtualBank targetBank) {

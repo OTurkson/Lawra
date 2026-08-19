@@ -2,6 +2,7 @@ import { Bell } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useState, useEffect } from "react";
+import type { Notification } from "@/lib/notifications";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,10 +28,20 @@ export function NotificationsDropdown() {
   }, [user?.id, queryClient]);
 
   const recentNotifications = notifications.slice(0, 5);
-  const hasNotifications = notifications.length > 0;
+  const hasUnreadNotifications = notifications.some((notification: Notification) => !notification.read);
+
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+
+    if (open && user?.id) {
+      queryClient.setQueryData<Notification[]>(["notifications", user.id], (current = []) =>
+        current.map((notification) => ({ ...notification, read: true })),
+      );
+    }
+  };
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+    <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
@@ -38,7 +49,7 @@ export function NotificationsDropdown() {
           aria-label="View notifications"
         >
           <Bell size={20} />
-          {hasNotifications && (
+          {hasUnreadNotifications && (
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-destructive rounded-full animate-pulse" />
           )}
         </button>

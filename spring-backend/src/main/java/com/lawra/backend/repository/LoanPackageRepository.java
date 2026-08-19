@@ -1,7 +1,9 @@
 package com.lawra.backend.repository;
 
 import com.lawra.backend.model.LoanPackage;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 
 import java.util.List;
 import java.util.Optional;
@@ -17,4 +19,7 @@ public interface LoanPackageRepository extends JpaRepository<LoanPackage, Long> 
 	);
 
 	Optional<LoanPackage> findByIdAndVirtualBank_Tenant_Id(Long id, UUID tenantId);
+
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	Optional<LoanPackage> findForUpdateByIdAndVirtualBank_Tenant_Id(Long id, UUID tenantId);
 }

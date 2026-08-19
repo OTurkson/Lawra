@@ -12,7 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 
-/** Owns the single financial account assigned to every user. */
+/** Owns the single financial account assigned to every user. */ 
 @Service
 @RequiredArgsConstructor
 public class                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 AccountService {
@@ -40,7 +40,10 @@ public class                                                                    
     @Transactional
     public VirtualBank credit(User user, BigDecimal amount) {
         requirePositive(amount);
-        VirtualBank account = getAccount(user);
+        VirtualBank account = virtualBankRepository
+                .findForUpdateByCreatedBy_IdAndTenant_Id(user.getId(), user.getTenant().getId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.CONFLICT, "User account has not been provisioned"));
         account.setBalance(balanceOf(account).add(amount));
         return virtualBankRepository.save(account);
     }
@@ -48,7 +51,10 @@ public class                                                                    
     @Transactional
     public VirtualBank debit(User user, BigDecimal amount) {
         requirePositive(amount);
-        VirtualBank account = getAccount(user);
+        VirtualBank account = virtualBankRepository
+                .findForUpdateByCreatedBy_IdAndTenant_Id(user.getId(), user.getTenant().getId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.CONFLICT, "User account has not been provisioned"));
         if (balanceOf(account).compareTo(amount) < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Insufficient account balance");
         }

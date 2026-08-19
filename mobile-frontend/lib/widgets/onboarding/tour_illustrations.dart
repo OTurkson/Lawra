@@ -22,15 +22,12 @@ class _TourBackdrop extends StatelessWidget {
                 Positioned(
                   left: bar.left * constraints.maxWidth,
                   top: bar.top * constraints.maxHeight,
-                  child: Transform.rotate(
-                    angle: bar.angle,
-                    child: Container(
-                      width: bar.width,
-                      height: bar.height,
-                      decoration: BoxDecoration(
-                        color: bar.color,
-                        borderRadius: BorderRadius.circular(bar.height / 2),
-                      ),
+                  child: Container(
+                    width: bar.width,
+                    height: bar.height,
+                    decoration: BoxDecoration(
+                      color: bar.color,
+                      borderRadius: BorderRadius.circular(bar.height / 2),
                     ),
                   ),
                 ),
@@ -49,7 +46,6 @@ class _BarSpec {
     required this.width,
     required this.height,
     required this.color,
-    this.angle = 0,
   });
 
   final double left;
@@ -57,7 +53,6 @@ class _BarSpec {
   final double width;
   final double height;
   final Color color;
-  final double angle;
 }
 
 class ModerateRatesIllustration extends StatelessWidget {

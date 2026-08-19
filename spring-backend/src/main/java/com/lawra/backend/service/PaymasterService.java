@@ -58,7 +58,7 @@ public class PaymasterService {
 	public LoanSummaryDTO updateLoanStatus(Long id, LoanRequestDTO loanUpdate) {
 		UUID tenantId = authenticatedUserContextService.getCurrentTenantId();
 
-		Loan loan = loanRepository.findByIdAndBorrower_Tenant_Id(id, tenantId)
+		Loan loan = loanRepository.findByIdAndTenantIdForDecision(id, tenantId)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Loan not found"));
 
 		if (loanUpdate == null || loanUpdate.getLoanStatus() == null) {
@@ -105,17 +105,19 @@ public class PaymasterService {
 	}
 
 	private void applyApprovalEffects(Loan loan) {
-		try {
-			// Add loan principal to borrower balance
-			accountService.credit(loan.getBorrower(), loan.getPrincipalAmount());
-
-			// Deduct loan principal from loan package balance
-			BigDecimal loanPackageBalance = loan.getLoanPackage().getBalance();
-			loan.getLoanPackage().setBalance(loanPackageBalance.subtract(loan.getPrincipalAmount()));
-			loanPackageRepository.save(loan.getLoanPackage());
-		} catch (Exception e) {
-			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Problem updating balances when approving loan: " + e.getMessage());
+		var loanPackage = loanPackageRepository
+				.findForUpdateByIdAndVirtualBank_Tenant_Id(
+						loan.getLoanPackage().getId(), loan.getBorrower().getTenant().getId())
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Loan package not found"));
+		BigDecimal packageBalance = loanPackage.getBalance() == null ? BigDecimal.ZERO : loanPackage.getBalance();
+		if (packageBalance.compareTo(loan.getPrincipalAmount()) < 0) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+					"Loan package no longer has enough funds to approve this loan");
 		}
+
+		accountService.credit(loan.getBorrower(), loan.getPrincipalAmount());
+		loanPackage.setBalance(packageBalance.subtract(loan.getPrincipalAmount()));
+		loanPackageRepository.save(loanPackage);
 	}
 
 }

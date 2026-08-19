@@ -84,8 +84,7 @@ export function isAuthTokenExpired(token: string | null | undefined, now = Date.
     }
 
     return decodedToken.exp * 1000 <= now;
-  } catch (error) {
-    console.error("Failed to inspect auth token", error);
+  } catch {
     return true;
   }
 }
