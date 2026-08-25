@@ -42,10 +42,10 @@ const LogoutPage = () => {
             {isLoading ? (
               <>
                 <Spinner size="sm" />
-                Logging out...
+                Signing out...
               </>
             ) : (
-              "Logout"
+              "Sign Out"
             )}
           </button>
           <Link

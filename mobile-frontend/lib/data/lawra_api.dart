@@ -10,6 +10,7 @@ String _defaultBaseUrl() {
   const override = String.fromEnvironment('BASE_URL');
   if (override.isNotEmpty) return override;
 
+ 
   // Android emulators use 10.0.2.2 to reach the development machine.
   return !kIsWeb && defaultTargetPlatform == TargetPlatform.android
       ? 'http://10.0.2.2:8080'
